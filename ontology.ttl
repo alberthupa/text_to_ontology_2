@@ -1,0 +1,213 @@
+@prefix class: <http://example.org/text-ontology/class/> .
+@prefix entity: <http://example.org/text-ontology/entity/> .
+@prefix fact: <http://example.org/text-ontology/fact/> .
+@prefix onto: <http://example.org/text-ontology/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix relation: <http://example.org/text-ontology/relation/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+onto:EntityShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:path skos:prefLabel ] ;
+    sh:targetClass onto:Entity .
+
+entity:donald-trump a onto:Entity,
+        class:person,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Donald Trump" ;
+    onto:kind "Person" ;
+    relation:planned-summit-with entity:xi-jinping ;
+    rdfs:comment "US leader referenced as a party to a possible future summit with Xi" ;
+    skos:altLabel "Trump" ;
+    skos:prefLabel "Donald Trump" .
+
+entity:east-asia a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "East Asia" ;
+    onto:kind "Location" ;
+    rdfs:comment "Region affected by competition with China" ;
+    skos:prefLabel "East Asia" .
+
+entity:iran a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Iran" ;
+    fact:affects "global fuel prices" ;
+    onto:kind "Location" ;
+    rdfs:comment "Country involved in conflict affecting global fuel prices" ;
+    skos:prefLabel "Iran" .
+
+entity:nvidia a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Nvidia" ;
+    fact:gray-market-routing-case "attempts to move large volumes of servers containing restricted Nvidia GPUs toward Chinese buyers" ;
+    onto:kind "Organization" ;
+    relation:restricted-gpus-sought-by entity:china ;
+    rdfs:comment "Chipmaker whose restricted GPUs were reportedly targeted for routing to Chinese buyers via servers" ;
+    skos:prefLabel "Nvidia" .
+
+entity:paris a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Paris" ;
+    fact:diplomatic-talks-purpose "preparing a future Trump-Xi summit while seeking managed stability" ;
+    onto:kind "Location" ;
+    rdfs:comment "City where officials held talks to prepare a future Trump-Xi summit" ;
+    skos:prefLabel "Paris" .
+
+entity:strait-of-hormuz a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Strait of Hormuz" ;
+    fact:shapes "oil supply" ;
+    onto:kind "Location" ;
+    rdfs:comment "Strategic chokepoint for oil supply" ;
+    skos:prefLabel "Strait of Hormuz" .
+
+entity:united-states a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "United States" ;
+    fact:export-control-effect "limits China's access to advanced chips but redirects supply more than it eliminates demand" ;
+    onto:kind "Location" ;
+    relation:competes-with entity:china ;
+    relation:coordinates-with entity:european-union ;
+    relation:restricts-chip-exports-to entity:china ;
+    rdfs:comment "Country affected by competition with China" ;
+    skos:altLabel "US",
+        "Washington" ;
+    skos:prefLabel "United States" .
+
+entity:world-economic-forum a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "World Economic Forum" ;
+    fact:ranks "geoeconomic confrontation as top near-term risk" ;
+    onto:kind "Organization" ;
+    rdfs:comment "International organization that publishes global risks work" ;
+    skos:prefLabel "World Economic Forum" .
+
+fact:advanced-chip-demand a owl:DatatypeProperty ;
+    rdfs:label "advanced chip demand" .
+
+fact:affects a owl:DatatypeProperty ;
+    rdfs:label "affects" .
+
+fact:critical-minerals-position a owl:DatatypeProperty ;
+    rdfs:label "critical minerals position" .
+
+fact:diplomatic-talks-purpose a owl:DatatypeProperty ;
+    rdfs:label "diplomatic talks purpose" .
+
+fact:export-control-effect a owl:DatatypeProperty ;
+    rdfs:label "export control effect" .
+
+fact:gray-market-routing-case a owl:DatatypeProperty ;
+    rdfs:label "gray market routing case" .
+
+fact:overcapacity-sectors a owl:DatatypeProperty ;
+    rdfs:label "overcapacity sectors" .
+
+fact:policy-framing a owl:DatatypeProperty ;
+    rdfs:label "policy framing" .
+
+fact:ranks a owl:DatatypeProperty ;
+    rdfs:label "ranks" .
+
+fact:shapes a owl:DatatypeProperty ;
+    rdfs:label "shapes" .
+
+onto:ontology a owl:Ontology .
+
+relation:affects a owl:ObjectProperty ;
+    rdfs:label "affects" .
+
+relation:competes-with a owl:ObjectProperty ;
+    rdfs:label "competes with" .
+
+relation:coordinates-with a owl:ObjectProperty ;
+    rdfs:label "coordinates with" .
+
+relation:planned-summit-with a owl:ObjectProperty ;
+    rdfs:label "planned summit with" .
+
+relation:restricted-gpus-sought-by a owl:ObjectProperty ;
+    rdfs:label "restricted GPUs sought by" .
+
+relation:restricts-chip-exports-to a owl:ObjectProperty ;
+    rdfs:label "restricts chip exports to" .
+
+entity:europe a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Europe" ;
+    fact:policy-framing "Chinese industrial overcapacity treated as economic security, not only competition" ;
+    onto:kind "Location" ;
+    rdfs:comment "Region affected by competition with China" ;
+    skos:prefLabel "Europe" .
+
+entity:xi-jinping a onto:Entity,
+        class:person,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Xi Jinping" ;
+    onto:kind "Person" ;
+    rdfs:comment "Chinese leader referenced as a party to a possible future summit with Trump" ;
+    skos:altLabel "Xi" ;
+    skos:prefLabel "Xi Jinping" .
+
+class:person a owl:Class ;
+    rdfs:label "Person" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:european-union a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "European Union" ;
+    onto:kind "Organization" ;
+    rdfs:comment "Political union coordinating with Washington on critical minerals and treating Chinese overcapacity as economic security" ;
+    skos:altLabel "Brussels",
+        "EU" ;
+    skos:prefLabel "European Union" .
+
+class:organization a owl:Class ;
+    rdfs:label "Organization" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:china a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "China" ;
+    fact:advanced-chip-demand "Chinese technology firms continued large orders for high-end processors for 2026 delivery" ;
+    fact:affects "trade, industrial policy, and defense planning across United States, Europe, and East Asia" ;
+    fact:critical-minerals-position "rare earths and related inputs remain concentrated in Chinese-controlled supply chains" ;
+    fact:overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
+    onto:kind "Location" ;
+    relation:affects entity:europe,
+        entity:european-union ;
+    rdfs:comment "Country involved in competition affecting trade and defense planning" ;
+    skos:prefLabel "China" .
+
+class:location a owl:Class ;
+    rdfs:label "Location" ;
+    rdfs:subClassOf onto:Entity .
+
+onto:Entity a owl:Class ;
+    rdfs:label "Entity" .
+
