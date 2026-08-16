@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>text_to_ontology — App Map</title>
+<style>
+  :root {
+    --bg: #0e1420;
+    --panel: #161f31;
+    --panel-2: #1c2740;
+    --border: #2a3854;
+    --text: #e7edf7;
+    --muted: #93a2bf;
+    --accent: #5aa9ff;
+    --accent-2: #7ee0c0;
+    --warn: #ffc46b;
+    --rose: #ff7aa2;
+    --violet: #b39cff;
+    --code: #111827;
+    --code-text: #d6e2f5;
+    --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #1b2a4a 0%, var(--bg) 55%);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 28px 22px 80px; }
+
+  /* ---------- header ---------- */
+  header.hero {
+    padding: 26px 0 18px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 26px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 8px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 40px;
+    line-height: 1.1;
+    font-weight: 700;
+    letter-spacing: -.02em;
+  }
+  h1 .arrow { color: var(--accent-2); }
+  .subtitle { color: var(--muted); margin: 10px 0 0; max-width: 780px; font-size: 16px; }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .pill {
+    font-family: var(--mono); font-size: 12px;
+    border: 1px solid var(--border); background: var(--panel);
+    padding: 4px 10px; border-radius: 999px; color: var(--muted);
+  }
+  .pill b { color: var(--text); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  section { margin: 44px 0; }
+  h2 {
+    font-size: 24px; letter-spacing: -.01em;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  h2 .num {
+    font-family: var(--mono); font-size: 13px; color: var(--bg);
+    background: var(--accent); border-radius: 7px; padding: 2px 8px; font-weight: 700;
+  }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p.lead { color: var(--muted); max-width: 900px; }
+
+  /* ---------- one-liner ---------- */
+  .oneliner {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-2);
+    border-radius: 12px; padding: 20px 22px; font-size: 17px;
+  }
+  .oneliner b { color: var(--accent-2); }
+
+  /* ---------- flow diagram ---------- */
+  .diagram {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px; overflow-x: auto;
+  }
+  .diagram svg { display: block; margin: 0 auto; min-width: 960px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* ---------- module cards ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; position: relative; transition: transform .12s ease, border-color .12s ease;
+  }
+  .card:hover { transform: translateY(-2px); border-color: #3b4f75; }
+  .card h3 { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 15px; }
+  .badge {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+    padding: 2px 7px; border-radius: 6px; font-weight: 700;
+  }
+  .badge.write { background: rgba(90,169,255,.15); color: var(--accent); border: 1px solid rgba(90,169,255,.4); }
+  .badge.read  { background: rgba(126,224,192,.14); color: var(--accent-2); border: 1px solid rgba(126,224,192,.4); }
+  .badge.io    { background: rgba(255,196,107,.14); color: var(--warn); border: 1px solid rgba(255,196,107,.4); }
+  .badge.test  { background: rgba(179,156,255,.14); color: var(--violet); border: 1px solid rgba(179,156,255,.4); }
+  .badge.data  { background: rgba(255,122,162,.14); color: var(--rose); border: 1px solid rgba(255,122,162,.4); }
+
+  .card .what { color: var(--muted); font-size: 13.5px; margin: 8px 0 12px; min-height: 40px; }
+  .tag { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  ul.members { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  ul.members li { display: flex; gap: 8px; align-items: baseline; font-size: 13.5px; }
+  .fn {
+    font-family: var(--mono); color: var(--accent-2); white-space: nowrap; font-size: 13px;
+  }
+  .const { font-family: var(--mono); color: var(--warn); white-space: nowrap; font-size: 13px; }
+  .desc { color: var(--muted); }
+
+  /* constants block */
+  .const-block {
+    margin: 10px 0 0; padding: 10px 12px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px;
+  }
+  .const-block .tag { display: block; margin-bottom: 6px; }
+
+  /* output / use block */
+  .outcome {
+    margin: 10px 0 0; padding: 10px 12px;
+    background: rgba(126,224,192,.07);
+    border: 1px solid rgba(126,224,192,.28); border-left: 3px solid var(--accent-2);
+    border-radius: 8px; font-size: 12.5px;
+  }
+  .outcome .tag { display: block; margin-bottom: 7px; color: var(--accent-2); }
+  .outcome .line { margin: 0 0 7px; color: #cfe4da; }
+  .outcome .line:last-child { margin-bottom: 0; }
+  .outcome .line b { color: var(--accent-2); }
+  .outcome code { color: var(--text); }
+
+  /* ---------- callouts ---------- */
+  .callout {
+    background: rgba(255,196,107,.06); border: 1px solid rgba(255,196,107,.28);
+    border-left: 4px solid var(--warn); border-radius: 10px; padding: 14px 16px;
+    margin: 18px 0; font-size: 14px; color: #d9cfae;
+  }
+  .callout b { color: var(--warn); }
+  .callout.green { background: rgba(126,224,192,.06); border-color: rgba(126,224,192,.28); border-left-color: var(--accent-2); color: #bfe6d6; }
+  .callout.green b { color: var(--accent-2); }
+
+  /* ---------- data table ---------- */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .two-col { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  td.mono { font-family: var(--mono); font-size: 12.5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-family: var(--mono); font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; }
+
+  /* ---------- file tree ---------- */
+  .tree { background: var(--code); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; overflow-x: auto; }
+  .tree pre { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--code-text); }
+  .tree .dir { color: var(--accent); }
+  .tree .py { color: var(--accent-2); }
+  .tree .data { color: var(--rose); }
+  .tree .test { color: var(--violet); }
+  .tree .txt { color: var(--muted); }
+  .tree .comment { color: #5b6b85; }
+
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; font-family: var(--mono); }
+
+  /* back-to-top nav */
+  nav.toc { position: sticky; top: 0; z-index: 10; background: rgba(14,20,32,.9); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border); }
+  nav.toc .inner { max-width: 1160px; margin: 0 auto; display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 22px; }
+  nav.toc a { font-family: var(--mono); font-size: 12.5px; color: var(--muted); padding: 4px 10px; border-radius: 7px; }
+  nav.toc a:hover { color: var(--text); background: var(--panel-2); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="inner">
+    <a href="#overview">1 · Overview</a>
+    <a href="#flow">2 · Data flow</a>
+    <a href="#pipeline">3 · Run pipeline</a>
+    <a href="#tools">4 · Read-only tools</a>
+    <a href="#data">5 · Graph content</a>
+    <a href="#tests">6 · Tests</a>
+    <a href="#tree">7 · File tree</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Code map · reconstructed from source only</p>
+    <h1>text_to_ontology<span class="arrow"> →</span> ontology.ttl</h1>
+    <p class="subtitle">
+      A deliberately small pipeline that reads text files, asks an LLM to extract
+      <b>entities</b>, <b>relations</b>, and literal <b>facts</b>, then merges them into
+      a single RDF/OWL/SHACL/SKOS Turtle graph. This page maps every file, class,
+      function, and constant in the repository.
+    </p>
+    <div class="pill-row">
+      <span class="pill">Python 3 · <b>11 source files</b></span>
+      <span class="pill">depends on <b>rdflib</b> only</span>
+      <span class="pill">LLM: <b>OpenRouter</b> (Pareto router)</span>
+      <span class="pill">output: <b>ontology.ttl</b></span>
+      <span class="pill"><b>9</b> test files · <b>100+</b> cases</span>
+    </div>
+  </header>
+
+  <!-- 1. OVERVIEW -->
+  <section id="overview">
+    <h2><span class="num">1</span> What this app is, in one sentence</h2>
+    <p class="lead">The repository splits into three layers that mirror its history and its plan:</p>
+    <div class="oneliner">
+      <b>Run pipeline</b> — the code <code>ontology.py</code> actually executes to build the graph —
+      plus a set of <b>read-only tools</b> that derive smaller views of an existing graph
+      (<i>partition → skeleton / patterns</i>), which the pipeline does <b>not</b> call yet.
+    </div>
+
+    <div class="two-col" style="margin-top:16px;">
+      <div class="card">
+        <h3><span class="badge write">write path</span> the run pipeline</h3>
+        <p class="what">Executed when you run the program. Opens/creates the graph, loops over source files, asks the LLM, merges the answer, saves.</p>
+        <ul class="members">
+          <li><span class="fn">ontology.py</span><span class="desc">CLI + run loop</span></li>
+          <li><span class="fn">ingest_sources.py</span><span class="desc">find &amp; read sources</span></li>
+          <li><span class="fn">source_parse.py</span><span class="desc">build the prompt</span></li>
+          <li><span class="fn">llm.py</span><span class="desc">OpenRouter client</span></li>
+          <li><span class="fn">entity_lookup.py</span><span class="desc">resolve existing entities</span></li>
+          <li><span class="fn">graph_merge.py</span><span class="desc">write results into graph</span></li>
+          <li><span class="fn">graph_management.py</span><span class="desc">open / seed / save</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="badge read">read path</span> derived views (unwired)</h3>
+        <p class="what">Read-only tools that generalize an existing graph. None is imported by the pipeline; they are the “Proposal 2” layer.</p>
+        <ul class="members">
+          <li><span class="fn">graph_partition.py</span><span class="desc">split into schema / instance / support</span></li>
+          <li><span class="fn">graph_skeleton.py</span><span class="desc">compact class &amp; property core</span></li>
+          <li><span class="fn">graph_patterns.py</span><span class="desc">empirical class→property→range patterns</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. FLOW -->
+  <section id="flow">
+    <h2><span class="num">2</span> Data flow</h2>
+    <div class="diagram">
+      <svg width="1120" height="360" viewBox="0 0 1120 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#5aa9ff"/>
+          </marker>
+          <marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7ee0c0"/>
+          </marker>
+        </defs>
+
+        <!-- write path boxes -->
+        <g font-family="ui-monospace, Menlo, monospace">
+          <rect x="10" y="30" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="20" y="52" fill="#e7edf7" font-size="13">source (file/dir)</text>
+          <text x="20" y="72" fill="#93a2bf" font-size="12">+ graph path</text>
+
+          <rect x="200" y="30" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="210" y="50" fill="#e7edf7" font-size="13">ontology.py</text>
+          <text x="210" y="70" fill="#93a2bf" font-size="12">main() run loop</text>
+
+          <rect x="390" y="30" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="400" y="50" fill="#e7edf7" font-size="13">ingest_sources</text>
+          <text x="400" y="70" fill="#93a2bf" font-size="12">find &amp; read text</text>
+
+          <rect x="580" y="30" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="590" y="50" fill="#e7edf7" font-size="13">source_parse</text>
+          <text x="590" y="70" fill="#93a2bf" font-size="12">make_prompt()</text>
+
+          <rect x="770" y="30" width="150" height="58" rx="10" fill="#1c2740" stroke="#ffc46b"/>
+          <text x="780" y="50" fill="#e7edf7" font-size="13">llm.py</text>
+          <text x="780" y="70" fill="#93a2bf" font-size="12">ask_llm() → OpenRouter</text>
+
+          <rect x="580" y="150" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="590" y="170" fill="#e7edf7" font-size="13">entity_lookup</text>
+          <text x="590" y="190" fill="#93a2bf" font-size="12">identify_entity()</text>
+
+          <rect x="770" y="150" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="780" y="170" fill="#e7edf7" font-size="13">graph_merge</text>
+          <text x="780" y="190" fill="#93a2bf" font-size="12">merge_into_graph()</text>
+
+          <rect x="960" y="150" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="970" y="170" fill="#e7edf7" font-size="13">graph_management</text>
+          <text x="970" y="190" fill="#93a2bf" font-size="12">open / save_graph()</text>
+
+          <rect x="960" y="30" width="150" height="58" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
+          <text x="970" y="50" fill="#e7edf7" font-size="13">graph_management</text>
+          <text x="970" y="70" fill="#93a2bf" font-size="12">open_graph()</text>
+
+          <rect x="870" y="250" width="240" height="58" rx="10" fill="#16283a" stroke="#7ee0c0" stroke-width="2"/>
+          <text x="895" y="274" fill="#7ee0c0" font-size="14" font-weight="bold">ontology.ttl</text>
+          <text x="895" y="294" fill="#93a2bf" font-size="12">Turtle graph (169 triples)</text>
+
+          <!-- arrows write path -->
+          <line x1="160" y1="59" x2="198" y2="59" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="350" y1="59" x2="388" y2="59" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="540" y1="59" x2="578" y2="59" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="730" y1="59" x2="768" y2="59" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="920" y1="59" x2="958" y2="59" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="845" y1="88" x2="845" y2="148" stroke="#ffc46b" marker-end="url(#arr)"/>
+          <line x1="730" y1="179" x2="768" y2="179" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="920" y1="179" x2="958" y2="179" stroke="#5aa9ff" marker-end="url(#arr)"/>
+          <line x1="1035" y1="208" x2="1035" y2="248" stroke="#7ee0c0" marker-end="url(#arrg)"/>
+
+          <!-- read path -->
+          <text x="20" y="286" fill="#7ee0c0" font-size="13" font-weight="bold">read-only derivation (not wired):</text>
+          <line x1="300" y1="279" x2="380" y2="279" stroke="#7ee0c0" marker-end="url(#arrg)"/>
+
+          <rect x="385" y="250" width="160" height="58" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="395" y="270" fill="#e7edf7" font-size="13">graph_partition</text>
+          <text x="395" y="290" fill="#93a2bf" font-size="12">partition_graph()</text>
+
+          <rect x="585" y="250" width="160" height="58" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="595" y="270" fill="#e7edf7" font-size="13">graph_skeleton</text>
+          <text x="595" y="290" fill="#93a2bf" font-size="12">create_graph_skeleton()</text>
+
+          <rect x="585" y="318" width="160" height="40" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="595" y="343" fill="#e7edf7" font-size="13">graph_patterns</text>
+
+          <line x1="545" y1="279" x2="583" y2="279" stroke="#7ee0c0" marker-end="url(#arrg)"/>
+          <line x1="665" y1="308" x2="665" y2="316" stroke="#7ee0c0" marker-end="url(#arrg)"/>
+
+          <text x="20" y="330" fill="#93a2bf" font-size="12">partition → { schema · instance · support }  ·  skeleton ← schema  ·  patterns ← schema + instance</text>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><i class="swatch" style="background:#5aa9ff"></i> write pipeline module</span>
+        <span><i class="swatch" style="background:#7ee0c0"></i> read-only tool / output</span>
+        <span><i class="swatch" style="background:#ffc46b"></i> external LLM boundary</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. RUN PIPELINE MODULES -->
+  <section id="pipeline">
+    <h2><span class="num">3</span> The run pipeline — module by module</h2>
+    <p class="lead">The order below is the order the code imports and calls it. Every arrow in the diagram above is an import or a call across these files.</p>
+
+    <div class="grid">
+
+      <div class="card">
+        <h3><span class="badge write">entry</span> ontology.py</h3>
+        <p class="what">The command line and the run loop. Parses arguments, opens the graph, iterates files, and prints progress.</p>
+        <ul class="members">
+          <li><span class="fn">main()</span><span class="desc">argparse → open_graph → find_text_files → loop { read → model_name → parse_source → merge_into_graph → save_graph } → summary</span></li>
+        </ul>
+        <div class="const-block"><span class="tag">details</span>
+          args: <b>source</b> (Path, required), <b>graph</b> (Path, default <code>ontology.ttl</code>). Catches <code>RuntimeError</code>/<code>OSError</code> → exit 1. Skips blank files.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">io</span> ingest_sources.py</h3>
+        <p class="what">Finds and reads the source material before anything is parsed.</p>
+        <ul class="members">
+          <li><span class="fn">find_text_files(source, graph_path)</span><span class="desc">direct file → as-is; directory → recursive, sorted, extension-filtered, graph excluded</span></li>
+          <li><span class="fn">read_source(path)</span><span class="desc">utf-8 with <code>errors="replace"</code></span></li>
+          <li><span class="const">TEXT_FILES</span><span class="desc">{.txt .md .rst .csv .json .jsonl .yaml .yml .xml .html .log}</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">prompt</span> source_parse.py</h3>
+        <p class="what">Turns one source text into a strictly-shaped JSON prompt and returns the model's answer.</p>
+        <ul class="members">
+          <li><span class="fn">make_prompt(text, graph)</span><span class="desc">embeds source + <code>entity_catalog</code> + existing property labels + the JSON contract</span></li>
+          <li><span class="fn">parse_source(text, graph)</span><span class="desc"><code>ask_llm(make_prompt(...))</code></span></li>
+        </ul>
+        <div class="const-block"><span class="tag">JSON contract the LLM must return</span>
+          <code>entities[]</code> {id, name, kind, description, aliases[], existing_id} ·
+          <code>relations[]</code> {subject, predicate, object} ·
+          <code>facts[]</code> {subject, predicate, value}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">llm</span> llm.py</h3>
+        <p class="what">Tiny stdlib OpenRouter client — no SDK, just <code>urllib</code>.</p>
+        <ul class="members">
+          <li><span class="fn">load_env(path)</span><span class="desc">parse <code>.env</code> KEY=value lines into <code>os.environ</code> (setdefault)</span></li>
+          <li><span class="fn">model_name()</span><span class="desc">read <code>OPENROUTER_MODEL</code> or default</span></li>
+          <li><span class="fn">ask_llm(prompt)</span><span class="desc">POST to chat/completions, temp 0, returns parsed JSON (also strips ```fences```)</span></li>
+          <li><span class="const">DEFAULT_MODEL</span><span class="desc">"openrouter/pareto-code:nitro"</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">lookup</span> entity_lookup.py</h3>
+        <p class="what">Decides whether one parsed entity is already in the graph (the resolution fallback for the LLM's guess).</p>
+        <ul class="members">
+          <li><span class="fn">identity_key(text)</span><span class="desc">NFKD → ascii → lowercase, strip non a-z0-9</span></li>
+          <li><span class="fn">entity_catalog(graph)</span><span class="desc">list of {id, names, kind, description} for every <code>onto:Entity</code></span></li>
+          <li><span class="fn">identify_entity(entity, catalog)</span><span class="desc">① <code>existing_id</code> ② unique exact name+kind ③ unique close spelling (≥0.96)</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">merge</span> graph_merge.py</h3>
+        <p class="what">Writes one parsed result into the canonical graph. Returns the four counts printed by the CLI.</p>
+        <ul class="members">
+          <li><span class="fn">slug(text)</span><span class="desc">URI-safe identifier ("Acme Corp." → <code>acme-corp</code>)</span></li>
+          <li><span class="fn">label(text)</span><span class="desc">camelCase / snake_case → readable ("worksFor" → "works For")</span></li>
+          <li><span class="fn">new_entity_uri(graph, name)</span><span class="desc">slug + numeric suffix until unused</span></li>
+          <li><span class="fn">merge_into_graph(graph, data)</span><span class="desc">merge entities → relations → facts; returns <code>(new, resolved, relations, facts)</code></span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">lifecycle</span> graph_management.py</h3>
+        <p class="what">Open, seed, name, and save the one canonical Turtle graph; owns the URI namespaces.</p>
+        <ul class="members">
+          <li><span class="fn">bind(graph)</span><span class="desc">bind the 10 prefixes</span></li>
+          <li><span class="fn">open_graph(path)</span><span class="desc">parse existing, else seed base ontology + SHACL shape</span></li>
+          <li><span class="fn">save_graph(graph, path)</span><span class="desc">serialize Turtle</span></li>
+        </ul>
+        <div class="const-block"><span class="tag">namespaces</span>
+          <code>BASE</code>, <code>ONTO</code>, <code>ENTITY</code>, <code>CLASS</code>, <code>RELATION</code>, <code>FACT</code> — all under <code>http://example.org/text-ontology/</code>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>What a merged entity looks like.</b> Every new entity is typed
+      <code>onto:Entity</code> + <code>owl:NamedIndividual</code> + <code>skos:Concept</code> + a
+      <code>class:&lt;Kind&gt;</code>; the Kind class is auto-declared as an <code>owl:Class</code>
+      subclass of <code>onto:Entity</code>. Relations become <code>relation:*</code>
+      <code>owl:ObjectProperty</code>s; facts become <code>fact:*</code> <code>owl:DatatypeProperty</code>s.
+    </div>
+  </section>
+
+  <!-- 4. READ-ONLY TOOLS -->
+  <section id="tools">
+    <h2><span class="num">4</span> Read-only tools — deriving smaller views</h2>
+    <p class="lead">These generalize an existing graph without ever writing to it. They are the “Proposal 2” layer from the repo's notes and are <b>not</b> called by the pipeline.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h3><span class="badge read">partition</span> graph_partition.py</h3>
+        <p class="what">Splits one source graph into <b>schema</b>, <b>instance</b>, and <b>support</b> views. Every triple lands in exactly one view (lossless, disjoint, read-only).</p>
+        <ul class="members">
+          <li><span class="fn">owned_nodes(graph, root)</span><span class="desc">root + reachable blank nodes</span></li>
+          <li><span class="fn">support_roles(graph)</span><span class="desc">ontology metadata + SHACL shapes</span></li>
+          <li><span class="fn">restriction_roles(graph)</span><span class="desc">blank-node OWL restrictions</span></li>
+          <li><span class="fn">schema_roles(graph, restrictions)</span><span class="desc">declared/axiom-named schema resources</span></li>
+          <li><span class="fn">instance_roles(graph, schema)</span><span class="desc">individuals typed by class/metatype</span></li>
+          <li><span class="fn">partition_graph(source_graph)</span><span class="desc">→ <code>(schema, instance, support)</code></span></li>
+          <li><span class="fn">choose_view(triple, …)</span><span class="desc">classify one triple by decreasing certainty</span></li>
+        </ul>
+        <div class="const-block"><span class="tag">sets</span>
+          <code>SCHEMA_TYPES</code> · <code>SUPPORT_TYPES</code> · <code>SCHEMA_AXIOMS</code> · <code>ANNOTATIONS</code> · <code>RESTRICTION_TARGETS</code>
+        </div>
+        <div class="outcome">
+          <span class="tag">output &amp; how it's used</span>
+          <p class="line"><b>Output:</b> three <code>rdflib.Graph</code>s returned as a tuple — <code>schema</code> (TBox), <code>instance</code> (ABox), <code>support</code> (ontology header + SHACL shapes) — each with the source prefixes bound. Lossless and disjoint: every source triple appears in exactly one view.</p>
+          <p class="line"><b>Use:</b> the first step of the “separate TBox/ABox” workflow. Feed <code>schema</code> to the skeleton and patterns tools, feed <code>instance</code> to the patterns tool, and keep <code>support</code> (metadata + constraints) isolated so it never pollutes the class/property view.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge read">skeleton</span> graph_skeleton.py</h3>
+        <p class="what">Copies only the explicit structural core (classes, object/datatype properties, subclass/domain/range, labels, supported restrictions) into a smaller graph. <b>No inference.</b></p>
+        <ul class="members">
+          <li><span class="fn">supported_restriction(schema_graph, node)</span><span class="desc">a complete supported restriction, or None</span></li>
+          <li><span class="fn">structural_triples(schema_graph)</span><span class="desc">retained declarations + axioms + named resources</span></li>
+          <li><span class="fn">create_graph_skeleton(schema_graph)</span><span class="desc">→ compact graph, subset of input</span></li>
+        </ul>
+        <div class="const-block"><span class="tag">sets</span>
+          <code>SKELETON_TYPES</code> · <code>NAMED_AXIOMS</code> · <code>ANNOTATIONS</code> · <code>SUPPORTED_CONSTRAINTS</code> (someValuesFrom, allValuesFrom, hasValue, cardinality×3)
+        </div>
+        <div class="outcome">
+          <span class="tag">output &amp; how it's used</span>
+          <p class="line"><b>Output:</b> one compact <code>rdflib.Graph</code> holding only the explicit structural core — class/property declarations, <code>subClassOf</code>/<code>domain</code>/<code>range</code> axioms, labels &amp; definitions, and complete supported OWL restrictions. Always a subset of the input schema; nothing is inferred.</p>
+          <p class="line"><b>Use:</b> the “semantic skeleton” / first generalization. It is the small, individuals-free schema you can hand to an LLM or agent as context, or the input to OWL module extraction — just <code>Class →property→ Class</code> structure without the data noise.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge read">patterns</span> graph_patterns.py</h3>
+        <p class="what">Summarizes how instance data actually uses its properties — <i>observations, not axioms</i>. Produces class→property→range records with evidence.</p>
+        <ul class="members">
+          <li><span class="fn">eligible(predicate)</span><span class="desc">domain predicate vs. modeling metadata</span></li>
+          <li><span class="fn">ancestors(schema_graph, class_)</span><span class="desc">explicit <code>subClassOf</code> closure</span></li>
+          <li><span class="fn">usable_classes(…)</span><span class="desc">most specific domain classes (drops metatypes)</span></li>
+          <li><span class="fn">subject_classes(…)</span><span class="desc">classes to report a subject under</span></li>
+          <li><span class="fn">object_ranges(…)</span><span class="desc">(kind, range) pairs: class / datatype / unknown</span></li>
+          <li><span class="fn">class_populations(…)</span><span class="desc">distinct individuals per class</span></li>
+          <li><span class="fn">observed_relationships(…)</span><span class="desc">→ sorted list of pattern records</span></li>
+          <li><span class="fn">pattern_record(key, counts, population)</span><span class="desc">occurrences, distinct subjects, coverage, cardinality min/median/max</span></li>
+        </ul>
+        <div class="const-block"><span class="tag">sets</span>
+          <code>METATYPES</code> · <code>STRUCTURAL</code> · <code>EXCLUDED</code> (excludes <code>onto:kind</code>)
+        </div>
+        <div class="outcome">
+          <span class="tag">output &amp; how it's used</span>
+          <p class="line"><b>Output:</b> a sorted Python <code>list[dict]</code> — one record per observed class→property→range pattern with <code>subject_class</code>, <code>predicate</code>, <code>range_kind</code> (class / datatype / unknown), <code>range</code>, <code>occurrences</code>, <code>distinct_subjects</code>, <code>class_population</code>, <code>coverage</code>, and <code>cardinality_min/median/max</code>.</p>
+          <p class="line"><b>Use:</b> empirical schema induction. See what the data actually does (e.g. “Person —works for→ Organization ×18, coverage 0.5”), rank by coverage/frequency, fill in missing <code>domain</code>/<code>range</code>, or turn high-coverage patterns into SHACL shapes.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin:34px 0 14px;">How the three compose — what originates from what</h3>
+    <p class="lead">
+      They are not three independent analyses; they are a <b>two-stage pipeline</b>.
+      The merged graph is the single origin. <code>partition_graph()</code> is the only
+      tool that reads it, and it produces the two inputs (<code>schema</code> + <code>instance</code>)
+      that the other two tools consume — each tool takes a different slice of that output.
+    </p>
+
+    <div class="diagram" style="margin-top:14px;">
+      <svg width="1120" height="360" viewBox="0 0 1120 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrg2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#7ee0c0"/>
+          </marker>
+          <marker id="arrb2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#5aa9ff"/>
+          </marker>
+        </defs>
+        <g font-family="ui-monospace, Menlo, monospace">
+
+          <!-- origin -->
+          <rect x="420" y="14" width="280" height="50" rx="10" fill="#16283a" stroke="#5aa9ff" stroke-width="2"/>
+          <text x="560" y="35" fill="#e7edf7" font-size="13.5" font-weight="bold" text-anchor="middle">ontology.ttl</text>
+          <text x="560" y="53" fill="#93a2bf" font-size="11.5" text-anchor="middle">one merged graph · the only origin</text>
+
+          <!-- stage 1 -->
+          <rect x="420" y="104" width="280" height="50" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="560" y="125" fill="#e7edf7" font-size="13.5" text-anchor="middle">partition_graph()</text>
+          <text x="560" y="143" fill="#93a2bf" font-size="11.5" text-anchor="middle">graph_partition.py · reads the whole graph</text>
+
+          <!-- three views -->
+          <rect x="50" y="198" width="200" height="52" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="150" y="219" fill="#e7edf7" font-size="13.5" font-weight="bold" text-anchor="middle">schema</text>
+          <text x="150" y="238" fill="#93a2bf" font-size="11.5" text-anchor="middle">TBox · 43 triples</text>
+
+          <rect x="430" y="198" width="260" height="52" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="560" y="219" fill="#e7edf7" font-size="13.5" font-weight="bold" text-anchor="middle">instance</text>
+          <text x="560" y="238" fill="#93a2bf" font-size="11.5" text-anchor="middle">ABox · 120 triples</text>
+
+          <rect x="870" y="198" width="200" height="52" rx="10" fill="#1c2740" stroke="#4a5870"/>
+          <text x="970" y="219" fill="#93a2bf" font-size="13.5" font-weight="bold" text-anchor="middle">support</text>
+          <text x="970" y="238" fill="#93a2bf" font-size="11.5" text-anchor="middle">ontology header + SHACL</text>
+          <text x="970" y="272" fill="#5b6b85" font-size="11" text-anchor="middle">consumed by no tool</text>
+
+          <!-- stage 2 products -->
+          <rect x="30" y="300" width="240" height="50" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="150" y="319" fill="#e7edf7" font-size="12.5" text-anchor="middle">create_graph_skeleton(schema)</text>
+          <text x="150" y="338" fill="#93a2bf" font-size="11.5" text-anchor="middle">declared structural core</text>
+
+          <rect x="300" y="300" width="520" height="50" rx="10" fill="#1c2740" stroke="#7ee0c0"/>
+          <text x="560" y="319" fill="#e7edf7" font-size="12.5" text-anchor="middle">observed_relationships(schema, instance)</text>
+          <text x="560" y="338" fill="#93a2bf" font-size="11.5" text-anchor="middle">empirical usage patterns (needs BOTH schema + instance)</text>
+
+          <!-- arrows -->
+          <line x1="560" y1="64" x2="560" y2="102" stroke="#5aa9ff" marker-end="url(#arrb2)"/>
+          <line x1="480" y1="154" x2="150" y2="196" stroke="#7ee0c0" marker-end="url(#arrg2)"/>
+          <line x1="560" y1="154" x2="560" y2="196" stroke="#7ee0c0" marker-end="url(#arrg2)"/>
+          <line x1="640" y1="154" x2="970" y2="196" stroke="#7ee0c0" marker-end="url(#arrg2)"/>
+          <line x1="150" y1="250" x2="150" y2="298" stroke="#7ee0c0" marker-end="url(#arrg2)"/>
+          <line x1="250" y1="250" x2="330" y2="298" stroke="#7ee0c0" marker-end="url(#arrg2)"/>
+          <line x1="560" y1="250" x2="560" y2="298" stroke="#7ee0c0" marker-end="url(#arrg2)"/>
+        </g>
+      </svg>
+      <div class="legend">
+        <span><i class="swatch" style="background:#5aa9ff"></i> the merged graph (origin)</span>
+        <span><i class="swatch" style="background:#7ee0c0"></i> read-only tool input / output</span>
+        <span><i class="swatch" style="background:#4a5870"></i> support view — not consumed</span>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:16px;">
+      <div class="card">
+        <h3><span class="badge read">chain</span> origin → consumer → product</h3>
+        <ul class="members">
+          <li><span class="fn">graph</span><span class="desc"><code>ontology.ttl</code> is the single origin — produced by the write pipeline.</span></li>
+          <li><span class="fn">partition</span><span class="desc">reads the whole graph → emits <code>schema</code>, <code>instance</code>, <code>support</code>.</span></li>
+          <li><span class="fn">skeleton</span><span class="desc">consumes <b>schema only</b> → <code>create_graph_skeleton(schema)</code>.</span></li>
+          <li><span class="fn">patterns</span><span class="desc">consumes <b>schema + instance</b> → <code>observed_relationships(schema, instance)</code>.</span></li>
+          <li><span class="fn">support</span><span class="desc">consumed by neither — kept apart so metadata/constraints don't leak in.</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="badge read">complement</span> declared vs. observed</h3>
+        <p class="what">The skeleton and the patterns answer two different questions about the <i>same</i> schema slice:</p>
+        <ul class="members">
+          <li><span class="fn">skeleton</span><span class="desc">what the ontology <b>explicitly claims</b> (asserted axioms, nothing inferred).</span></li>
+          <li><span class="fn">patterns</span><span class="desc">what the data <b>actually does</b> (usage, coverage, cardinality).</span></li>
+          <li><span class="fn">gap</span><span class="desc">a pattern with no matching skeleton axiom = a missing <code>domain</code>/<code>range</code> to add.</span></li>
+          <li><span class="fn">feedback</span><span class="desc">high-coverage patterns can later become SHACL shapes and re-enter the schema.</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout green">
+      <b>Guarantees the tests enforce.</b> The partition is <b>lossless and disjoint</b>
+      (union = input, no overlap, input never mutated). The skeleton is always a
+      <b>subset</b> of its schema input with <b>nothing inferred</b>. Patterns never
+      write to disk, never drop rare patterns, and sort deterministically.
+    </div>
+  </section>
+
+  <!-- 5. GRAPH CONTENT -->
+  <section id="data">
+    <h2><span class="num">5</span> What's actually in the graph today</h2>
+    <p class="lead">Current <code>ontology.ttl</code> state, parsed straight from the file: <b>169 triples</b> → schema 43 · instance 120 · support 6 (ontology + EntityShape).</p>
+
+    <div class="two-col">
+      <div class="card">
+        <h3><span class="badge data">entities</span> 20 individuals · 6 kinds</h3>
+        <table>
+          <tr><th>kind</th><th>count</th><th>members</th></tr>
+          <tr><td class="mono">Location</td><td class="mono">9</td><td class="mono">China, East Asia, Europe, Iran, Paris, Russia, Strait of Hormuz, Ukraine, United States</td></tr>
+          <tr><td class="mono">Organization</td><td class="mono">4</td><td class="mono">European Union, NATO, Nvidia, World Economic Forum</td></tr>
+          <tr><td class="mono">Person</td><td class="mono">3</td><td class="mono">Donald Trump, Kirill Dmitriev, Xi Jinping</td></tr>
+          <tr><td class="mono">Event</td><td class="mono">2</td><td class="mono">Russia-Ukraine war, Orthodox Easter ceasefire</td></tr>
+          <tr><td class="mono">Policy</td><td class="mono">1</td><td class="mono">temporary US sanctions waiver…</td></tr>
+          <tr><td class="mono">Infrastructure</td><td class="mono">1</td><td class="mono">russian-refining-capacity</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge data">vocabulary</span> derived properties</h3>
+        <p class="what">17 object properties (<code>relation:*</code>) and 16 datatype properties (<code>fact:*</code>), each auto-declared with a label.</p>
+        <span class="tag">relations (sample)</span>
+        <div class="chips" style="margin:6px 0 12px;">
+          <span class="chip">affects</span><span class="chip">competes-with</span><span class="chip">coordinates-with</span>
+          <span class="chip">represents</span><span class="chip">visited</span><span class="chip">restricts-chip-exports-to</span>
+          <span class="chip">waives-sanctions-on</span><span class="chip">planned-summit-with</span>
+          <span class="chip">accused-of-violating</span><span class="chip">introduced</span>
+        </div>
+        <span class="tag">facts (sample)</span>
+        <div class="chips" style="margin-top:6px;">
+          <span class="chip">affects</span><span class="chip">shapes</span><span class="chip">ranks</span>
+          <span class="chip">introduced-date</span><span class="chip">scheduled-expiry-date</span>
+          <span class="chip">settlement-position</span><span class="chip">policy-emphasis</span>
+          <span class="chip">gray-market-routing-case</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>The domain.</b> The four ingested briefs (global risk, US–China–EU semiconductors,
+      critical minerals, Russia–Ukraine sanctions) produce a geopolitical-risk ontology:
+      countries, leaders, alliances, and policies connected by <code>relation:*</code> edges
+      and annotated with <code>fact:*</code> strings and dates.
+    </div>
+  </section>
+
+  <!-- 6. TESTS -->
+  <section id="tests">
+    <h2><span class="num">6</span> Tests — one file per module</h2>
+    <p class="lead">All <code>unittest</code>; every module has a mirror under <code>tests/</code>. They double as executable documentation of each function's contract.</p>
+    <div class="grid">
+      <div class="card"><h3><span class="badge test">test</span> tests/test_pipeline.py</h3><p class="what">End-to-end run with <code>ask_llm</code> patched (FakeLLM). Blank-file skip, sequential context, saving, reporting, error paths, rerun-resolution.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_ingest_sources.py</h3><p class="what">Direct-file acceptance, recursive/sorted/filtered discovery, graph exclusion, missing source, utf-8 replace.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_source_parse.py</h3><p class="what">Prompt contains source + catalog + property labels + JSON contract; parse_source delegates to ask_llm and is read-only.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_llm.py (none)</h3><p class="what">No dedicated test file — <code>llm.py</code> is exercised through the patched boundary in pipeline/source_parse tests.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_entity_lookup.py</h3><p class="what">identity_key normalization, catalog fields/sorting, existing_id precedence, exact name+kind, the 0.96 close-spelling rule + ambiguity guard.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_merge.py</h3><p class="what">slug/label/URI-uniqueness, full typing, enrich vs. overwrite, skip rules, dedup, sequential resolution, count order.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_management.py</h3><p class="what">Seed structure isomorphism, no reseed, prefix bindings, save/reload round-trip.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_partition.py</h3><p class="what">Role rules per triple, restrictions, remainder, dual-role, and lossless/disjoint/read-only invariants against the repo graph.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_skeleton.py</h3><p class="what">Core retention, exclusion of instances/support, supported vs. unsupported restrictions, no inference, subset invariant.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_patterns.py</h3><p class="what">Class vs. literal vs. unknown ranges, counting, coverage/cardinality, most-specific class, exclusions, ordering, read-only.</p></div>
+    </div>
+  </section>
+
+  <!-- 7. FILE TREE -->
+  <section id="tree">
+    <h2><span class="num">7</span> Repository file tree</h2>
+    <div class="tree"><pre>
+<span class="dir">text_to_ontology_2/</span>
+├── <span class="py">ontology.py</span>            <span class="comment"># CLI + run loop (entry point)</span>
+├── <span class="py">ingest_sources.py</span>      <span class="comment"># find &amp; read source files</span>
+├── <span class="py">source_parse.py</span>        <span class="comment"># prompt builder → LLM</span>
+├── <span class="py">llm.py</span>                 <span class="comment"># OpenRouter client (stdlib urllib)</span>
+├── <span class="py">entity_lookup.py</span>       <span class="comment"># entity resolution</span>
+├── <span class="py">graph_merge.py</span>         <span class="comment"># write results into graph</span>
+├── <span class="py">graph_management.py</span>    <span class="comment"># open / seed / bind / save</span>
+├── <span class="py">graph_partition.py</span>     <span class="comment"># read-only: schema / instance / support</span>
+├── <span class="py">graph_skeleton.py</span>      <span class="comment"># read-only: structural core</span>
+├── <span class="py">graph_patterns.py</span>      <span class="comment"># read-only: empirical patterns</span>
+├── <span class="data">ontology.ttl</span>           <span class="comment"># the output graph (169 triples)</span>
+├── <span class="txt">requirements.txt</span>        <span class="comment"># rdflib&gt;=7,&lt;8</span>
+├── <span class="txt">.env</span>                   <span class="comment"># OPENROUTER_API_KEY / OPENROUTER_MODEL</span>
+├── <span class="txt">README.md</span> / <span class="txt">next_steps.md</span> <span class="comment"># notes &amp; roadmap</span>
+├── <span class="dir">sources/</span>               <span class="comment"># 4 geopolitical briefs (.md)</span>
+└── <span class="dir">tests/</span>
+    ├── <span class="test">test_pipeline.py</span>
+    ├── <span class="test">test_ingest_sources.py</span>
+    ├── <span class="test">test_source_parse.py</span>
+    ├── <span class="test">test_entity_lookup.py</span>
+    ├── <span class="test">test_graph_merge.py</span>
+    ├── <span class="test">test_graph_management.py</span>
+    ├── <span class="test">test_graph_partition.py</span>
+    ├── <span class="test">test_graph_skeleton.py</span>
+    └── <span class="test">test_graph_patterns.py</span>
+</pre></div>
+  </section>
+
+  <footer>
+    Reconstructed from source code only (no docs consulted). Generated as a static, self-contained HTML page.
+  </footer>
+
+</div>
+</body>
+</html>
