@@ -65,13 +65,33 @@ the RDF/RDFS/OWL/SHACL/SKOS graph directly.
 
 ## Files
 
-- `ontology.py` — text extraction and RDF graph logic
+The pipeline that runs when you invoke the program:
+
+- `ontology.py` — the command line and the run loop
+- `ingest_sources.py` — finding and reading source files
+- `source_parse.py` — building the prompt and parsing the LLM's answer
+- `entity_lookup.py` — deciding whether an entity is already in the graph
+- `graph_merge.py` — writing one parsed result into the graph
+- `graph_management.py` — opening, seeding, naming, and saving the graph
 - `llm.py` — the tiny OpenRouter client
+
+Read-only tools that derive smaller views of an existing graph. Nothing in the
+pipeline calls them yet, and none of them takes part in prompt construction:
+
+- `graph_partition.py` — split a graph into schema, instance, and support views
+- `graph_skeleton.py` — copy the explicit class and property core out of a
+  schema view
+- `graph_patterns.py` — report which class-property-range patterns the instance
+  data actually contains, with evidence
+
+And the rest:
+
 - `requirements.txt` — the one dependency (`rdflib`)
 - `ontology.ttl` — your graph, created when you first run the program
 
 The accepted directory file extensions are listed near the top of
-`ontology.py`. A directly supplied file is always read, regardless of extension.
+`ingest_sources.py`. A directly supplied file is always read, regardless of
+extension.
 
 ## Read more
 TTL Graph Generalization techniques
