@@ -5,7 +5,8 @@ import unittest
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, SKOS
 
-from ontology import ENTITY, ONTO, entity_catalog, identity_key, resolve
+from entity_lookup import entity_catalog, identify_entity, identity_key
+from graph_management import ENTITY, ONTO
 
 
 def add_entity(graph, local, name, kind, aliases=(), description=""):
@@ -95,21 +96,21 @@ class ExistingIdTest(unittest.TestCase):
 
     def test_valid_existing_id_is_accepted(self):
         entity = parsed("Totally Other Name", "Person", existing_id=str(self.uri))
-        self.assertEqual(resolve(entity, self.catalog), self.uri)
+        self.assertEqual(identify_entity(entity, self.catalog), self.uri)
 
     def test_existing_id_is_accepted_before_local_name_matching(self):
         other = add_entity(self.graph, "beta-corp", "Beta Corp", "Company")
         catalog = entity_catalog(self.graph)
         entity = parsed("Acme Corp", "Company", existing_id=str(other))
-        self.assertEqual(resolve(entity, catalog), other)
+        self.assertEqual(identify_entity(entity, catalog), other)
 
     def test_unknown_existing_id_falls_through_to_local_matching(self):
         entity = parsed("Acme Corp", "Company", existing_id="http://example.org/nope")
-        self.assertEqual(resolve(entity, self.catalog), self.uri)
+        self.assertEqual(identify_entity(entity, self.catalog), self.uri)
 
     def test_null_existing_id_is_ignored(self):
         entity = parsed("Nothing Alike", "Company", existing_id=None)
-        self.assertIsNone(resolve(entity, self.catalog))
+        self.assertIsNone(identify_entity(entity, self.catalog))
 
 
 class ExactNameTest(unittest.TestCase):
@@ -124,21 +125,21 @@ class ExactNameTest(unittest.TestCase):
 
     def test_normalized_preferred_name_with_same_kind_resolves(self):
         self.assertEqual(
-            resolve(parsed("acme  corp.", "company"), self.catalog), self.uri
+            identify_entity(parsed("acme  corp.", "company"), self.catalog), self.uri
         )
 
     def test_parsed_alias_matching_a_catalog_name_resolves(self):
         entity = parsed("Unknown Name", "Company", aliases=["Acme Corp"])
-        self.assertEqual(resolve(entity, self.catalog), self.uri)
+        self.assertEqual(identify_entity(entity, self.catalog), self.uri)
 
     def test_parsed_name_matching_a_catalog_alias_resolves(self):
-        self.assertEqual(resolve(parsed("acme", "Company"), self.catalog), self.uri)
+        self.assertEqual(identify_entity(parsed("acme", "Company"), self.catalog), self.uri)
 
     def test_different_kind_does_not_resolve(self):
-        self.assertIsNone(resolve(parsed("Acme Corp", "Person"), self.catalog))
+        self.assertIsNone(identify_entity(parsed("Acme Corp", "Person"), self.catalog))
 
     def test_missing_parsed_kind_does_not_resolve(self):
-        self.assertIsNone(resolve(parsed("Acme Corp", ""), self.catalog))
+        self.assertIsNone(identify_entity(parsed("Acme Corp", ""), self.catalog))
 
     def test_missing_catalog_kind_does_not_resolve(self):
         graph = Graph()
@@ -146,13 +147,13 @@ class ExactNameTest(unittest.TestCase):
         graph.add((uri, RDF.type, ONTO.Entity))
         graph.add((uri, SKOS.prefLabel, Literal("Acme Corp")))
         self.assertIsNone(
-            resolve(parsed("Acme Corp", "Company"), entity_catalog(graph))
+            identify_entity(parsed("Acme Corp", "Company"), entity_catalog(graph))
         )
 
     def test_two_exact_matches_do_not_resolve(self):
         add_entity(self.graph, "acme-corp-2", "Acme Corp", "Company")
         catalog = entity_catalog(self.graph)
-        self.assertIsNone(resolve(parsed("Acme Corp", "Company"), catalog))
+        self.assertIsNone(identify_entity(parsed("Acme Corp", "Company"), catalog))
 
 
 class CloseSpellingTest(unittest.TestCase):
@@ -164,19 +165,19 @@ class CloseSpellingTest(unittest.TestCase):
             graph, "io", "International Organization", "Organization"
         )
         entity = parsed("International Organizations", "Organization")
-        self.assertEqual(resolve(entity, entity_catalog(graph)), uri)
+        self.assertEqual(identify_entity(entity, entity_catalog(graph)), uri)
 
     def test_close_spelling_of_a_different_kind_does_not_resolve(self):
         graph = Graph()
         add_entity(graph, "io", "International Organization", "Person")
         entity = parsed("International Organizations", "Organization")
-        self.assertIsNone(resolve(entity, entity_catalog(graph)))
+        self.assertIsNone(identify_entity(entity, entity_catalog(graph)))
 
     def test_below_threshold_does_not_resolve(self):
         graph = Graph()
         add_entity(graph, "acme", "Acme Corporation", "Company")
         self.assertIsNone(
-            resolve(parsed("Acme Company", "Company"), entity_catalog(graph))
+            identify_entity(parsed("Acme Company", "Company"), entity_catalog(graph))
         )
 
     def test_tied_close_candidates_do_not_resolve(self):
@@ -184,7 +185,7 @@ class CloseSpellingTest(unittest.TestCase):
         add_entity(graph, "one", "International Organization", "Organization")
         add_entity(graph, "two", "International Organization", "Organization")
         entity = parsed("International Organizations", "Organization")
-        self.assertIsNone(resolve(entity, entity_catalog(graph)))
+        self.assertIsNone(identify_entity(entity, entity_catalog(graph)))
 
     def test_a_strictly_better_close_candidate_resolves(self):
         graph = Graph()
@@ -193,7 +194,7 @@ class CloseSpellingTest(unittest.TestCase):
         )
         add_entity(graph, "two", "International Organization", "Organization")
         entity = parsed("International Organizations", "Organization")
-        self.assertEqual(resolve(entity, entity_catalog(graph)), best)
+        self.assertEqual(identify_entity(entity, entity_catalog(graph)), best)
 
     def test_close_matching_only_uses_the_parsed_preferred_name(self):
         graph = Graph()
@@ -201,19 +202,19 @@ class CloseSpellingTest(unittest.TestCase):
         entity = parsed(
             "Nothing Alike", "Organization", aliases=["International Organizations"]
         )
-        self.assertIsNone(resolve(entity, entity_catalog(graph)))
+        self.assertIsNone(identify_entity(entity, entity_catalog(graph)))
 
 
 class EmptyCatalogTest(unittest.TestCase):
     def test_nothing_resolves_against_an_empty_catalog(self):
-        self.assertIsNone(resolve(parsed("Acme Corp", "Company"), []))
+        self.assertIsNone(identify_entity(parsed("Acme Corp", "Company"), []))
 
 
 class ReturnTypeTest(unittest.TestCase):
     def test_a_match_is_returned_as_a_uriref(self):
         graph = Graph()
         add_entity(graph, "acme-corp", "Acme Corp", "Company")
-        found = resolve(parsed("Acme Corp", "Company"), entity_catalog(graph))
+        found = identify_entity(parsed("Acme Corp", "Company"), entity_catalog(graph))
         self.assertIsInstance(found, URIRef)
 
 
