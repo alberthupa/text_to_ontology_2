@@ -10,54 +10,17 @@ import unicodedata
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from rdflib import BNode, Graph, Literal, Namespace, URIRef
-from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
+from rdflib import Literal, URIRef
+from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
+from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, open_graph, save_graph
 from llm import ask_llm, model_name
 
-
-# Change this when you want permanent URIs of your own.
-BASE = "http://example.org/text-ontology/"
-ONTO = Namespace(BASE)
-ENTITY = Namespace(BASE + "entity/")
-CLASS = Namespace(BASE + "class/")
-RELATION = Namespace(BASE + "relation/")
-FACT = Namespace(BASE + "fact/")
 
 TEXT_FILES = {
     ".txt", ".md", ".rst", ".csv", ".json", ".jsonl", ".yaml", ".yml",
     ".xml", ".html", ".log",
 }
-
-
-def bind(graph):
-    for prefix, namespace in {
-        "onto": ONTO, "entity": ENTITY, "class": CLASS, "relation": RELATION,
-        "fact": FACT, "owl": OWL, "rdf": RDF, "rdfs": RDFS, "sh": SH,
-        "skos": SKOS,
-    }.items():
-        graph.bind(prefix, namespace)
-
-
-def open_graph(path):
-    graph = Graph()
-    bind(graph)
-    if path.exists():
-        graph.parse(path, format="turtle")
-        return graph
-
-    graph.add((ONTO.ontology, RDF.type, OWL.Ontology))
-    graph.add((ONTO.Entity, RDF.type, OWL.Class))
-    graph.add((ONTO.Entity, RDFS.label, Literal("Entity")))
-
-    # A tiny SHACL shape: every entity must have a preferred label.
-    rule = BNode()
-    graph.add((ONTO.EntityShape, RDF.type, SH.NodeShape))
-    graph.add((ONTO.EntityShape, SH.targetClass, ONTO.Entity))
-    graph.add((ONTO.EntityShape, SH.property, rule))
-    graph.add((rule, SH.path, SKOS.prefLabel))
-    graph.add((rule, SH.minCount, Literal(1)))
-    return graph
 
 
 def slug(text):
@@ -287,7 +250,7 @@ def main():
         extraction = ask_llm(make_prompt(text, graph))
         print(f"  Model replied in {time.monotonic() - started:.1f} seconds", flush=True)
         counts = add_knowledge(graph, extraction)
-        graph.serialize(args.graph, format="turtle")
+        save_graph(graph, args.graph)
         print(f"  {counts[0]} new, {counts[1]} resolved, "
               f"{counts[2]} relations, {counts[3]} facts")
     print(f"Saved {len(graph)} triples to {args.graph}")

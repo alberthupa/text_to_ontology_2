@@ -8,12 +8,7 @@ from rdflib import BNode, Graph, Literal
 from rdflib.compare import isomorphic
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
-from ontology import BASE, ONTO, bind, open_graph
-
-
-def save_graph(graph, path):
-    """The serialization the program performs after every source file."""
-    graph.serialize(path, format="turtle")
+from graph_management import BASE, ONTO, bind, open_graph, save_graph
 
 
 def seed_graph():
