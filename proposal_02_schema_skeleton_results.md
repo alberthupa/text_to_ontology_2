@@ -53,6 +53,270 @@ None of the three modules imports another. `graph_patterns.py` imports `ONTO`
 from `graph_management.py` for the one project predicate it excludes; that is
 the only dependency on existing code.
 
+## Running it on the real graph
+
+Every command below is meant to be pasted into a terminal at the repository
+root, and every one of them was run against the committed `ontology.ttl` to
+produce the results recorded further down. They only read the file. There is no
+CLI for these modules, by decision gate 7, so the entry points are called
+directly.
+
+### Partition the current graph
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+
+graph = open_graph(Path("ontology.ttl"))
+schema, instance, support = partition_graph(graph)
+for name, view in (("source", graph), ("schema", schema),
+                   ("instance", instance), ("support", support)):
+    print(f"{name:<9}{len(view):>4}")
+PY
+```
+
+```text
+source     169
+schema      43
+instance   120
+support      6
+```
+
+### Check the partition invariant on the real data
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+
+graph = open_graph(Path("ontology.ttl"))
+before = set(graph)
+parts = [set(view) for view in partition_graph(graph)]
+print("disjoint ", all(not (a & b) for i, a in enumerate(parts) for b in parts[i + 1:]))
+print("lossless ", set().union(*parts) == before)
+print("read only", set(graph) == before)
+PY
+```
+
+```text
+disjoint  True
+lossless  True
+read only True
+```
+
+### See what could not be classified
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+
+_, _, support = partition_graph(open_graph(Path("ontology.ttl")))
+print(support.serialize(format="turtle"), end="")
+PY
+```
+
+```turtle
+@prefix onto: <http://example.org/text-ontology/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+onto:EntityShape a sh:NodeShape ;
+    sh:property [ sh:minCount 1 ;
+            sh:path skos:prefLabel ] ;
+    sh:targetClass onto:Entity .
+
+onto:ontology a owl:Ontology .
+```
+
+### Build and read the semantic skeleton
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+from graph_skeleton import create_graph_skeleton
+
+schema, _, _ = partition_graph(open_graph(Path("ontology.ttl")))
+skeleton = create_graph_skeleton(schema)
+print(len(skeleton), "triples; identical to the schema view:",
+      set(skeleton) == set(schema))
+print(skeleton.serialize(format="turtle"), end="")
+PY
+```
+
+```text
+43 triples; identical to the schema view: True
+```
+
+followed by the Turtle: three `class:*` declarations with their labels and
+`rdfs:subClassOf onto:Entity`, the 16 property declarations with their labels,
+and `onto:Entity a owl:Class`.
+
+### Print the empirical pattern table
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+from graph_patterns import observed_relationships
+
+graph = open_graph(Path("ontology.ttl"))
+schema, instance, _ = partition_graph(graph)
+short = graph.namespace_manager.normalizeUri
+
+for r in observed_relationships(schema, instance):
+    subject = short(r["subject_class"]) if r["subject_class"] else "(unclassed)"
+    range_ = short(r["range"]) if r["range"] else "(unknown)"
+    cover = f"{r['coverage']:.2f}" if r["coverage"] is not None else "   -"
+    print(f"{subject:<19}{short(r['predicate']):<36}{range_:<19}"
+          f"n={r['occurrences']:<3}subj={r['distinct_subjects']:<3}"
+          f"pop={r['class_population'] or '-':<3}cover={cover}"
+          f"  card={r['cardinality_min']}/{r['cardinality_median']:g}"
+          f"/{r['cardinality_max']}")
+PY
+```
+
+```text
+class:location     fact:advanced-chip-demand           xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     fact:affects                        xsd:string         n=2  subj=2  pop=7  cover=0.29  card=1/1/1
+class:location     fact:critical-minerals-position     xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     fact:diplomatic-talks-purpose       xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     fact:export-control-effect          xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     fact:overcapacity-sectors           xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     fact:policy-framing                 xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     fact:shapes                         xsd:string         n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     relation:affects                    class:location     n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     relation:affects                    class:organization n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     relation:competes-with              class:location     n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     relation:coordinates-with           class:organization n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:location     relation:restricts-chip-exports-to  class:location     n=1  subj=1  pop=7  cover=0.14  card=1/1/1
+class:organization fact:gray-market-routing-case       xsd:string         n=1  subj=1  pop=3  cover=0.33  card=1/1/1
+class:organization fact:ranks                          xsd:string         n=1  subj=1  pop=3  cover=0.33  card=1/1/1
+class:organization relation:restricted-gpus-sought-by  class:location     n=1  subj=1  pop=3  cover=0.33  card=1/1/1
+class:person       relation:planned-summit-with        class:person       n=1  subj=1  pop=2  cover=0.50  card=1/1/1
+```
+
+### Check the class populations behind the coverage column
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+from graph_patterns import class_populations
+
+graph = open_graph(Path("ontology.ttl"))
+schema, instance, _ = partition_graph(graph)
+short = graph.namespace_manager.normalizeUri
+for class_, size in sorted(class_populations(schema, instance, {}).items(), key=str):
+    print(f"{short(class_):<20}{size:>3}")
+PY
+```
+
+```text
+class:location        7
+class:organization    3
+class:person          2
+```
+
+### Do the same for any other Turtle file
+
+Nothing is hardcoded to the repository graph. Pass a path as an argument:
+
+```bash
+.venv/bin/python - ontology.ttl <<'PY'
+import sys
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+from graph_skeleton import create_graph_skeleton
+from graph_patterns import observed_relationships
+
+graph = open_graph(Path(sys.argv[1]))
+schema, instance, support = partition_graph(graph)
+print(f"{len(graph)} triples = {len(schema)} schema"
+      f" + {len(instance)} instance + {len(support)} support")
+print(f"{len(create_graph_skeleton(schema))} triples in the skeleton")
+print(f"{len(observed_relationships(schema, instance))} observed patterns")
+PY
+```
+
+```text
+169 triples = 43 schema + 120 instance + 6 support
+43 triples in the skeleton
+17 observed patterns
+```
+
+Run it from the repository root either way; the modules are imported by plain
+name, so the working directory has to be on the import path.
+
+### Write the views out to look at them in an editor
+
+No module in this proposal serializes anything, and none of them will. This is
+an ad-hoc inspection: it calls `rdflib`'s own `serialize()` on the derived views
+and writes outside the repository, so `ontology.ttl` and the working tree are
+untouched.
+
+```bash
+.venv/bin/python - <<'PY'
+from pathlib import Path
+
+from graph_management import open_graph
+from graph_partition import partition_graph
+from graph_skeleton import create_graph_skeleton
+
+out = Path("/tmp/ontology-views")
+out.mkdir(exist_ok=True)
+schema, instance, support = partition_graph(open_graph(Path("ontology.ttl")))
+for name, view in (("schema", schema), ("instance", instance),
+                   ("support", support),
+                   ("skeleton", create_graph_skeleton(schema))):
+    view.serialize(out / f"{name}.ttl", format="turtle")
+    print(f"{name:<9}{len(view):>4} triples -> {out / (name + '.ttl')}")
+PY
+```
+
+```text
+schema     43 triples -> /tmp/ontology-views/schema.ttl
+instance  120 triples -> /tmp/ontology-views/instance.ttl
+support     6 triples -> /tmp/ontology-views/support.ttl
+skeleton   43 triples -> /tmp/ontology-views/skeleton.ttl
+```
+
+### Prove the graph file was never written
+
+Take the checksum before running anything above, and compare it after:
+
+```bash
+sha256sum ontology.ttl
+git diff -- ontology.ttl
+git status --short
+```
+
+```text
+632f6d870134819a8e4d651ba7af8b2deddbcd4605b46c057f845c7aa3fe49b1  ontology.ttl
+```
+
+`git diff` prints nothing, and `ontology.ttl` never appears in `git status`.
+The checksum is the one committed on this branch, so it also confirms the file
+was not touched during the whole of Proposal 2.
+
 ## Partition of the current graph
 
 ```text
