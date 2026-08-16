@@ -5,10 +5,8 @@ import unittest
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from ontology import (
-    CLASS, ENTITY, FACT, ONTO, RELATION,
-    add_knowledge, label, new_entity_uri, slug,
-)
+from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
+from graph_merge import label, merge_into_graph, new_entity_uri, slug
 
 
 def new_graph():
@@ -48,7 +46,7 @@ class NewEntityTest(unittest.TestCase):
 
     def setUp(self):
         self.graph = new_graph()
-        self.counts = add_knowledge(self.graph, {"entities": [{
+        self.counts = merge_into_graph(self.graph, {"entities": [{
             "id": "e1", "name": "Acme Corp", "kind": "Company",
             "description": "A maker of things.", "aliases": ["ACME"],
             "existing_id": None,
@@ -88,7 +86,7 @@ class NewEntityTest(unittest.TestCase):
 
     def test_a_missing_kind_becomes_entity(self):
         graph = new_graph()
-        add_knowledge(graph, {"entities": [
+        merge_into_graph(graph, {"entities": [
             {"id": "e1", "name": "Nameless Thing", "kind": ""},
         ]})
         uri = ENTITY["nameless-thing"]
@@ -101,14 +99,14 @@ class EnrichExistingTest(unittest.TestCase):
 
     def setUp(self):
         self.graph = new_graph()
-        add_knowledge(self.graph, {"entities": [{
+        merge_into_graph(self.graph, {"entities": [{
             "id": "e1", "name": "Acme Corp", "kind": "Company",
             "description": "The first description.",
         }]})
         self.uri = ENTITY["acme-corp"]
 
     def test_resolved_entity_gains_aliases_relations_and_facts(self):
-        counts = add_knowledge(self.graph, {
+        counts = merge_into_graph(self.graph, {
             "entities": [
                 {"id": "a", "name": "Acme Corp", "kind": "Company",
                  "aliases": ["ACME", "Acme Incorporated"]},
@@ -130,7 +128,7 @@ class EnrichExistingTest(unittest.TestCase):
         )
 
     def test_property_declarations_and_labels_are_added(self):
-        add_knowledge(self.graph, {
+        merge_into_graph(self.graph, {
             "entities": [{"id": "b", "name": "Ada Lovelace", "kind": "Person"}],
             "relations": [{"subject": "b", "predicate": "worksFor",
                            "object": "b"}],
@@ -152,10 +150,10 @@ class EnrichExistingTest(unittest.TestCase):
 
     def test_a_missing_description_is_filled_in(self):
         graph = new_graph()
-        add_knowledge(graph, {"entities": [
+        merge_into_graph(graph, {"entities": [
             {"id": "e1", "name": "Beta Corp", "kind": "Company"},
         ]})
-        add_knowledge(graph, {"entities": [
+        merge_into_graph(graph, {"entities": [
             {"id": "e1", "name": "Beta Corp", "kind": "Company",
              "description": "Added later."},
         ]})
@@ -165,7 +163,7 @@ class EnrichExistingTest(unittest.TestCase):
         )
 
     def test_an_existing_description_is_not_overwritten(self):
-        add_knowledge(self.graph, {"entities": [
+        merge_into_graph(self.graph, {"entities": [
             {"id": "e1", "name": "Acme Corp", "kind": "Company",
              "description": "A competing description."},
         ]})
@@ -175,7 +173,7 @@ class EnrichExistingTest(unittest.TestCase):
         )
 
     def test_a_later_different_preferred_name_becomes_an_alternate_label(self):
-        add_knowledge(self.graph, {"entities": [
+        merge_into_graph(self.graph, {"entities": [
             {"id": "e1", "name": "ACME", "kind": "Company",
              "existing_id": str(self.uri)},
         ]})
@@ -195,7 +193,7 @@ class SkipTest(unittest.TestCase):
 
     def test_entities_without_an_id_or_name_are_skipped(self):
         graph = new_graph()
-        counts = add_knowledge(graph, {"entities": [
+        counts = merge_into_graph(graph, {"entities": [
             {"id": "", "name": "No Local Id", "kind": "Company"},
             {"id": "e2", "name": "", "kind": "Company"},
             {"id": "e3", "kind": "Company"},
@@ -206,7 +204,7 @@ class SkipTest(unittest.TestCase):
 
     def test_relations_and_facts_with_unknown_endpoints_are_skipped(self):
         graph = new_graph()
-        counts = add_knowledge(graph, {
+        counts = merge_into_graph(graph, {
             "entities": [{"id": "e1", "name": "Acme Corp", "kind": "Company"}],
             "relations": [
                 {"subject": "e1", "predicate": "works for", "object": "ghost"},
@@ -225,7 +223,7 @@ class SkipTest(unittest.TestCase):
 
     def test_a_self_relation_between_valid_endpoints_is_kept(self):
         graph = new_graph()
-        counts = add_knowledge(graph, {
+        counts = merge_into_graph(graph, {
             "entities": [{"id": "e1", "name": "Acme Corp", "kind": "Company"}],
             "relations": [{"subject": "e1", "predicate": "owns", "object": "e1"}],
         })
@@ -249,9 +247,9 @@ class DuplicateTest(unittest.TestCase):
                 {"subject": "e1", "predicate": "birth date", "value": "1815-12-10"}
             ],
         }
-        first = add_knowledge(graph, data)
+        first = merge_into_graph(graph, data)
         size = len(graph)
-        second = add_knowledge(graph, data)
+        second = merge_into_graph(graph, data)
 
         self.assertEqual(first, (2, 0, 1, 1))
         self.assertEqual(second, (0, 2, 0, 0))
@@ -263,7 +261,7 @@ class SequentialVisibilityTest(unittest.TestCase):
 
     def test_the_second_candidate_resolves_to_the_first(self):
         graph = new_graph()
-        counts = add_knowledge(graph, {"entities": [
+        counts = merge_into_graph(graph, {"entities": [
             {"id": "e1", "name": "Helio Grid", "kind": "Company"},
             {"id": "e2", "name": "helio grid", "kind": "company",
              "aliases": ["Helio"]},
@@ -280,7 +278,7 @@ class SequentialVisibilityTest(unittest.TestCase):
 
     def test_both_local_ids_point_at_the_shared_entity(self):
         graph = new_graph()
-        counts = add_knowledge(graph, {
+        counts = merge_into_graph(graph, {
             "entities": [
                 {"id": "e1", "name": "Helio Grid", "kind": "Company"},
                 {"id": "e2", "name": "helio grid", "kind": "company"},
@@ -302,10 +300,10 @@ class CountOrderTest(unittest.TestCase):
 
     def test_counts_are_new_resolved_relations_facts(self):
         graph = new_graph()
-        add_knowledge(graph, {"entities": [
+        merge_into_graph(graph, {"entities": [
             {"id": "e1", "name": "Acme Corp", "kind": "Company"},
         ]})
-        counts = add_knowledge(graph, {
+        counts = merge_into_graph(graph, {
             "entities": [
                 {"id": "e1", "name": "Acme Corp", "kind": "Company"},
                 {"id": "e2", "name": "Ada Lovelace", "kind": "Person"},
