@@ -15,7 +15,8 @@ from rdflib.namespace import OWL, RDF, RDFS, SKOS
 from entity_lookup import entity_catalog, identify_entity
 from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, open_graph, save_graph
 from ingest_sources import find_text_files, read_source
-from llm import ask_llm, model_name
+from llm import model_name
+from source_parse import parse_source
 
 
 def slug(text):
@@ -26,53 +27,6 @@ def slug(text):
 def label(text):
     text = re.sub(r"([a-z])([A-Z])", r"\1 \2", str(text))
     return re.sub(r"[_-]+", " ", text).strip()
-
-
-def make_prompt(text, graph):
-    entities = json.dumps(entity_catalog(graph), ensure_ascii=False)
-    properties = sorted({
-        str(name)
-        for property_type in (OWL.ObjectProperty, OWL.DatatypeProperty)
-        for uri in graph.subjects(RDF.type, property_type)
-        for name in graph.objects(uri, RDFS.label)
-    })
-    return f"""
-Extract only knowledge stated or clearly implied by SOURCE.
-
-EXISTING ENTITIES:
-{entities}
-
-EXISTING PROPERTY NAMES (reuse them when they mean the same thing):
-{json.dumps(properties, ensure_ascii=False)}
-
-Entity resolution is important. Set existing_id to an existing entity's exact id
-only when it is the same real thing in this context. Use its names, kind, and
-description. A similar name alone is not enough. Otherwise use null. Include one
-entity record per real thing mentioned in this source.
-
-Return this exact JSON shape:
-{{
-  "entities": [
-    {{"id": "e1", "name": "preferred name", "kind": "Person",
-      "description": "short source-grounded description",
-      "aliases": ["other source name"], "existing_id": null}}
-  ],
-  "relations": [
-    {{"subject": "e1", "predicate": "works for", "object": "e2"}}
-  ],
-  "facts": [
-    {{"subject": "e1", "predicate": "birth date", "value": "1950-01-01"}}
-  ]
-}}
-
-Relation endpoints and fact subjects must use ids from entities. Use empty lists
-when needed. Return JSON only.
-
-SOURCE:
----
-{text}
----
-""".strip()
 
 
 def new_entity_uri(graph, name):
@@ -170,7 +124,7 @@ def main():
         model = model_name()
         print(f"  Asking {model} (this can take a minute)...", flush=True)
         started = time.monotonic()
-        extraction = ask_llm(make_prompt(text, graph))
+        extraction = parse_source(text, graph)
         print(f"  Model replied in {time.monotonic() - started:.1f} seconds", flush=True)
         counts = add_knowledge(graph, extraction)
         save_graph(graph, args.graph)

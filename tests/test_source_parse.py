@@ -2,11 +2,14 @@
 
 import json
 import unittest
+from unittest import mock
 
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from ontology import ENTITY, FACT, ONTO, RELATION, make_prompt
+import source_parse
+from graph_management import ENTITY, FACT, ONTO, RELATION
+from source_parse import make_prompt, parse_source
 
 
 def add_entity(graph, local, name, kind, aliases=(), description=""):
@@ -67,6 +70,30 @@ class PromptTest(unittest.TestCase):
         self.assertIn("Some text.", prompt)
         self.assertIn("EXISTING ENTITIES:\n[]", prompt)
         self.assertIn("[]", prompt)
+
+
+class ParseSourceTest(unittest.TestCase):
+    """The entry point sends the built prompt and returns the model's answer."""
+
+    def test_the_prompt_is_sent_and_the_answer_returned_unchanged(self):
+        graph = Graph()
+        add_entity(graph, "acme-corp", "Acme Corp", "Company")
+        answer = {"entities": [], "relations": [], "facts": []}
+
+        with mock.patch.object(source_parse, "ask_llm", return_value=answer) as asked:
+            self.assertIs(parse_source("Acme Corp exists.", graph), answer)
+
+        asked.assert_called_once_with(make_prompt("Acme Corp exists.", graph))
+
+    def test_parsing_does_not_change_the_graph(self):
+        graph = Graph()
+        add_entity(graph, "acme-corp", "Acme Corp", "Company")
+        before = set(graph)
+
+        with mock.patch.object(source_parse, "ask_llm", return_value={}):
+            parse_source("Acme Corp exists.", graph)
+
+        self.assertEqual(set(graph), before)
 
 
 if __name__ == "__main__":

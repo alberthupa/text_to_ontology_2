@@ -13,7 +13,9 @@ from rdflib import Literal
 from rdflib.namespace import RDF, SKOS
 
 import ontology
-from ontology import ENTITY, ONTO
+import source_parse
+import graph_management
+from graph_management import ENTITY, ONTO
 
 
 class FakeLLM:
@@ -49,7 +51,7 @@ def entity_response(*names):
 def run_main(argv, fake_llm):
     """Run main() with a patched LLM and captured output."""
     output = io.StringIO()
-    with mock.patch.object(ontology, "ask_llm", fake_llm), \
+    with mock.patch.object(source_parse, "ask_llm", fake_llm), \
             mock.patch.object(ontology, "model_name", lambda: "test-model"), \
             mock.patch.object(sys, "argv", ["ontology.py", *argv]), \
             contextlib.redirect_stdout(output):
@@ -96,7 +98,7 @@ class SequentialFilesTest(unittest.TestCase):
             with run_main([str(root), str(graph_path)], fake):
                 pass
 
-            graph = ontology.open_graph(graph_path)
+            graph = graph_management.open_graph(graph_path)
 
         self.assertEqual(len(fake.prompts), 2)
         self.assertIn("Acme Corp exists.", fake.prompts[0])
@@ -199,7 +201,7 @@ class ExistingGraphContextTest(unittest.TestCase):
                           FakeLLM(entity_response("acme corp"))) as printed:
                 pass
 
-            graph = ontology.open_graph(graph_path)
+            graph = graph_management.open_graph(graph_path)
 
         self.assertIn("0 new, 1 resolved", printed)
         self.assertEqual(
