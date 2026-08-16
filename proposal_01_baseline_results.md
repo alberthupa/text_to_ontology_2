@@ -91,11 +91,60 @@ any future change to it is a deliberate decision rather than an accident.
 
 ## Stage-by-stage verification after each move
 
+Every stage ran the full suite before the next stage began.
+
 | Stage | Change | Tests | Behavior |
 |---|---|---|---|
 | 1 | Baseline tests added, no production change | 72 passed | unchanged |
+| 2 | `graph_management.py` extracted, `save_graph()` added | 72 passed | unchanged |
+| 3 | `ingest_sources.py` extracted | 72 passed | unchanged |
+| 4 | `entity_lookup.py` extracted, `resolve` renamed | 72 passed | unchanged |
+| 5 | `source_parse.py` extracted, `parse_source()` added | 74 passed | unchanged |
+| 6 | `graph_merge.py` extracted, `add_knowledge` renamed | 74 passed | unchanged |
+| 7 | `ontology.py` reduced to the CLI and `main()` | 74 passed | unchanged |
 
-Later rows are added only after each stage has actually run.
+Two tests were added at stage 5 for `parse_source()`, the one function that did
+not exist before the refactor. Nothing else in the suite changed except import
+lines pointing at the module that now owns each function.
+
+### Deviation from the written stage order
+
+Stage 7 lists "remove now-unused imports" as its own step. Those imports were
+removed in stage 6 instead, because stage 6 is what made them unused and
+committing a module full of dead imports would have been a knowingly broken
+intermediate state. No behavior depends on this.
+
+### Function renames
+
+| Before | After |
+|---|---|
+| `ontology.resolve()` | `entity_lookup.identify_entity()` |
+| `ontology.add_knowledge()` | `graph_merge.merge_into_graph()` |
+
+A repository search found no caller outside `ontology.py` and the tests, so no
+compatibility aliases were kept.
+
+## Final verification
+
+The measured run above was repeated against the finished modules and produced
+identical numbers: 8 seed triples, prompts of 1053 and 1341 characters, counts
+of `2, 0, 1, 1` then `1, 1, 1, 1`, a replay of `0, 2, 0, 0` adding no triples,
+and 50 final triples in a 2032-byte Turtle file.
+
+```text
+.venv/bin/python -m unittest discover -s tests   -> Ran 74 tests, OK
+.venv/bin/python -m compileall <all modules>     -> no errors
+.venv/bin/python ontology.py --help              -> usage: ontology.py [-h] source [graph]
+.venv/bin/python ontology.py /nope/absent.txt    -> Error: Source does not exist, exit 1
+git diff --check                                 -> nothing
+git status --short                               -> only intended files
+```
+
+No future-only module was created: `graph_skeleton.py` and
+`graph_module_extract.py` do not exist.
+
+The repository's own `ontology.ttl` was never written by the tests or by the
+measurement script; both use temporary directories.
 
 ## Live LLM observation
 
