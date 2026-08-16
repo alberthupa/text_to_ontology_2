@@ -63,12 +63,21 @@ python ontology.py documents/
 That is the whole workflow. Open `ontology.ttl` in a text editor to see or edit
 the RDF/RDFS/OWL/SHACL/SKOS graph directly.
 
+## Planning
+
+- [`ontology_context_and_merge_plan.md`](ontology_context_and_merge_plan.md) —
+  the overall incremental plan
+- [`proposal_01_current_pipeline_baseline.md`](proposal_01_current_pipeline_baseline.md)
+  — the proposal for the first step
+- [`next_steps.md`](next_steps.md) — the original working notes
+
 ## Files
 
 - `ontology.py` — text extraction and RDF graph logic
 - `llm.py` — the tiny OpenRouter client
 - `requirements.txt` — the one dependency (`rdflib`)
 - `ontology.ttl` — your graph, created when you first run the program
+- `sources/` — source documents used by the experiment
 
 The accepted directory file extensions are listed near the top of
 `ontology.py`. A directly supplied file is always read, regardless of extension.
