@@ -42,8 +42,17 @@ This step is described in
 ### 2. Separate schema from instance data
 
 Distinguish the ontology schema, or TBox, from instance data, or ABox. This does
-not necessarily require separate physical graph files at first. It requires a
-clear way to classify statements by their role.
+not require separate persistent graph files at first. Read the current source
+graph without changing it and derive three temporary views:
+
+- a current schema graph containing TBox statements;
+- a current instance graph containing ABox statements;
+- a support or remainder graph containing ontology metadata, SHACL structures,
+  and statements that cannot safely be assigned to either of the first two.
+
+The remainder is an accounting mechanism, not a review queue. The three views
+should be disjoint, their union should equal the source graph, and none of their
+construction should mutate or overwrite that graph.
 
 ### 3. Extract a semantic skeleton
 
@@ -56,8 +65,10 @@ Build a compact schema view containing only the most useful structural elements:
 - labels and definitions;
 - a small, explicitly supported set of OWL restrictions.
 
-This should be the first replacement for putting almost the entire graph into an
-LLM prompt.
+The skeleton is a general structural artifact used by later context selection.
+It is not automatically placed into every LLM prompt: even a schema-only graph
+may eventually be too large, and relevance to the current task is not decided
+in this step.
 
 ### 4. Learn structure from actual data
 
@@ -71,7 +82,15 @@ Product -> soldInMarket -> Market
 
 Record useful evidence such as occurrence count, distinct subjects, class
 coverage, and typical cardinality. Frequency should not be the only measure of
-importance.
+importance. Keep these observations distinct from declared schema: an observed
+pattern must not silently become an asserted `rdfs:domain` or `rdfs:range`.
+
+Like the schema split and skeleton, the empirical relationship map is a derived
+artifact. Producing it does not change the current source graph and does not yet
+change prompt construction.
+
+Steps 2 through 4 are specified in
+[`proposal_02_schema_skeleton_and_patterns.md`](proposal_02_schema_skeleton_and_patterns.md).
 
 ### 5. Select context for a task
 
@@ -85,9 +104,24 @@ context package containing:
 - important constraints;
 - a few representative examples when useful.
 
+This is the first step that determines what graph context will be placed in the
+prompt. The global entity catalog must not be sent. Instead, select a bounded
+package from the general skeleton, empirical relationship map, and current
+instance graph. A package may contain a tiny always-present core plus
+task-relevant schema and instance subgraphs, but the contents of that core
+should be decided only after the derived artifacts from steps 2 through 4 have
+been inspected.
+
 Start with simple concept selection and bounded traversal. Add formal
 locality-based OWL module extraction later only if the simpler approach fails to
 preserve needed logical meaning.
+
+Context size can initially be controlled without adding a model tokenizer. Use
+a configurable character budget with conservative token estimation, reserve
+space for the fixed prompt, source text, and model output, and add ranked context
+items only while they fit. Optional caps on classes, properties, patterns, and
+entities provide additional safeguards. This is an estimate rather than an
+exact token guarantee; exact enforcement requires the target model's tokenizer.
 
 ### 6. Validate extracted candidates
 
@@ -168,11 +202,13 @@ is needed.
 ## Recommended order
 
 1. Characterize the existing end-to-end behavior.
-2. Separate schema statements from instance data.
-3. Generate the semantic skeleton.
-4. Use the skeleton instead of the entire graph as LLM context.
-5. Add usage statistics from instance data.
-6. Add task-specific context selection.
+2. Derive current schema, instance, and support/remainder views without changing
+   the source graph.
+3. Generate the general semantic skeleton.
+4. Add empirical relationship statistics from instance data.
+5. Add task-specific, budgeted context selection.
+6. Replace global entity and property context with only the selected context
+   package in the LLM prompt.
 7. Introduce validation and provenance before merging.
 8. Define explicit identity and conflict-resolution policies.
 9. Add SHACL and purpose-specific exported views.
@@ -184,7 +220,9 @@ the previous one has a clear result and its assumptions have been reviewed.
 
 ## First practical outcome
 
-The first architectural improvement, after the baseline is understood, should be
-to replace full-graph prompting with a semantic skeleton plus task-relevant
-context. LLM results should then move toward being reviewed candidates rather
-than immediately accepted graph data.
+After the baseline is understood, the next architectural outcome is a set of
+read-only derived artifacts: a schema/instance/support partition, a general
+semantic skeleton, and an empirical relationship map. Task-specific context
+selection then uses those artifacts to replace global entity and property
+context with a bounded relevant package. LLM results should subsequently move
+toward being reviewed candidates rather than immediately accepted graph data.
