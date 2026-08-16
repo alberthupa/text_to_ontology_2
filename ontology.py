@@ -14,13 +14,8 @@ from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, open_graph, save_graph
+from ingest_sources import find_text_files, read_source
 from llm import ask_llm, model_name
-
-
-TEXT_FILES = {
-    ".txt", ".md", ".rst", ".csv", ".json", ".jsonl", ".yaml", ".yml",
-    ".xml", ".html", ".log",
-}
 
 
 def slug(text):
@@ -214,19 +209,6 @@ def add_knowledge(graph, data):
     return new_count, resolved_count, relation_count, fact_count
 
 
-def find_text_files(source, graph_path):
-    if source.is_file():
-        return [source]
-    if not source.is_dir():
-        raise RuntimeError(f"Source does not exist: {source}")
-    graph_path = graph_path.resolve()
-    return sorted(
-        path for path in source.rglob("*")
-        if path.is_file() and path.resolve() != graph_path
-        and path.suffix.lower() in TEXT_FILES
-    )
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source", type=Path, help="a text file or directory")
@@ -241,7 +223,7 @@ def main():
     args.graph.parent.mkdir(parents=True, exist_ok=True)
     for path in files:
         print(f"Reading {path}", flush=True)
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = read_source(path)
         if not text.strip():
             continue
         model = model_name()

@@ -4,12 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ontology import TEXT_FILES, find_text_files
-
-
-def read_source(path):
-    """The read the program performs for every discovered source file."""
-    return path.read_text(encoding="utf-8", errors="replace")
+from ingest_sources import TEXT_FILES, find_text_files, read_source
 
 
 class DirectFileTest(unittest.TestCase):
