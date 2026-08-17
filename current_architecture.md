@@ -13,11 +13,18 @@ Reads text files (or a directory of text-like files), asks an LLM to extract
 RDF/OWL/SHACL/SKOS Turtle graph (`ontology.ttl` by default). Re-running against the
 same graph adds knowledge; entity resolution prevents duplicates.
 
-The codebase has two layers:
+The codebase has three layers:
 
 1. **Write pipeline** — actually executed by `ontology.py`; builds the graph.
-2. **Read-only derivation layer** — three modules that generalize an existing graph;
-   **not imported or called by the pipeline** (only by their own tests).
+2. **Read-only derivation layer** — three modules that generalize an existing graph
+   (`graph_partition`, `graph_skeleton`, `graph_patterns`). Since proposal 05 phase
+   5D these are reached by the pipeline, through the façade in §5.4.
+3. **Context selection layer** (proposal 05) — five modules that pick, render, and
+   budget the part of the current graph one source text needs, and put that in the
+   extraction prompt. Nothing in this layer writes to the graph.
+
+The prompt no longer carries the whole entity catalog or every property label. It
+carries a per-source selection, capped by a token ceiling (§10).
 
 ---
 
@@ -35,6 +42,11 @@ text_to_ontology_2/
 ├── graph_partition.py       # [read-only] split graph into schema/instance/support
 ├── graph_skeleton.py        # [read-only] compact declared structural core
 ├── graph_patterns.py        # [read-only] empirical usage patterns
+├── ontology_views.py        # [read-only] façade: the five derived views as one record
+├── source_concepts.py       # [read-only] what one text mentions (no RDF, no LLM)
+├── task_context.py          # [read-only] select the context one source needs
+├── context_render.py        # [read-only] render + assemble + budget that context
+├── prompt_budget.py         # [read-only] token estimate, allowance, packing
 ├── ontology.ttl             # output graph (data, not code)
 ├── requirements.txt         # rdflib>=7,<8
 ├── .env                     # OPENROUTER_API_KEY, OPENROUTER_MODEL
@@ -49,7 +61,12 @@ text_to_ontology_2/
     ├── test_graph_management.py
     ├── test_graph_partition.py
     ├── test_graph_skeleton.py
-    └── test_graph_patterns.py
+    ├── test_graph_patterns.py
+    ├── test_ontology_views.py
+    ├── test_source_concepts.py
+    ├── test_task_context.py
+    ├── test_context_render.py
+    └── test_prompt_budget.py
 ```
 
 Dependency: only `rdflib` (`requirements.txt`: `rdflib>=7,<8`).
@@ -62,11 +79,19 @@ Dependency: only `rdflib` (`requirements.txt`: `rdflib>=7,<8`).
 
 - stdlib: `argparse`, `sys`, `time`, `pathlib.Path`
 - project:
+  - `context_render.prepare_prompt_context`
   - `graph_management.open_graph, save_graph`
   - `graph_merge.merge_into_graph`
   - `ingest_sources.find_text_files, read_source`
   - `llm.model_name`
+  - `prompt_budget.PROMPT_BUDGET, estimate_tokens`
   - `source_parse.parse_source`
+  - `task_context.build_task_context`
+
+Two module-level helpers keep `main()` short:
+
+- `budget_for(text)` → `dict(PROMPT_BUDGET, source_tokens=estimate_tokens(text))`
+- `report_context(budget)` → prints items kept, `used/budget` tokens, items dropped
 
 ### 3.2 `main()` — control flow
 
@@ -87,11 +112,15 @@ def main():
         print(f"Reading {path}", flush=True)
         text = read_source(path)
         if not text.strip():
-            continue                          # blank files skipped BEFORE LLM call
+            continue                          # blank files skipped BEFORE any work
+        # Read only, and rebuilt for every file.
+        context = build_task_context(text, graph)
+        prompt_context = prepare_prompt_context(context, budget_for(text))
+        report_context(prompt_context["budget"])
         model = model_name()
         print(f"  Asking {model} (this can take a minute)...", flush=True)
         started = time.monotonic()
-        extraction = parse_source(text, graph)   # LLM call
+        extraction = parse_source(text, prompt_context["text"])   # LLM call
         print(f"  Model replied in {time.monotonic() - started:.1f} seconds", flush=True)
         counts = merge_into_graph(graph, extraction)
         save_graph(graph, args.graph)            # saved AFTER EACH FILE
@@ -117,8 +146,15 @@ if __name__ == "__main__":
 ### 3.4 Key behaviors (pipeline-level)
 
 - **Per-file save**: the graph is written to disk after *each* file, so file N+1 sees file N's result both in memory (the `graph` object) and on disk.
-- **Sequential context**: each file's prompt includes the entity catalog of everything merged so far.
-- **Blank file skip**: whitespace-only sources never reach the LLM.
+- **Sequential context**: each file's prompt receives context *selected from* everything
+  merged so far — not the whole catalog. A resource merged from file N reaches file N+1's
+  prompt only if file N+1 gives a reason to select it.
+- **Views are never cached across a merge**: `build_task_context()` re-derives the partition,
+  skeleton, and patterns per file, because the graph changed.
+- **Blank file skip**: whitespace-only sources never reach the LLM, and no context is built
+  for them.
+- **Context construction is read only**: no selection, score, or diagnostic is written into
+  the graph, and a failed LLM call leaves the saved graph byte-identical.
 
 ---
 
@@ -223,17 +259,25 @@ DEFAULT_MODEL = "openrouter/pareto-code:nitro"
 
 ### 4.4 `source_parse.py` — prompt builder
 
-Imports: `json`; rdflib `OWL, RDF, RDFS`; `entity_lookup.entity_catalog`; `llm.ask_llm`.
+Imports: `llm.ask_llm`. Nothing else — no `json`, no rdflib, no `entity_lookup`.
+Since phase 5D this module receives context instead of discovering it.
 
 **Functions**:
 
-- `make_prompt(text, graph)`:
-  - `entities = json.dumps(entity_catalog(graph), ensure_ascii=False)`.
-  - `properties = sorted({str(name) for property_type in (OWL.ObjectProperty, OWL.DatatypeProperty) for uri in graph.subjects(RDF.type, property_type) for name in graph.objects(uri, RDFS.label)})`
-    — i.e. every `rdfs:label` of every `owl:ObjectProperty` / `owl:DatatypeProperty` in the graph, sorted, deduplicated. Unlabelled properties are excluded.
-  - Returns an f-string with: `EXISTING ENTITIES`, `EXISTING PROPERTY NAMES`,
-    resolution instructions (`existing_id` rules), the required JSON shape, and `SOURCE`.
-- `parse_source(text, graph)` — `return ask_llm(make_prompt(text, graph))`. Does not mutate the graph.
+- `context_block(context_text)` — the selected context, headed
+  `ONTOLOGY CONTEXT - selected for this source, not the whole ontology:` and followed by
+  `CONTEXT_RULES`. Returns `""` for empty or whitespace-only context, so the heading and
+  rules never appear without content.
+- `make_prompt(text, context_text="")` — one f-string: the instruction line, the context
+  block (if any), the unchanged `existing_id` resolution paragraph, the required JSON
+  shape, the endpoint constraint, and `SOURCE` between `---` delimiters.
+- `parse_source(text, context_text="")` — `return ask_llm(make_prompt(text, context_text))`.
+  Takes no graph and cannot mutate one.
+
+**`CONTEXT_RULES`** (module constant, stated to the model): only an exact `id:` value may
+be reused as `existing_id`; a `uri:` value is context, not an identifier; observed usage is
+evidence about current data, not a rule; the context is a selection, so real things missing
+from it are still worth extracting.
 
 **Required JSON contract** (verbatim shape in the prompt):
 
@@ -255,6 +299,7 @@ Imports: `json`; rdflib `OWL, RDF, RDFS`; `entity_lookup.entity_catalog`; `llm.a
 
 Constraints stated to the model: relation endpoints and fact subjects must reference
 entity ids; `existing_id` must be an existing entity's exact id or `null`; return JSON only.
+This contract is unchanged by phase 5D — only the context around it changed.
 
 ---
 
@@ -333,9 +378,12 @@ Semantics: relations become `relation:*` `owl:ObjectProperty`s; facts become `fa
 
 ---
 
-## 5. Module reference (read-only derivation layer)
+## 5. Module reference (read-only derivation and context layers)
 
-These modules are **not** imported by the pipeline. They are imported only by their own tests.
+None of these modules writes to a graph. Since phase 5D the pipeline reaches all of them,
+through `task_context.build_task_context()` and `context_render.prepare_prompt_context()`.
+§5.1–5.3 derive general views of a graph; §5.4–5.8 select and shape the part of it one
+source text needs.
 
 ### 5.1 `graph_partition.py` — split into 3 views
 
@@ -476,6 +524,119 @@ summarized over *participating* subjects only (class members with no value are c
 
 ---
 
+### 5.4 `ontology_views.py` — the five derived views as one record
+
+Imports: `graph_partition.partition_graph`, `graph_skeleton.create_graph_skeleton`,
+`graph_patterns.observed_relationships`. Nine lines of body, no logic of its own.
+
+- `build_ontology_views(source_graph)` → `{"schema", "instance", "support", "skeleton",
+  "patterns"}`. The first four are `Graph`s of statements the source itself makes; `patterns`
+  is a `list[dict]` of observations. Keeping them in one record names them together; it does
+  not make them the same kind of statement.
+
+### 5.5 `source_concepts.py` — what one text mentions
+
+Imports: `re`, `unicodedata`. **No rdflib and no `llm`** — asserted by a test, so a future
+NLP/NER/embedding/small-model implementation can replace the body without touching anything
+else.
+
+- `normalize(text)` — NFKC, case folded, words single-spaced. Not ASCII-folding: accents and
+  non-Latin scripts survive (unlike `entity_lookup.identity_key`).
+- `extract_source_concepts(text)` → `list[{"text", "normalized", "kind", "weight", "origin",
+  "position"}]`, sorted by `(-weight, position, normalized)`, capped at `MAX_CONCEPTS`.
+  `kind` ∈ `mention | phrase | keyword`; `origin` ∈ `heading | capitalized-span | frequency`.
+  A capitalized span is a mention *candidate* — never a claimed `Person`/`Organization`.
+- `text_phrases(text, longest)` → `{normalized word run: first position}`. Task matching uses
+  this so names only match whole words (`art` cannot match inside `particle`, and
+  `Berlin, Paris` is not the phrase `Berlin Paris`).
+
+### 5.6 `task_context.py` — select the context one source needs
+
+Imports: rdflib terms; `entity_lookup.entity_catalog`; `graph_patterns.STRUCTURAL, eligible`;
+`ontology_views.build_ontology_views`; `source_concepts` (3 helpers).
+
+- `select_task_context(text, concepts, ontology_views, native_entities=None, limits=None)` —
+  the independently testable selector.
+- `build_task_context(text, source_graph, limits=None)` — composition: views + concepts +
+  `entity_catalog(source_graph)`, then the selector.
+
+Returns a **ContextPackage**: `{"concepts", "schema", "patterns", "resources", "examples",
+"labels", "diagnostics"}`. Each item is
+`{"id", "kind", "value", "priority", "reason", "direct"}` with `kind` ∈ `class | property |
+restriction | pattern | resource | example`. Item ids are content-derived and stable
+(a restriction's id never uses its blank-node identifier). `labels` maps every URI the
+surviving items mention to its names, with the decoded local name as fallback, so rendering
+never needs the graph again.
+
+**Priority tiers** (lower is more relevant; ties break on item id):
+
+| Tier | Constant | Meaning |
+|---|---|---|
+| 1 | `DIRECT_NAME` | a resource name or alias occurs in the source |
+| 2 | `DIRECT_LABEL` | a class, property, or predicate label occurs in the source |
+| 3 | `CONCEPT` | an extracted concept equals a name or local name |
+| 4 | `OVERLAP` | the source shares content words with a description |
+| 5 | `DEPENDENCY` | structure a direct match needs (parent/child, domain/range endpoint, restriction, a resource's type) |
+| 6 | `CONNECTED` | an observation about a directly matched class or property |
+| 7 | `NEIGHBOR` | a one-hop assertion, or the resource at its far end |
+| 8 | `INDIRECT` | an observation reached only through a matched resource |
+
+Task relevance outranks empirical frequency by construction: a frequent pattern the source
+gives no reason to see is never selected at all.
+
+**Bounded expansion**: one hierarchy hop, visited sets everywhere (so subclass cycles
+terminate), restrictions copied whole from the skeleton, and an assertion becomes an example
+only when its predicate matters for a reason other than the resource itself (tier < 8) or its
+far endpoint was directly matched — otherwise one hub would drag its whole neighbourhood in.
+
+### 5.7 `context_render.py` — render, assemble, budget
+
+Imports: rdflib `BNode, Literal`, `OWL, RDF, RDFS`; `prompt_budget` (3 functions);
+`task_context.TEXT_PREDICATES, datatype_term`.
+
+- `render_context_items(context_package, namespace_manager=None)` →
+  `list[{"id", "section", "priority", "text", "dependencies"}]`, sorted by
+  `(section order, priority, id)`. `section` ∈ `declared | observed | resources | examples`.
+- `assemble_context(rendered_items)` → one string: fixed section order, empty sections
+  omitted.
+- `prepare_prompt_context(context_package, budget_config, count_tokens=estimate_tokens)` →
+  `{"text", "budget"}`.
+- `allowance(budget_config)` — a stated `context_tokens` ceiling, the `context_allowance()`
+  arithmetic, or **both, in which case the smaller wins**. Neither present, or incomplete
+  arithmetic, raises `KeyError` rather than inventing a number.
+
+Rendering rules that must not regress: a datatype property points at `literal value (...)`,
+never at an apparent entity; an unknown observed range stays `unknown`; the six
+skeleton-supported restriction forms get careful wording and anything else renders as compact
+RDF (`rdfs:subClassOf [ owl:onProperty ... ]`) rather than invented modality; a generic
+resource shows `uri:` plus `not usable as existing_id` while a native entity shows `id:`;
+labels and descriptions are flattened, control characters removed, and runs of `- = ` # _ * ~`
+collapsed so graph text cannot forge a heading, fence, or source delimiter; long fields are
+cut at a word boundary with `TRUNCATION_MARKER`.
+
+`assembly_overhead()` charges headings and line breaks against the allowance *before*
+packing, for every section the candidates could fill — deliberately pessimistic so the
+assembled text can never overrun the allowance.
+
+### 5.8 `prompt_budget.py` — estimate, allowance, packing
+
+Imports: `math.ceil`. Nothing else.
+
+- `estimate_tokens(text, chars_per_token=DEFAULT_CHARS_PER_TOKEN)` — `ceil(len/divisor)`.
+- `context_allowance(total_limit, fixed_prompt_tokens, source_tokens, output_reserve,
+  safety_margin)` — clamped at 0, never negative.
+- `fit_context_items(rendered_items, token_budget, count_tokens=estimate_tokens)` →
+  `{"items", "used_tokens", "budget_tokens", "dropped_ids", "item_costs", "estimator"}`.
+  Considers items in `(priority, id)` order, takes an item only with its transitive
+  `dependencies` and only when the whole bundle fits, and **never slices**: an oversized item
+  is dropped whole and named in `dropped_ids`.
+- `PROMPT_BUDGET` — the approved production numbers (§10).
+
+The counter is a callable argument throughout: an exact model tokenizer can replace it later
+without touching selection or rendering.
+
+---
+
 ## 6. Data contracts & return types (quick reference)
 
 | Producer | Function | Return |
@@ -487,7 +648,18 @@ summarized over *participating* subjects only (class members with no value are c
 | `graph_skeleton` | `create_graph_skeleton(schema)` | `Graph` |
 | `graph_patterns` | `observed_relationships(schema, instance)` | `list[dict]` (see 5.3) |
 | `llm` | `ask_llm(prompt)` | parsed JSON object |
-| `source_parse` | `parse_source(text, graph)` | the LLM's parsed JSON object |
+| `source_parse` | `parse_source(text, context_text="")` | the LLM's parsed JSON object |
+| `ontology_views` | `build_ontology_views(graph)` | `{"schema","instance","support","skeleton","patterns"}` |
+| `source_concepts` | `extract_source_concepts(text)` | `list[{"text","normalized","kind","weight","origin","position"}]` |
+| `source_concepts` | `text_phrases(text, longest)` | `dict[str, int]` (word run → first position) |
+| `task_context` | `build_task_context(text, graph, limits=None)` | ContextPackage (see 5.6) |
+| `task_context` | `select_task_context(text, concepts, views, native_entities=None, limits=None)` | ContextPackage |
+| `context_render` | `render_context_items(package, namespace_manager=None)` | `list[{"id","section","priority","text","dependencies"}]` |
+| `context_render` | `assemble_context(rendered_items)` | `str` |
+| `context_render` | `prepare_prompt_context(package, budget_config, count_tokens=...)` | `{"text", "budget"}` |
+| `prompt_budget` | `estimate_tokens(text, chars_per_token=3)` | `int` |
+| `prompt_budget` | `context_allowance(total, fixed, source, reserve, margin)` | `int` (≥ 0) |
+| `prompt_budget` | `fit_context_items(items, budget, count_tokens=...)` | `{"items","used_tokens","budget_tokens","dropped_ids","item_costs","estimator"}` |
 
 ---
 
@@ -510,25 +682,40 @@ summarized over *participating* subjects only (class members with no value are c
 Arrows = "imports from".
 
 ```
-ontology.py ──► graph_management.py, graph_merge.py, ingest_sources.py,
-                llm.py (model_name), source_parse.py
-source_parse.py ──► entity_lookup.py (entity_catalog), llm.py (ask_llm)
+ontology.py ──► context_render.py (prepare_prompt_context), graph_management.py,
+                graph_merge.py, ingest_sources.py, llm.py (model_name),
+                prompt_budget.py (PROMPT_BUDGET, estimate_tokens),
+                source_parse.py, task_context.py (build_task_context)
+source_parse.py ──► llm.py (ask_llm)
 graph_merge.py ──► entity_lookup.py (entity_catalog, identify_entity),
                    graph_management.py (CLASS, ENTITY, FACT, ONTO, RELATION)
 entity_lookup.py ──► graph_management.py (ONTO)
 graph_patterns.py ──► graph_management.py (ONTO)
 
+context_render.py ──► prompt_budget.py, task_context.py (TEXT_PREDICATES, datatype_term)
+task_context.py ──► entity_lookup.py (entity_catalog),
+                    graph_patterns.py (STRUCTURAL, eligible),
+                    ontology_views.py, source_concepts.py
+ontology_views.py ──► graph_partition.py, graph_skeleton.py, graph_patterns.py
+
 graph_partition.py ──► (rdflib only)
 graph_skeleton.py ──► (rdflib only)
 graph_management.py ──► (rdflib only)
+prompt_budget.py ──► (stdlib only)
+source_concepts.py ──► (stdlib only)
 llm.py ──► (stdlib only)
 ingest_sources.py ──► (stdlib only)
 ```
 
-- `graph_partition.py`, `graph_skeleton.py`, `graph_patterns.py` are **not** imported by any
-  pipeline module. They are imported only by their own tests.
+- The derivation layer is now reached by the pipeline, but only through `ontology_views.py`
+  and only for reading.
 - `graph_partition` and `graph_skeleton` do **not** depend on `graph_management` (they use raw
   rdflib namespaces). `graph_patterns` depends on `graph_management.ONTO` for the `EXCLUDED` set.
+- `source_parse.py` no longer imports `entity_lookup` or rdflib. `entity_lookup` itself is
+  unchanged and is still used at merge time against the **whole** graph, so a resource left out
+  of the prompt is still available for local resolution.
+- `source_concepts.py` and `prompt_budget.py` are the two deliberate seams for future
+  replacement (NLP/small model; exact tokenizer). Neither imports rdflib or `llm`.
 
 ---
 
@@ -551,6 +738,30 @@ ontology.ttl  (single merged graph — the only origin)
  declared structural core    empirical usage patterns
  (what ontology claims)      (what data actually does)
 ```
+
+Since phase 5D one more stage sits on top, per source text:
+
+```
+source text ──► extract_source_concepts()          [no RDF, no LLM]
+                       │
+current graph ──► build_ontology_views()  ─────────┐
+                                                   ▼
+                       select_task_context()  →  ContextPackage
+                       (tiers 1-4 direct, 5-8 bounded expansion)
+                                                   │
+                       render_context_items()  ────┤  declared / observed /
+                                                   │  resources / examples
+                       fit_context_items()  ───────┤  complete items only
+                                                   ▼
+                       assemble_context()  →  one prompt block
+                                                   │
+                       parse_source(text, block) ──► LLM
+                                                   │
+                       merge_into_graph()  ────────► the whole graph again
+```
+
+The last arrow is the point of the design: **selection narrows the prompt, never the merge.**
+`identify_entity()` still sees the full catalog.
 
 - **`support` is consumed by neither tool** — kept apart so metadata/constraints never leak into
   the class/property view.
@@ -580,6 +791,29 @@ ontology.ttl  (single merged graph — the only origin)
 | Seed graph size | 8 triples |
 | Close-spelling threshold | `0.96` (SequenceMatcher ratio) |
 | Dependency | `rdflib>=7,<8` |
+
+Context selection and prompt budget (proposal 05). The budget numbers were approved by the
+user on 2026-08-17 after seeing phase 5C measurements:
+
+| Item | Value | Where |
+|---|---|---|
+| `total_limit` | `30_000` | `prompt_budget.PROMPT_BUDGET` |
+| `context_tokens` (ceiling) | `1_400` | same |
+| `fixed_prompt_tokens` | `400` | same (measured 331) |
+| `output_reserve` | `4_000` | same |
+| `safety_margin` | `500` | same |
+| `DEFAULT_CHARS_PER_TOKEN` | `3` | `prompt_budget` |
+| Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 | `task_context.DEFAULT_LIMITS` |
+| Traversal caps | `hierarchy_hops` 1, `instance_hops` 1 | same |
+| Matching caps | `concepts` 40, `direct_matches` 40, `match_tokens` 8, `overlap_tokens` 2 | same |
+| Concept extraction caps | `MAX_CONCEPTS` 40, `MAX_TOKENS` 5000, `MAX_CHARACTERS` 200 000 | `source_concepts` |
+| Concept weights | mention 3.0, phrase 2.0, keyword 1.0; heading +2.0; repeat +0.5 each, capped 3.0; early +1.0 | same |
+| Field truncation | `MAX_FIELD_CHARACTERS` 240 | `context_render` |
+
+`total_limit` is deliberately high so that it does not bind; **it is not a measured model
+window** and must never be inferred or adjusted from `OPENROUTER_MODEL`, which may name a
+router. `context_tokens` is the intended lever on prompt size, and where both apply the
+smaller wins.
 
 ---
 
@@ -625,9 +859,14 @@ ontology.ttl  (single merged graph — the only origin)
 
 | Test file | What it pins down |
 |---|---|
-| `test_pipeline.py` | blank-file skip; per-file save + growing context; graph dir creation; default `ontology.ttl`; progress lines; error paths; rerun resolves (0 new / 1 resolved, name becomes altLabel) |
+| `test_pipeline.py` | blank-file skip; per-file save + growing context; graph dir creation; default `ontology.ttl`; progress lines; error paths; rerun resolves (0 new / 1 resolved, name becomes altLabel); **5D**: a mentioned entity reaches the prompt and an unmentioned one does not; the old catalog block is gone; context rebuilt per file; zero allowance still a valid prompt; the budget line is printed; the context stays within the ceiling; an entity absent from the prompt still resolves at merge time; a failed call leaves the saved graph byte-identical; the repository graph is untouched |
 | `test_ingest_sources.py` | direct file accepts any extension; directory = recursive+sorted+extension-filtered+graph-excluded; missing source error; utf-8 replace |
-| `test_source_parse.py` | prompt contains source + catalog + property labels + JSON contract; `parse_source` delegates to `ask_llm` and is read-only |
+| `test_source_parse.py` | prompt contains source + the given context + JSON contract; the context heading, id/uri rule, and "not a rule" wording; the old catalog block is absent and the module no longer imports `entity_catalog`/rdflib; empty and whitespace-only context omit the block; `parse_source` delegates to `ask_llm` |
+| `test_ontology_views.py` | the five fields; façade equals the direct calls on rich, sparse, and repository graphs; lossless partition; skeleton gains no domain/range; observations never become declared structure; foreign individuals need no `onto:Entity`; prefixes survive on all four graphs; sources unchanged |
+| `test_source_concepts.py` | record fields and vocabularies; blank and punctuation-only input; determinism and tie order; Unicode without accent stripping; caseless scripts; mentions claim no type; comma separation; heading/repetition/early weighting and the repetition cap; deduplication; caps; no rdflib/`llm` import; the phrase index |
+| `test_task_context.py` | package/item/match shapes and diagnostics; label, prefLabel, altLabel, and local-name matching; word boundaries; tier order; declared domain/range and their absence; one hierarchy hop, no second hop, cycles terminate; restriction bundles with blank-node-independent ids; patterns by predicate, subject class, class range, datatype, unknown range; declared vs observed conflict; native vs generic cards; the preferred name; examples and hub protection; unrelated source, empty graph, empty source; every cap; determinism; immutability; the label map |
+| `test_context_render.py` | rendered-item shape and stable ids; classes with/without parents; object vs datatype properties; declared domain/range and their absence; all six supported restriction forms; unsupported forms as RDF with no invented modality; pattern evidence, datatype and unknown ranges, classless subjects; the evidence heading; declared/observed kept apart; native card fields and the duplicate-`kind` rule; generic cards refused as `existing_id`; object and literal assertions; label → prefix → URI; flattened newlines, defused delimiters, stripped controls; field truncation; section order and omission; composition, the allowance never exceeded, both-limits arithmetic, refused configs, injected counters, caps with the token cap, immutability |
+| `test_prompt_budget.py` | estimator on empty/ASCII/Unicode/multiline and a changed divisor; allowance arithmetic clamped at zero; priority order; usage never exceeding the allowance; id tie-breaking; zero allowance; oversized items dropped whole; multiline items all-or-nothing; injected counters and the estimator name; dependency bundles charged once, dropped together, never invented; per-item costs, dropped order, empty result, immutability |
 | `test_entity_lookup.py` | `identity_key` normalization; catalog fields/sorting; `existing_id` precedence; exact name+kind (unique only); 0.96 threshold + tie ambiguity; kind-mismatch never resolves |
 | `test_graph_merge.py` | slug/label; URI suffix uniqueness; full typing; enrich vs overwrite (comment not overwritten, differing name→altLabel); skip invalid records/endpoints; dedup; sequential visibility; count order `(new, resolved, relations, facts)` |
 | `test_graph_management.py` | seed structure (isomorphic, 8 triples); no reseed on existing; prefix bindings; save/reload round-trip |
@@ -655,6 +894,29 @@ ontology.ttl  (single merged graph — the only origin)
 13. **Skeleton does no inference**: no transitive subclass closure, no inferred domains/ranges,
     no declarations for range-only resources.
 14. **Unsupported/incomplete OWL restrictions are dropped whole** by the skeleton (never half-copied).
+15. **The prompt is a selection, not the graph**: an entity in the graph reaches the prompt only
+    if the source gives a reason to select it. This is why `test_pipeline` asserts both that a
+    mentioned entity appears *and* that an unmentioned one does not.
+16. **Selection narrows the prompt, not the merge**: `identify_entity()` still runs against the
+    whole catalog, so an entity omitted from the prompt can still be resolved rather than
+    duplicated.
+17. **`onto:Entity` is not required** to be selectable as context, but only entities in
+    `entity_catalog()` are rendered with an `id:` the model may reuse; everything else gets
+    `uri:` and an explicit "not usable as existing_id".
+18. **Two normalizations coexist on purpose**: `entity_lookup.identity_key` (ASCII-folding, for
+    merge-time identity) and `source_concepts.normalize` (Unicode-preserving, for source
+    matching). Do not unify them without deciding what merge identity should mean.
+19. **`source_concepts` uses whole-word runs**, so a hyphenated source term matches a spaced
+    label, and a short label cannot match inside a longer word.
+20. **The context budget is charged pessimistically** (headings for every candidate section, a
+    3-characters-per-token divisor), so the assembled context always fits the stated allowance
+    and usually undershoots it.
+21. **Observations never become axioms**: a pattern record is copied into the package and
+    rendered under an "EVIDENCE, NOT AN ONTOLOGY RULE" heading; nothing writes it back as
+    `rdfs:domain`/`rdfs:range`.
+22. **Tier-8 observations are deliberately weak**: reached only through a matched resource's
+    class, dropped first by the budget, and excluded from the reasons that justify pulling in a
+    hub's neighbouring assertions.
 
 ---
 
