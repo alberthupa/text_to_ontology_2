@@ -14,25 +14,50 @@ onto:EntityShape a sh:NodeShape ;
             sh:path skos:prefLabel ] ;
     sh:targetClass onto:Entity .
 
+entity:defense-manufacturing a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Defense manufacturing" ;
+    fact:depends-on "trace metals and rare materials" ;
+    onto:kind "Entity" ;
+    relation:depends-on entity:rare-earths ;
+    rdfs:comment "Defense production that depends on trace metals and rare materials" ;
+    skos:altLabel "defense production" ;
+    skos:prefLabel "Defense manufacturing" .
+
 entity:donald-trump a onto:Entity,
         class:person,
         owl:NamedIndividual,
         skos:Concept ;
     rdfs:label "Donald Trump" ;
     onto:kind "Person" ;
+    relation:party-to entity:trump-xi-summit ;
     relation:planned-summit-with entity:xi-jinping ;
     rdfs:comment "US leader referenced as a party to a possible future summit with Xi" ;
     skos:altLabel "Trump" ;
     skos:prefLabel "Donald Trump" .
 
-entity:east-asia a onto:Entity,
-        class:location,
+entity:electric-vehicles a onto:Entity,
+        class:entity,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "East Asia" ;
-    onto:kind "Location" ;
-    rdfs:comment "Region affected by competition with China" ;
-    skos:prefLabel "East Asia" .
+    rdfs:label "Electric vehicles" ;
+    onto:kind "Entity" ;
+    relation:depends-on entity:rare-earths ;
+    rdfs:comment "Industry that depends on critical minerals and resilient supply chains" ;
+    skos:prefLabel "Electric vehicles" .
+
+entity:energy-transition a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Energy transition" ;
+    fact:depends-on "batteries, magnets, and grid components" ;
+    onto:kind "Entity" ;
+    relation:depends-on entity:rare-earths ;
+    rdfs:comment "Shift that depends on batteries, magnets, and grid components" ;
+    skos:prefLabel "Energy transition" .
 
 entity:kirill-dmitriev a onto:Entity,
         class:person,
@@ -45,6 +70,350 @@ entity:kirill-dmitriev a onto:Entity,
     rdfs:comment "Russian envoy who visited Washington amid discussion of sanctions relief and possible peace terms." ;
     skos:prefLabel "Kirill Dmitriev" .
 
+entity:nvidia-gpu-routing-attempts a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Nvidia GPU routing attempts" ;
+    onto:kind "Event" ;
+    relation:routes-restricted-gpus-of entity:nvidia ;
+    relation:targets-buyers-in entity:china ;
+    rdfs:comment "Reported attempts to move large volumes of servers containing restricted Nvidia GPUs toward Chinese buyers" ;
+    skos:prefLabel "Nvidia GPU routing attempts" .
+
+entity:paris-preparatory-talks a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Paris preparatory talks" ;
+    onto:kind "Event" ;
+    relation:held-in entity:paris ;
+    relation:prepares entity:trump-xi-summit ;
+    rdfs:comment "Diplomatic talks held in Paris aimed at preparing a future Trump-Xi summit" ;
+    skos:prefLabel "Paris preparatory talks" .
+
+entity:regional-conflicts a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Regional conflicts" ;
+    onto:kind "Event" ;
+    relation:disrupted entity:energy-markets ;
+    rdfs:comment "Wider regional conflicts that disrupted energy markets and put shipping routes and fuel supplies under stress" ;
+    skos:prefLabel "Regional conflicts" .
+
+entity:renewable-energy-systems a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Renewable energy systems" ;
+    onto:kind "Entity" ;
+    relation:depends-on entity:rare-earths ;
+    rdfs:comment "Energy systems that depend on critical minerals among other industrial inputs" ;
+    skos:prefLabel "Renewable energy systems" .
+
+entity:strait-of-hormuz a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Strait of Hormuz" ;
+    fact:shapes "oil supply" ;
+    onto:kind "Location" ;
+    rdfs:comment "Strategic chokepoint for oil supply" ;
+    skos:prefLabel "Strait of Hormuz" .
+
+entity:world-economic-forum a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "World Economic Forum" ;
+    fact:ranks "geoeconomic confrontation as top near-term risk" ;
+    onto:kind "Organization" ;
+    relation:published entity:world-economic-forum-2026-global-risks-work ;
+    rdfs:comment "International organization that publishes global risks work" ;
+    skos:prefLabel "World Economic Forum" .
+
+fact:advanced-chip-demand a owl:DatatypeProperty ;
+    rdfs:label "advanced chip demand" .
+
+fact:affects a owl:DatatypeProperty ;
+    rdfs:label "affects" .
+
+fact:aim a owl:DatatypeProperty ;
+    rdfs:label "aim" .
+
+fact:critical-minerals-position a owl:DatatypeProperty ;
+    rdfs:label "critical minerals position" .
+
+fact:depends-on a owl:DatatypeProperty ;
+    rdfs:label "depends on" .
+
+fact:diplomatic-talks-purpose a owl:DatatypeProperty ;
+    rdfs:label "diplomatic talks purpose" .
+
+fact:effect a owl:DatatypeProperty ;
+    rdfs:label "effect" .
+
+fact:effect-on-demand a owl:DatatypeProperty ;
+    rdfs:label "effect on demand" .
+
+fact:expiration-date a owl:DatatypeProperty ;
+    rdfs:label "expiration date" .
+
+fact:export-control-effect a owl:DatatypeProperty ;
+    rdfs:label "export control effect" .
+
+fact:gray-market-routing-case a owl:DatatypeProperty ;
+    rdfs:label "gray market routing case" .
+
+fact:high-end-processor-orders-for-delivery a owl:DatatypeProperty ;
+    rdfs:label "high end processor orders for delivery" .
+
+fact:industrial-overcapacity-sectors a owl:DatatypeProperty ;
+    rdfs:label "industrial overcapacity sectors" .
+
+fact:introduced a owl:DatatypeProperty ;
+    rdfs:label "introduced" .
+
+fact:introduced-date a owl:DatatypeProperty ;
+    rdfs:label "introduced date" .
+
+fact:justification a owl:DatatypeProperty ;
+    rdfs:label "justification" .
+
+fact:leverage-area a owl:DatatypeProperty ;
+    rdfs:label "leverage area" .
+
+fact:other-major-risks a owl:DatatypeProperty ;
+    rdfs:label "other major risks" .
+
+fact:outcome a owl:DatatypeProperty ;
+    rdfs:label "outcome" .
+
+fact:overcapacity-sectors a owl:DatatypeProperty ;
+    rdfs:label "overcapacity sectors" .
+
+fact:policy-emphasis a owl:DatatypeProperty ;
+    rdfs:label "policy emphasis" .
+
+fact:policy-framing a owl:DatatypeProperty ;
+    rdfs:label "policy framing" .
+
+fact:preferred-settlement-approach a owl:DatatypeProperty ;
+    rdfs:label "preferred settlement approach" .
+
+fact:ranks a owl:DatatypeProperty ;
+    rdfs:label "ranks" .
+
+fact:reported-settlement-condition a owl:DatatypeProperty ;
+    rdfs:label "reported settlement condition" .
+
+fact:scheduled-expiry-date a owl:DatatypeProperty ;
+    rdfs:label "scheduled expiry date" .
+
+fact:settlement-position a owl:DatatypeProperty ;
+    rdfs:label "settlement position" .
+
+fact:settlement-preference a owl:DatatypeProperty ;
+    rdfs:label "settlement preference" .
+
+fact:shapes a owl:DatatypeProperty ;
+    rdfs:label "shapes" .
+
+fact:strategic-status a owl:DatatypeProperty ;
+    rdfs:label "strategic status" .
+
+fact:top-near-term-risk a owl:DatatypeProperty ;
+    rdfs:label "top near term risk" .
+
+onto:ontology a owl:Ontology .
+
+relation:accused-of-violating a owl:ObjectProperty ;
+    rdfs:label "accused of violating" .
+
+relation:affected a owl:ObjectProperty ;
+    rdfs:label "affected" .
+
+relation:affects a owl:ObjectProperty ;
+    rdfs:label "affects" .
+
+relation:competes-with a owl:ObjectProperty ;
+    rdfs:label "competes with" .
+
+relation:concentrated-in-supply-chains-of a owl:ObjectProperty ;
+    rdfs:label "concentrated in supply chains of" .
+
+relation:coordinates-on-critical-minerals-with a owl:ObjectProperty ;
+    rdfs:label "coordinates on critical minerals with" .
+
+relation:coordinates-with a owl:ObjectProperty ;
+    rdfs:label "coordinates with" .
+
+relation:damaged a owl:ObjectProperty ;
+    rdfs:label "damaged" .
+
+relation:demands a owl:ObjectProperty ;
+    rdfs:label "demands" .
+
+relation:depends-on a owl:ObjectProperty ;
+    rdfs:label "depends on" .
+
+relation:disrupted a owl:ObjectProperty ;
+    rdfs:label "disrupted" .
+
+relation:emphasizes a owl:ObjectProperty ;
+    rdfs:label "emphasizes" .
+
+relation:faces-industrial-overcapacity-from a owl:ObjectProperty ;
+    rdfs:label "faces industrial overcapacity from" .
+
+relation:fights a owl:ObjectProperty ;
+    rdfs:label "fights" .
+
+relation:held-in a owl:ObjectProperty ;
+    rdfs:label "held in" .
+
+relation:imposes a owl:ObjectProperty ;
+    rdfs:label "imposes" .
+
+relation:introduced a owl:ObjectProperty ;
+    rdfs:label "introduced" .
+
+relation:introduced-during a owl:ObjectProperty ;
+    rdfs:label "introduced during" .
+
+relation:involves a owl:ObjectProperty ;
+    rdfs:label "involves" .
+
+relation:limits-access-of a owl:ObjectProperty ;
+    rdfs:label "limits access of" .
+
+relation:limits-access-to a owl:ObjectProperty ;
+    rdfs:label "limits access to" .
+
+relation:linked-to a owl:ObjectProperty ;
+    rdfs:label "linked to" .
+
+relation:makes-restricted-gpus-among a owl:ObjectProperty ;
+    rdfs:label "makes restricted GPUs among" .
+
+relation:occurred-during a owl:ObjectProperty ;
+    rdfs:label "occurred during" .
+
+relation:party-to a owl:ObjectProperty ;
+    rdfs:label "party to" .
+
+relation:planned-summit-with a owl:ObjectProperty ;
+    rdfs:label "planned summit with" .
+
+relation:prepares a owl:ObjectProperty ;
+    rdfs:label "prepares" .
+
+relation:published a owl:ObjectProperty ;
+    rdfs:label "published" .
+
+relation:pursues a owl:ObjectProperty ;
+    rdfs:label "pursues" .
+
+relation:represents a owl:ObjectProperty ;
+    rdfs:label "represents" .
+
+relation:restricted-gpus-sought-by a owl:ObjectProperty ;
+    rdfs:label "restricted GPUs sought by" .
+
+relation:restricts-chip-exports-to a owl:ObjectProperty ;
+    rdfs:label "restricts chip exports to" .
+
+relation:routes-restricted-gpus-of a owl:ObjectProperty ;
+    rdfs:label "routes restricted GPUs of" .
+
+relation:sought-pledge-from a owl:ObjectProperty ;
+    rdfs:label "sought pledge from" .
+
+relation:targets-buyers-in a owl:ObjectProperty ;
+    rdfs:label "targets buyers in" .
+
+relation:treats-overcapacity-as-economic-security-from a owl:ObjectProperty ;
+    rdfs:label "treats overcapacity as economic security from" .
+
+relation:visited a owl:ObjectProperty ;
+    rdfs:label "visited" .
+
+relation:waives-sanctions-on a owl:ObjectProperty ;
+    rdfs:label "waives sanctions on" .
+
+relation:was-linked-to-conflict-involving a owl:ObjectProperty ;
+    rdfs:label "was linked to conflict involving" .
+
+class:infrastructure a owl:Class ;
+    rdfs:label "Infrastructure" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:chinese-export-controls a onto:Entity,
+        class:policy,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Chinese export controls" ;
+    fact:effect "immediate disruptions well beyond China" ;
+    onto:kind "Policy" ;
+    relation:limits-access-to entity:rare-earths ;
+    rdfs:comment "Expanded export controls or tighter restrictions from Beijing that can create immediate disruptions well beyond China" ;
+    skos:altLabel "tighter restrictions from Beijing" ;
+    skos:prefLabel "Chinese export controls" .
+
+entity:conflict-involving-iran a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Conflict involving Iran" ;
+    fact:affects "Asian energy importers",
+        "European political choices",
+        "global fuel prices" ;
+    onto:kind "Event" ;
+    relation:affects entity:europe ;
+    relation:involves entity:iran ;
+    rdfs:comment "Regional crisis involving Iran with effects beyond the region" ;
+    skos:prefLabel "Conflict involving Iran" .
+
+entity:east-asia a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "East Asia" ;
+    onto:kind "Location" ;
+    rdfs:comment "Region affected by competition with China" ;
+    skos:prefLabel "East Asia" .
+
+entity:energy-markets a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Energy markets" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Fuel and energy markets disrupted by regional conflicts and linked to mineral and industrial security" ;
+    skos:prefLabel "Energy markets" .
+
+entity:energy-shock a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "energy shock" ;
+    onto:kind "Event" ;
+    relation:linked-to entity:conflict-involving-iran ;
+    rdfs:comment "Mid-March energy-market shock linked to conflict involving Iran, during which the United States introduced a temporary sanctions waiver on Russian oil." ;
+    skos:prefLabel "energy shock" .
+
+entity:nato a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "NATO" ;
+    fact:policy-emphasis "Stronger conventional deterrence, faster technology adoption, and sustained allied defense spending" ;
+    onto:kind "Organization" ;
+    relation:emphasizes entity:russian-refining-capacity ;
+    rdfs:comment "Alliance that Russia reportedly wanted to pledge to stop expanding eastward and that emphasized stronger deterrence and defense spending." ;
+    skos:prefLabel "NATO" .
+
 entity:nvidia a onto:Entity,
         class:organization,
         owl:NamedIndividual,
@@ -52,6 +421,7 @@ entity:nvidia a onto:Entity,
     rdfs:label "Nvidia" ;
     fact:gray-market-routing-case "attempts to move large volumes of servers containing restricted Nvidia GPUs toward Chinese buyers" ;
     onto:kind "Organization" ;
+    relation:makes-restricted-gpus-among entity:advanced-chips ;
     relation:restricted-gpus-sought-by entity:china ;
     rdfs:comment "Chipmaker whose restricted GPUs were reportedly targeted for routing to Chinese buyers via servers" ;
     skos:prefLabel "Nvidia" .
@@ -72,137 +442,78 @@ entity:russia-ukraine-war a onto:Entity,
         skos:Concept ;
     rdfs:label "Russia-Ukraine war" ;
     onto:kind "Event" ;
+    relation:affected entity:europe ;
     relation:affects entity:europe,
         entity:united-states ;
+    relation:involves entity:russia,
+        entity:ukraine ;
     rdfs:comment "Ongoing war between Russia and Ukraine whose effects are entangled with sanctions, oil-market management, and alliance politics." ;
     skos:altLabel "war in Ukraine" ;
     skos:prefLabel "Russia-Ukraine war" .
 
-entity:strait-of-hormuz a onto:Entity,
-        class:location,
+entity:temporary-us-sanctions-waiver-on-russian-oil a onto:Entity,
+        class:policy,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Strait of Hormuz" ;
-    fact:shapes "oil supply" ;
-    onto:kind "Location" ;
-    rdfs:comment "Strategic chokepoint for oil supply" ;
-    skos:prefLabel "Strait of Hormuz" .
+    rdfs:label "temporary US sanctions waiver on Russian oil" ;
+    fact:expiration-date "2026-04-11" ;
+    fact:introduced "mid-March 2026" ;
+    fact:introduced-date "2026-03" ;
+    fact:justification "market-stabilization measure" ;
+    fact:scheduled-expiry-date "2026-04-11" ;
+    onto:kind "Policy" ;
+    relation:introduced-during entity:energy-shock ;
+    relation:waives-sanctions-on entity:russia ;
+    relation:was-linked-to-conflict-involving entity:iran ;
+    rdfs:comment "Temporary market-stabilization waiver introduced by the United States in mid-March during an energy shock and set to expire on April 11." ;
+    skos:altLabel "US sanctions waiver" ;
+    skos:prefLabel "temporary US sanctions waiver on Russian oil" .
 
-entity:world-economic-forum a onto:Entity,
-        class:organization,
+entity:us-export-restrictions a onto:Entity,
+        class:policy,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "World Economic Forum" ;
-    fact:ranks "geoeconomic confrontation as top near-term risk" ;
-    onto:kind "Organization" ;
-    rdfs:comment "International organization that publishes global risks work" ;
-    skos:prefLabel "World Economic Forum" .
+    rdfs:label "US export restrictions" ;
+    fact:effect-on-demand "changed supply channels more than eliminated demand" ;
+    onto:kind "Policy" ;
+    relation:limits-access-of entity:china ;
+    relation:limits-access-to entity:advanced-chips ;
+    rdfs:comment "United States technology controls that limit China's formal access to advanced chips and can redirect trade into opaque channels" ;
+    skos:altLabel "export controls",
+        "technology controls" ;
+    skos:prefLabel "US export restrictions" .
 
-fact:advanced-chip-demand a owl:DatatypeProperty ;
-    rdfs:label "advanced chip demand" .
+entity:world-economic-forum-2026-global-risks-work a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "World Economic Forum 2026 global risks work" ;
+    fact:other-major-risks "interstate conflict, extreme weather, societal polarization, and misinformation" ;
+    fact:top-near-term-risk "geoeconomic confrontation" ;
+    onto:kind "Entity" ;
+    rdfs:comment "WEF 2026 risks assessment placing geoeconomic confrontation first among near-term risks" ;
+    skos:prefLabel "World Economic Forum 2026 global risks work" .
 
-fact:affects a owl:DatatypeProperty ;
-    rdfs:label "affects" .
+entity:xi-jinping a onto:Entity,
+        class:person,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Xi Jinping" ;
+    onto:kind "Person" ;
+    relation:party-to entity:trump-xi-summit ;
+    rdfs:comment "Chinese leader referenced as a party to a possible future summit with Trump" ;
+    skos:altLabel "Xi" ;
+    skos:prefLabel "Xi Jinping" .
 
-fact:critical-minerals-position a owl:DatatypeProperty ;
-    rdfs:label "critical minerals position" .
-
-fact:diplomatic-talks-purpose a owl:DatatypeProperty ;
-    rdfs:label "diplomatic talks purpose" .
-
-fact:export-control-effect a owl:DatatypeProperty ;
-    rdfs:label "export control effect" .
-
-fact:gray-market-routing-case a owl:DatatypeProperty ;
-    rdfs:label "gray market routing case" .
-
-fact:introduced-date a owl:DatatypeProperty ;
-    rdfs:label "introduced date" .
-
-fact:overcapacity-sectors a owl:DatatypeProperty ;
-    rdfs:label "overcapacity sectors" .
-
-fact:policy-emphasis a owl:DatatypeProperty ;
-    rdfs:label "policy emphasis" .
-
-fact:policy-framing a owl:DatatypeProperty ;
-    rdfs:label "policy framing" .
-
-fact:ranks a owl:DatatypeProperty ;
-    rdfs:label "ranks" .
-
-fact:reported-settlement-condition a owl:DatatypeProperty ;
-    rdfs:label "reported settlement condition" .
-
-fact:scheduled-expiry-date a owl:DatatypeProperty ;
-    rdfs:label "scheduled expiry date" .
-
-fact:settlement-position a owl:DatatypeProperty ;
-    rdfs:label "settlement position" .
-
-fact:settlement-preference a owl:DatatypeProperty ;
-    rdfs:label "settlement preference" .
-
-fact:shapes a owl:DatatypeProperty ;
-    rdfs:label "shapes" .
-
-onto:ontology a owl:Ontology .
-
-relation:accused-of-violating a owl:ObjectProperty ;
-    rdfs:label "accused of violating" .
-
-relation:affects a owl:ObjectProperty ;
-    rdfs:label "affects" .
-
-relation:competes-with a owl:ObjectProperty ;
-    rdfs:label "competes with" .
-
-relation:coordinates-with a owl:ObjectProperty ;
-    rdfs:label "coordinates with" .
-
-relation:damaged a owl:ObjectProperty ;
-    rdfs:label "damaged" .
-
-relation:emphasizes a owl:ObjectProperty ;
-    rdfs:label "emphasizes" .
-
-relation:fights a owl:ObjectProperty ;
-    rdfs:label "fights" .
-
-relation:introduced a owl:ObjectProperty ;
-    rdfs:label "introduced" .
-
-relation:planned-summit-with a owl:ObjectProperty ;
-    rdfs:label "planned summit with" .
-
-relation:represents a owl:ObjectProperty ;
-    rdfs:label "represents" .
-
-relation:restricted-gpus-sought-by a owl:ObjectProperty ;
-    rdfs:label "restricted GPUs sought by" .
-
-relation:restricts-chip-exports-to a owl:ObjectProperty ;
-    rdfs:label "restricts chip exports to" .
-
-relation:sought-pledge-from a owl:ObjectProperty ;
-    rdfs:label "sought pledge from" .
-
-relation:visited a owl:ObjectProperty ;
-    rdfs:label "visited" .
-
-relation:waives-sanctions-on a owl:ObjectProperty ;
-    rdfs:label "waives sanctions on" .
-
-relation:was-linked-to-conflict-involving a owl:ObjectProperty ;
-    rdfs:label "was linked to conflict involving" .
-
-class:infrastructure a owl:Class ;
-    rdfs:label "Infrastructure" ;
-    rdfs:subClassOf onto:Entity .
-
-class:policy a owl:Class ;
-    rdfs:label "Policy" ;
-    rdfs:subClassOf onto:Entity .
+entity:coordinated-mineral-strategy a onto:Entity,
+        class:policy,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Coordinated mineral strategy" ;
+    fact:aim "price stability and reduced vulnerability" ;
+    onto:kind "Policy" ;
+    rdfs:comment "European and US approach aimed at price stability and reduced vulnerability if Chinese-controlled mineral supply is cut" ;
+    skos:prefLabel "Coordinated mineral strategy" .
 
 entity:iran a onto:Entity,
         class:location,
@@ -214,104 +525,16 @@ entity:iran a onto:Entity,
     rdfs:comment "Country involved in conflict affecting global fuel prices" ;
     skos:prefLabel "Iran" .
 
-entity:nato a onto:Entity,
-        class:organization,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "NATO" ;
-    fact:policy-emphasis "Stronger conventional deterrence, faster technology adoption, and sustained allied defense spending" ;
-    onto:kind "Organization" ;
-    relation:emphasizes entity:russian-refining-capacity ;
-    rdfs:comment "Alliance that Russia reportedly wanted to pledge to stop expanding eastward and that emphasized stronger deterrence and defense spending." ;
-    skos:prefLabel "NATO" .
-
-entity:temporary-us-sanctions-waiver-on-russian-oil a onto:Entity,
-        class:policy,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "temporary US sanctions waiver on Russian oil" ;
-    fact:introduced-date "2026-03" ;
-    fact:scheduled-expiry-date "2026-04-11" ;
-    onto:kind "Policy" ;
-    relation:waives-sanctions-on entity:russia ;
-    relation:was-linked-to-conflict-involving entity:iran ;
-    rdfs:comment "Temporary market-stabilization waiver introduced by the United States in mid-March during an energy shock and set to expire on April 11." ;
-    skos:altLabel "US sanctions waiver" ;
-    skos:prefLabel "temporary US sanctions waiver on Russian oil" .
-
-entity:ukraine a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Ukraine" ;
-    fact:settlement-preference "Freeze the conflict roughly along current lines" ;
-    onto:kind "Location" ;
-    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
-    relation:damaged entity:russian-refining-capacity ;
-    rdfs:comment "Country at war with Russia that favored freezing the conflict roughly along current lines." ;
-    skos:altLabel "Ukrainian" ;
-    skos:prefLabel "Ukraine" .
-
-entity:xi-jinping a onto:Entity,
-        class:person,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Xi Jinping" ;
-    onto:kind "Person" ;
-    rdfs:comment "Chinese leader referenced as a party to a possible future summit with Trump" ;
-    skos:altLabel "Xi" ;
-    skos:prefLabel "Xi Jinping" .
-
-class:event a owl:Class ;
-    rdfs:label "Event" ;
-    rdfs:subClassOf onto:Entity .
-
-entity:europe a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Europe" ;
-    fact:policy-framing "Chinese industrial overcapacity treated as economic security, not only competition" ;
-    onto:kind "Location" ;
-    rdfs:comment "Region affected by competition with China" ;
-    skos:prefLabel "Europe" .
-
-entity:european-union a onto:Entity,
-        class:organization,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "European Union" ;
-    onto:kind "Organization" ;
-    rdfs:comment "Political union coordinating with Washington on critical minerals and treating Chinese overcapacity as economic security" ;
-    skos:altLabel "Brussels",
-        "EU" ;
-    skos:prefLabel "European Union" .
-
 entity:orthodox-easter-ceasefire a onto:Entity,
         class:event,
         owl:NamedIndividual,
         skos:Concept ;
     rdfs:label "Orthodox Easter ceasefire" ;
+    fact:outcome "both sides quickly accused the other of violations" ;
     onto:kind "Event" ;
+    relation:occurred-during entity:russia-ukraine-war ;
     rdfs:comment "Short ceasefire announced during the war that both Russia and Ukraine quickly accused the other of violating." ;
     skos:prefLabel "Orthodox Easter ceasefire" .
-
-entity:russia a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Russia" ;
-    fact:reported-settlement-condition "A written pledge that NATO would stop expanding eastward",
-        "Easing of several sanctions" ;
-    fact:settlement-position "Rejected freezing the conflict along current lines and sought broader territorial concessions" ;
-    onto:kind "Location" ;
-    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
-    relation:fights entity:ukraine ;
-    relation:sought-pledge-from entity:nato ;
-    rdfs:comment "Country fighting Ukraine and seeking territorial concessions and sanctions easing in settlement talks." ;
-    skos:altLabel "Moscow",
-        "Russian" ;
-    skos:prefLabel "Russia" .
 
 entity:russian-refining-capacity a onto:Entity,
         class:infrastructure,
@@ -324,6 +547,102 @@ entity:russian-refining-capacity a onto:Entity,
         "Russian refining capacity" ;
     skos:prefLabel "Russian refining capacity" .
 
+entity:ukraine a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Ukraine" ;
+    fact:preferred-settlement-approach "freeze the conflict roughly along current lines" ;
+    fact:settlement-preference "Freeze the conflict roughly along current lines" ;
+    onto:kind "Location" ;
+    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
+    relation:damaged entity:russian-refining-capacity ;
+    rdfs:comment "Country at war with Russia that favored freezing the conflict roughly along current lines." ;
+    skos:altLabel "Ukrainian" ;
+    skos:prefLabel "Ukraine" .
+
+class:person a owl:Class ;
+    rdfs:label "Person" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:advanced-chips a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Advanced chips" ;
+    fact:depends-on "manufacturing inputs and specialized equipment" ;
+    fact:shapes "AI capacity and high-end computing" ;
+    onto:kind "Entity" ;
+    relation:depends-on entity:rare-earths ;
+    rdfs:comment "High-end semiconductors that shape AI capacity and high-end computing" ;
+    skos:altLabel "high-end processors",
+        "semiconductor access",
+        "semiconductors" ;
+    skos:prefLabel "Advanced chips" .
+
+entity:european-union a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "European Union" ;
+    onto:kind "Organization" ;
+    relation:coordinates-with entity:united-states ;
+    relation:pursues entity:coordinated-mineral-strategy ;
+    relation:treats-overcapacity-as-economic-security-from entity:china ;
+    rdfs:comment "Political union coordinating with Washington on critical minerals and treating Chinese overcapacity as economic security" ;
+    skos:altLabel "Brussels",
+        "EU",
+        "European" ;
+    skos:prefLabel "European Union" .
+
+entity:russia a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Russia" ;
+    fact:preferred-settlement-approach "broader territorial concessions, written NATO non-expansion pledge, and easing of several sanctions" ;
+    fact:reported-settlement-condition "A written pledge that NATO would stop expanding eastward",
+        "Easing of several sanctions" ;
+    fact:settlement-position "Rejected freezing the conflict along current lines and sought broader territorial concessions" ;
+    onto:kind "Location" ;
+    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
+    relation:fights entity:ukraine ;
+    relation:sought-pledge-from entity:nato ;
+    rdfs:comment "Country fighting Ukraine and seeking territorial concessions and sanctions easing in settlement talks." ;
+    skos:altLabel "Moscow",
+        "Russian" ;
+    skos:prefLabel "Russia" .
+
+entity:trump-xi-summit a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Trump-Xi summit" ;
+    onto:kind "Event" ;
+    rdfs:comment "Possible future summit between Donald Trump and Xi Jinping that officials sought to prepare in Paris" ;
+    skos:altLabel "future Trump-Xi summit" ;
+    skos:prefLabel "Trump-Xi summit" .
+
+class:organization a owl:Class ;
+    rdfs:label "Organization" ;
+    rdfs:subClassOf onto:Entity .
+
+class:policy a owl:Class ;
+    rdfs:label "Policy" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:europe a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Europe" ;
+    fact:policy-framing "Chinese industrial overcapacity treated as economic security, not only competition" ;
+    onto:kind "Location" ;
+    relation:faces-industrial-overcapacity-from entity:china ;
+    rdfs:comment "Region affected by competition with China" ;
+    skos:altLabel "European" ;
+    skos:prefLabel "Europe" .
+
 entity:united-states a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -332,16 +651,38 @@ entity:united-states a onto:Entity,
     fact:export-control-effect "limits China's access to advanced chips but redirects supply more than it eliminates demand" ;
     onto:kind "Location" ;
     relation:competes-with entity:china ;
+    relation:coordinates-on-critical-minerals-with entity:european-union ;
     relation:coordinates-with entity:european-union ;
+    relation:imposes entity:us-export-restrictions ;
     relation:introduced entity:temporary-us-sanctions-waiver-on-russian-oil ;
+    relation:pursues entity:coordinated-mineral-strategy ;
     relation:restricts-chip-exports-to entity:china ;
     rdfs:comment "Country affected by competition with China" ;
     skos:altLabel "US",
         "Washington" ;
     skos:prefLabel "United States" .
 
-class:person a owl:Class ;
-    rdfs:label "Person" ;
+entity:rare-earths a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Rare earths" ;
+    fact:shapes "industrial production and defense manufacturing" ;
+    fact:strategic-status "strategic issue rather than a niche industrial topic" ;
+    onto:kind "Entity" ;
+    relation:concentrated-in-supply-chains-of entity:china ;
+    rdfs:comment "Critical materials that shape industrial production and defense manufacturing" ;
+    skos:altLabel "Critical minerals",
+        "critical minerals",
+        "rare-earth supply" ;
+    skos:prefLabel "Rare earths" .
+
+class:entity a owl:Class ;
+    rdfs:label "Entity" ;
+    rdfs:subClassOf onto:Entity .
+
+class:event a owl:Class ;
+    rdfs:label "Event" ;
     rdfs:subClassOf onto:Entity .
 
 entity:china a onto:Entity,
@@ -352,16 +693,20 @@ entity:china a onto:Entity,
     fact:advanced-chip-demand "Chinese technology firms continued large orders for high-end processors for 2026 delivery" ;
     fact:affects "trade, industrial policy, and defense planning across United States, Europe, and East Asia" ;
     fact:critical-minerals-position "rare earths and related inputs remain concentrated in Chinese-controlled supply chains" ;
+    fact:high-end-processor-orders-for-delivery "2026" ;
+    fact:industrial-overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
+    fact:leverage-area "rare-earth processing and downstream manufacturing" ;
     fact:overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
     onto:kind "Location" ;
-    relation:affects entity:europe,
-        entity:european-union ;
+    relation:affects entity:east-asia,
+        entity:europe,
+        entity:european-union,
+        entity:united-states ;
+    relation:demands entity:advanced-chips ;
+    relation:imposes entity:chinese-export-controls ;
     rdfs:comment "Country involved in competition affecting trade and defense planning" ;
+    skos:altLabel "Beijing" ;
     skos:prefLabel "China" .
-
-class:organization a owl:Class ;
-    rdfs:label "Organization" ;
-    rdfs:subClassOf onto:Entity .
 
 class:location a owl:Class ;
     rdfs:label "Location" ;
