@@ -16,6 +16,7 @@ import ontology
 import source_parse
 import graph_management
 from graph_management import ENTITY, ONTO
+from prompt_budget import estimate_tokens
 
 
 class FakeLLM:
@@ -182,6 +183,152 @@ class ErrorTest(unittest.TestCase):
                 ):
                     pass
         self.assertIn("Source does not exist", str(caught.exception))
+
+
+def run_once(root, name, text, graph_path, fake):
+    """Process one new source file against a graph, and return the fake."""
+    source = root / name
+    source.write_text(text, encoding="utf-8")
+    with run_main([str(source), str(graph_path)], fake):
+        pass
+    return fake
+
+
+class SelectedContextTest(unittest.TestCase):
+    """Proposal 5D: the prompt carries selected context, not the whole graph."""
+
+    def build(self, root, graph_path):
+        """A graph holding two unrelated entities from two earlier files."""
+        run_once(root, "01.txt", "Acme Corp exists.", graph_path,
+                 FakeLLM(entity_response("Acme Corp")))
+        run_once(root, "02.txt", "Beta Corp exists.", graph_path,
+                 FakeLLM(entity_response("Beta Corp")))
+
+    def test_a_mentioned_entity_is_sent_and_an_unmentioned_one_is_not(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            self.build(root, graph_path)
+            fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                            graph_path, FakeLLM(entity_response("Ada Lovelace")))
+        prompt = fake.prompts[0]
+        self.assertIn(str(ENTITY["acme-corp"]), prompt)
+        self.assertNotIn(str(ENTITY["beta-corp"]), prompt)
+
+    def test_the_old_global_catalog_block_is_no_longer_sent(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            self.build(root, graph_path)
+            fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                            graph_path, FakeLLM(entity_response("Ada Lovelace")))
+        self.assertNotIn("EXISTING ENTITIES:", fake.prompts[0])
+        self.assertIn("ONTOLOGY CONTEXT", fake.prompts[0])
+
+    def test_the_context_is_rebuilt_from_the_graph_for_every_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            (root / "01.txt").write_text("Acme Corp exists.", encoding="utf-8")
+            (root / "02.txt").write_text("Acme Corp hires Ada.", encoding="utf-8")
+            fake = FakeLLM(entity_response("Acme Corp"),
+                           entity_response("Ada Lovelace"))
+            with run_main([str(root), str(graph_path)], fake):
+                pass
+        # Nothing existed for the first file; the first file's result is context
+        # for the second.
+        self.assertNotIn("ONTOLOGY CONTEXT", fake.prompts[0])
+        self.assertIn(str(ENTITY["acme-corp"]), fake.prompts[1])
+
+    def test_a_zero_allowance_still_produces_a_valid_prompt(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            self.build(root, graph_path)
+            with mock.patch.dict(ontology.PROMPT_BUDGET, {"context_tokens": 0}):
+                fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                                graph_path, FakeLLM(entity_response("Ada")))
+        prompt = fake.prompts[0]
+        self.assertNotIn("ONTOLOGY CONTEXT", prompt)
+        self.assertIn("Acme Corp hires Ada Lovelace.", prompt)
+        self.assertIn('"entities"', prompt)
+        self.assertIn("Return JSON only.", prompt)
+
+    def test_the_context_budget_is_reported_for_every_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            self.build(root, graph_path)
+            source = root / "03.txt"
+            source.write_text("Acme Corp hires Ada Lovelace.", encoding="utf-8")
+            with run_main([str(source), str(graph_path)],
+                          FakeLLM(entity_response("Ada"))) as printed:
+                pass
+        self.assertIn("Context:", printed)
+        self.assertIn(f"/{ontology.PROMPT_BUDGET['context_tokens']} tokens", printed)
+
+    def test_the_prompt_stays_smaller_than_the_configured_allowance(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            self.build(root, graph_path)
+            fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                            graph_path, FakeLLM(entity_response("Ada")))
+        context = fake.prompts[0].split("ONTOLOGY CONTEXT")[1].split(
+            "Entity resolution is important.")[0]
+        self.assertLessEqual(estimate_tokens(context),
+                             ontology.PROMPT_BUDGET["context_tokens"])
+
+
+class MergeIdentityTest(unittest.TestCase):
+    """Proposal 5D: merge-time lookup still sees the whole graph."""
+
+    def test_an_entity_absent_from_the_prompt_still_resolves_at_merge_time(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            run_once(root, "01.txt", "Acme Corp exists.", graph_path,
+                     FakeLLM(entity_response("Acme Corp")))
+            source = root / "02.txt"
+            source.write_text("Nothing familiar appears here.", encoding="utf-8")
+            fake = FakeLLM(entity_response("Acme Corp"))
+            with run_main([str(source), str(graph_path)], fake) as printed:
+                pass
+            graph = graph_management.open_graph(graph_path)
+
+        self.assertNotIn(str(ENTITY["acme-corp"]), fake.prompts[0])
+        self.assertIn("0 new, 1 resolved", printed)
+        self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),
+                         {ENTITY["acme-corp"]})
+
+
+class FailureTest(unittest.TestCase):
+    """Proposal 5D: a failed call writes nothing, least of all diagnostics."""
+
+    def test_a_failed_call_leaves_the_saved_graph_untouched(self):
+        def explode():
+            raise RuntimeError("the model is down")
+
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            run_once(root, "01.txt", "Acme Corp exists.", graph_path,
+                     FakeLLM(entity_response("Acme Corp")))
+            before = graph_path.read_bytes()
+            source = root / "02.txt"
+            source.write_text("Acme Corp hires Ada.", encoding="utf-8")
+            with self.assertRaises(RuntimeError):
+                with run_main([str(source), str(graph_path)], FakeLLM(explode)):
+                    pass
+            self.assertEqual(graph_path.read_bytes(), before)
+            graph = graph_management.open_graph(graph_path)
+            self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),
+                             {ENTITY["acme-corp"]})
+
+
+class RepositoryGraphTest(unittest.TestCase):
+    """The canonical graph is never touched by running the pipeline elsewhere."""
+
+    def test_the_repository_graph_is_untouched_by_a_temporary_run(self):
+        canonical = Path(__file__).resolve().parent.parent / "ontology.ttl"
+        before = canonical.read_bytes()
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            run_once(root, "01.txt", "Acme Corp exists.", graph_path,
+                     FakeLLM(entity_response("Acme Corp")))
+        self.assertEqual(canonical.read_bytes(), before)
 
 
 class ExistingGraphContextTest(unittest.TestCase):

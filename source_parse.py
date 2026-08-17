@@ -1,34 +1,45 @@
-"""Turn one ingested source text into candidate entities, relations, and facts."""
+"""Turn one ingested source text into candidate entities, relations, and facts.
 
-import json
+The prompt receives context that was already selected and budgeted for this one
+source. It does not go looking for graph context itself: sending the whole entity
+catalog and every property label was what Phase 5 replaced. The extraction
+contract - the JSON shape and the conservative entity-resolution rule - is
+unchanged.
+"""
 
-from rdflib.namespace import OWL, RDF, RDFS
-
-from entity_lookup import entity_catalog
 from llm import ask_llm
 
 
-def make_prompt(text, graph):
-    entities = json.dumps(entity_catalog(graph), ensure_ascii=False)
-    properties = sorted({
-        str(name)
-        for property_type in (OWL.ObjectProperty, OWL.DatatypeProperty)
-        for uri in graph.subjects(RDF.type, property_type)
-        for name in graph.objects(uri, RDFS.label)
-    })
+CONTEXT_RULES = """
+Only an exact "id:" value above may be used as existing_id. A "uri:" value is
+context, not an identifier you may reuse. Observed usage is evidence about the
+current data, not a rule you must follow, and this context is a selection: real
+things missing from it are still worth extracting.
+""".strip()
+
+
+def context_block(context_text):
+    """The selected context, headed and explained, or nothing at all."""
+    if not str(context_text).strip():
+        return ""
+    return f"""
+ONTOLOGY CONTEXT - selected for this source, not the whole ontology:
+{context_text}
+
+{CONTEXT_RULES}
+""".strip() + "\n\n"
+
+
+def make_prompt(text, context_text=""):
+    """Build the extraction prompt from one source and its selected context."""
     return f"""
 Extract only knowledge stated or clearly implied by SOURCE.
 
-EXISTING ENTITIES:
-{entities}
-
-EXISTING PROPERTY NAMES (reuse them when they mean the same thing):
-{json.dumps(properties, ensure_ascii=False)}
-
-Entity resolution is important. Set existing_id to an existing entity's exact id
-only when it is the same real thing in this context. Use its names, kind, and
-description. A similar name alone is not enough. Otherwise use null. Include one
-entity record per real thing mentioned in this source.
+{context_block(context_text)}Entity resolution is important. Set existing_id to an
+existing entity's exact id only when it is the same real thing in this context.
+Use its names, kind, and description. A similar name alone is not enough.
+Otherwise use null. Include one entity record per real thing mentioned in this
+source.
 
 Return this exact JSON shape:
 {{
@@ -55,6 +66,6 @@ SOURCE:
 """.strip()
 
 
-def parse_source(text, graph):
-    """Ask the model what this one source says, against the current graph."""
-    return ask_llm(make_prompt(text, graph))
+def parse_source(text, context_text=""):
+    """Ask the model what this one source says, given the context selected for it."""
+    return ask_llm(make_prompt(text, context_text))
