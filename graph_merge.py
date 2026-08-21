@@ -3,7 +3,7 @@
 import re
 import unicodedata
 
-from rdflib import Literal
+from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from entity_lookup import entity_catalog, identify_entity
@@ -95,3 +95,50 @@ def merge_into_graph(graph, data):
             fact_count += not old
 
     return new_count, resolved_count, relation_count, fact_count
+
+
+def apply_merge_plan(source_graph, plan):
+    """Apply an already-complete merge plan to a copy of the current graph.
+
+    Every identity, acceptance, and conflict decision was made during
+    read-only planning; this function only copies namespace bindings, asserts
+    the plan's decided domain and audit triples, and reports. The input graph
+    is left triple-identical, including when anything here fails.
+    """
+    graph = Graph()
+    for prefix, namespace in source_graph.namespaces():
+        graph.bind(prefix, namespace)
+    for triple in source_graph:
+        graph.add(triple)
+
+    assertion_plans = plan["relations"] + plan["facts"]
+    accepted_assertions = sum(1 for item in assertion_plans
+                              if item["outcome"] == "accept")
+    declaration_triples = sum(len(item.get("declarations", ()))
+                              for item in assertion_plans)
+    relation_triples = sum(1 for item in plan["relations"]
+                           if item["outcome"] == "accept")
+    fact_triples = sum(1 for item in plan["facts"]
+                       if item["outcome"] == "accept")
+    summaries = plan["counts"]["entity_summaries"]
+
+    result = {
+        "new_entities": plan["counts"]["identities"]["new"],
+        "resolved_entities": plan["counts"]["identities"]["resolved"],
+        "relation_triples": relation_triples,
+        "fact_triples": fact_triples,
+        "metadata_triples": (len(plan["domain_triples"])
+                             - accepted_assertions - declaration_triples),
+        "duplicates": (plan["counts"]["assertions"]["duplicate"]
+                       + summaries["duplicate"]),
+        "review": (plan["counts"]["assertions"]["review"]
+                   + summaries["review"] + summaries["partial_review"]),
+        "audit_triples": sum(1 for triple in plan["audit_triples"]
+                             if triple not in source_graph),
+    }
+
+    for triple in plan["domain_triples"]:
+        graph.add(triple)
+    for triple in plan["audit_triples"]:
+        graph.add(triple)
+    return graph, result

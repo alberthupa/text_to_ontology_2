@@ -333,4 +333,12 @@ def prepare_prompt_context(context_package, budget_config,
         rendered, max(0, budget - overhead), count_tokens)
     # Report the allowance the caller asked about, not the internal remainder.
     result["budget_tokens"] = budget
-    return {"text": assemble_context(result["items"]), "budget": result}
+    kept = {entry["id"] for entry in result["items"]}
+    existing_ids = sorted({
+        entry["value"]["id"]
+        for entry in context_package.get("resources", [])
+        if entry["id"] in kept and entry["value"].get("native")
+        and entry["value"].get("id")
+    })
+    return {"text": assemble_context(result["items"]), "budget": result,
+            "existing_ids": existing_ids}

@@ -8,9 +8,11 @@ Running it again with the same graph adds knowledge to that graph. For each
 source file it picks the part of the current graph that text actually relates to
 — relevant classes and properties, how the existing data uses them, and the
 existing resources it may be talking about — and shows the LLM only that, inside
-a token budget. Exact-name and very conservative spelling matching provide a
-local fallback, and that fallback still searches the whole graph, not just what
-was sent.
+a token budget. Identity is decided explicitly before anything is written: an
+exact identifier or a unique exact name/alias match resolves to the existing
+entity, an ambiguous or close-spelling match is held for review, and only
+confident, unambiguous records create new entities. That matching still searches
+the whole graph, not just what was sent.
 
 ## Install
 
@@ -72,6 +74,26 @@ it live in `PROMPT_BUDGET` in `prompt_budget.py`; `context_tokens` is the ceilin
 on how much ontology context one prompt may carry, and lowering it makes the
 prompt smaller by dropping the least relevant items first.
 
+Each non-empty file's answer is validated before it may change the graph. The
+run prints a `Validated:` line, then plans the merge and prints a `Planned:`
+line before anything is written. Every record the model returns must carry a
+`confidence` from 0.0 to 1.0 — the model's confidence that the source text
+directly supports that complete record. New assertions below `0.80` confidence
+are not merged; they are retained as review records instead. Exact duplicates
+of existing statements are kept as corroboration evidence, not re-added, and
+disagreements with explicit functional constraints go to review rather than
+overwriting anything: existing canonical statements are never replaced
+automatically.
+
+Every valid extraction leaves provenance in the graph: where the source came
+from (path and content digest), which model extracted it, and per-record
+normalized content, confidence, decision, and reason codes. These audit records
+live in the support partition of the graph — they never appear as entities, in
+prompts, or in usage statistics. A validation error still leaves the graph and
+file unchanged for that source, and exits with a short list of the offending
+paths and codes. Saves are atomic: a failed write never damages the previous
+graph file.
+
 ## Files
 
 The pipeline that runs when you invoke the program:
@@ -79,9 +101,14 @@ The pipeline that runs when you invoke the program:
 - `ontology.py` — the command line and the run loop
 - `ingest_sources.py` — finding and reading source files
 - `source_parse.py` — building the prompt and parsing the LLM's answer
+- `candidate_validation.py` — validating and normalizing a response before merge
+- `merge_policy.py` — read-only merge planning: identity decisions, acceptance,
+  corroboration, conflict review, and provenance
 - `entity_lookup.py` — deciding whether an entity is already in the graph
-- `graph_merge.py` — writing one parsed result into the graph
-- `graph_management.py` — opening, seeding, naming, and saving the graph
+- `graph_merge.py` — materializing a completed plan (and the legacy direct
+  merger) into the graph
+- `graph_management.py` — opening, seeding, naming, and atomically saving the
+  graph
 - `llm.py` — the tiny OpenRouter client
 
 Choosing what the LLM gets to see. All read-only: none of these writes to the

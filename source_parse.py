@@ -46,15 +46,23 @@ Return this exact JSON shape:
   "entities": [
     {{"id": "e1", "name": "preferred name", "kind": "Person",
       "description": "short source-grounded description",
-      "aliases": ["other source name"], "existing_id": null}}
+      "aliases": ["other source name"], "existing_id": null,
+      "confidence": 0.9}}
   ],
   "relations": [
-    {{"subject": "e1", "predicate": "works for", "object": "e2"}}
+    {{"subject": "e1", "predicate": "works for", "object": "e2",
+      "confidence": 0.9}}
   ],
   "facts": [
-    {{"subject": "e1", "predicate": "birth date", "value": "1950-01-01"}}
+    {{"subject": "e1", "predicate": "birth date", "value": "1950-01-01",
+      "confidence": 0.9}}
   ]
 }}
+
+Every record requires a confidence from 0.0 to 1.0: your confidence that SOURCE
+directly supports that complete record. It is not confidence that an identity
+match is correct, not a probability that the statement is true in the world, and
+not source authority.
 
 Relation endpoints and fact subjects must use ids from entities. Use empty lists
 when needed. Return JSON only.

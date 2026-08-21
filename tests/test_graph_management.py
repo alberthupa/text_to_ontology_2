@@ -95,3 +95,43 @@ class SaveTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AtomicSaveTest(unittest.TestCase):
+    """Proposal 07D: a failed save never damages the previous graph file."""
+
+    def saved_graph(self, folder):
+        graph = seed_graph()
+        path = Path(folder) / "graph.ttl"
+        save_graph(graph, path)
+        return path
+
+    def test_a_successful_save_leaves_no_temporary_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.saved_graph(folder)
+            self.assertFalse(Path(str(path) + ".tmp").exists())
+
+    def test_a_serialization_failure_keeps_the_previous_bytes_and_no_temp(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.saved_graph(folder)
+            before = path.read_bytes()
+            broken = Graph()
+            with unittest.mock.patch.object(
+                    type(broken), "serialize",
+                    side_effect=RuntimeError("disk full")):
+                with self.assertRaises(RuntimeError):
+                    save_graph(broken, path)
+            self.assertEqual(path.read_bytes(), before)
+            self.assertFalse(Path(str(path) + ".tmp").exists())
+
+    def test_the_saved_file_round_trips_through_open_graph(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.saved_graph(folder)
+            self.assertTrue(isomorphic(open_graph(path), seed_graph()))
+
+
+import unittest.mock  # noqa: E402
+
+
+if __name__ == "__main__":
+    unittest.main()

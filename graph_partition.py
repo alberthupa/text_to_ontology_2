@@ -6,7 +6,7 @@ twice. A statement that cannot be classified confidently goes to the
 support/remainder view rather than being guessed into schema or instance.
 """
 
-from rdflib import BNode, Graph, Literal
+from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
 
@@ -14,6 +14,14 @@ from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 SCHEMA_TYPES = {
     OWL.Class, RDFS.Class, RDFS.Datatype, RDF.Property, OWL.ObjectProperty,
     OWL.DatatypeProperty, OWL.AnnotationProperty,
+}
+
+# Merge-audit roots (Proposal 07): extraction events and merge candidates are
+# support metadata. The base namespace is restated here because this module
+# deliberately depends on rdflib only.
+AUDIT_TYPES = {
+    URIRef("http://example.org/text-ontology/ExtractionEvent"),
+    URIRef("http://example.org/text-ontology/MergeCandidate"),
 }
 
 # Declaring a resource with one of these types makes it supporting material.
@@ -50,9 +58,9 @@ def owned_nodes(graph, root):
 
 
 def support_roles(graph):
-    """Ontology metadata, SHACL shapes, and the structures they own."""
+    """Ontology metadata, SHACL shapes, merge audit records, and what they own."""
     nodes = set()
-    for type_ in SUPPORT_TYPES:
+    for type_ in SUPPORT_TYPES | AUDIT_TYPES:
         for root in graph.subjects(RDF.type, type_):
             nodes |= owned_nodes(graph, root)
     return nodes

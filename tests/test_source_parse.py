@@ -113,6 +113,17 @@ class ContractTest(unittest.TestCase):
         self.assertIn("Relation endpoints and fact subjects must use ids from "
                       "entities.", make_prompt(SOURCE, CONTEXT))
 
+    def test_every_record_shape_carries_a_confidence(self):
+        prompt = make_prompt(SOURCE, CONTEXT)
+        self.assertEqual(prompt.count('"confidence"'), 3)
+
+    def test_confidence_is_defined_as_direct_source_support(self):
+        prompt = make_prompt(SOURCE, CONTEXT)
+        self.assertIn("confidence from 0.0 to 1.0", prompt)
+        self.assertIn("directly supports that complete record", prompt)
+        self.assertIn("not confidence that an identity", prompt)
+        self.assertIn("not source authority", prompt)
+
     def test_the_source_is_delimited(self):
         prompt = make_prompt(SOURCE, CONTEXT)
         self.assertIn("SOURCE:\n---\n", prompt)

@@ -1,5 +1,7 @@
 """Open, seed, name, and save the one canonical Turtle graph."""
 
+import os
+
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
@@ -44,4 +46,19 @@ def open_graph(path):
 
 
 def save_graph(graph, path):
-    graph.serialize(path, format="turtle")
+    """Serialize to a temporary sibling file, then replace atomically.
+
+    A failed serialization leaves the previous graph file untouched and
+    usable, and never leaves a stale temporary file behind.
+    """
+    path = str(path)
+    temporary = path + ".tmp"
+    try:
+        graph.serialize(temporary, format="turtle")
+        os.replace(temporary, path)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except OSError:
+            pass
+        raise

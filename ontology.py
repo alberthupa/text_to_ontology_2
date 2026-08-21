@@ -6,11 +6,13 @@ import sys
 import time
 from pathlib import Path
 
+from candidate_validation import format_validation_failure, validate_candidates
 from context_render import prepare_prompt_context
 from graph_management import open_graph, save_graph
-from graph_merge import merge_into_graph
+from graph_merge import apply_merge_plan
 from ingest_sources import find_text_files, read_source
 from llm import model_name
+from merge_policy import build_provenance, plan_graph_merge
 from prompt_budget import PROMPT_BUDGET, estimate_tokens
 from source_parse import parse_source
 from task_context import build_task_context
@@ -26,6 +28,34 @@ def report_context(budget):
     print(f"  Context: {len(budget['items'])} items, "
           f"{budget['used_tokens']}/{budget['budget_tokens']} tokens, "
           f"{len(budget['dropped_ids'])} items did not fit", flush=True)
+
+
+def report_validation(validation):
+    """One line about the candidate counts and duplicates the validator removed."""
+    counts = validation["counts"]
+    removed = counts["duplicates_removed"]
+    duplicates = (removed["entities"] + removed["relations"]
+                  + removed["facts"] + removed["aliases"])
+    print(f"  Validated: {counts['normalized']['entities']} entities, "
+          f"{counts['normalized']['relations']} relations, "
+          f"{counts['normalized']['facts']} facts; "
+          f"{duplicates} duplicates removed", flush=True)
+
+
+def report_plan(plan):
+    """One line about what merge policy decided before anything is written."""
+    counts = plan["counts"]
+    identities = counts["identities"]
+    assertions = counts["assertions"]
+    summaries = counts["entity_summaries"]
+    duplicates = assertions["duplicate"] + summaries["duplicate"]
+    review = (assertions["review"] + summaries["review"]
+              + summaries["partial_review"])
+    print(f"  Planned: {identities['new']} new, {identities['resolved']} "
+          f"resolved, {identities['review']} review identities; "
+          f"{assertions['accepted']} accepted, {duplicates} corroborated, "
+          f"{review} for review; {counts['audit_triples']} audit triples",
+          flush=True)
 
 
 def main():
@@ -55,10 +85,23 @@ def main():
         started = time.monotonic()
         extraction = parse_source(text, prompt_context["text"])
         print(f"  Model replied in {time.monotonic() - started:.1f} seconds", flush=True)
-        counts = merge_into_graph(graph, extraction)
-        save_graph(graph, args.graph)
-        print(f"  {counts[0]} new, {counts[1]} resolved, "
-              f"{counts[2]} relations, {counts[3]} facts")
+        validation = validate_candidates(
+            extraction, graph, prompt_context["existing_ids"])
+        report_validation(validation)
+        if not validation["valid"]:
+            raise RuntimeError(format_validation_failure(validation))
+        # Plan first, read only; materialize the completed plan into a copy;
+        # save it; only then does the saved graph feed the next source.
+        provenance = build_provenance(path, text, model)
+        plan = plan_graph_merge(graph, validation["candidates"], provenance)
+        report_plan(plan)
+        updated, counts = apply_merge_plan(graph, plan)
+        save_graph(updated, args.graph)
+        graph = updated
+        print(f"  {counts['new_entities']} new, "
+              f"{counts['resolved_entities']} resolved, "
+              f"{counts['relation_triples']} relations, "
+              f"{counts['fact_triples']} facts")
     print(f"Saved {len(graph)} triples to {args.graph}")
 
 

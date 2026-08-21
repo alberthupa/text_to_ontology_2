@@ -6,7 +6,10 @@ from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
-from graph_merge import label, merge_into_graph, new_entity_uri, slug
+from graph_merge import (
+    apply_merge_plan, label, merge_into_graph, new_entity_uri, slug,
+)
+from graph_management import bind, open_graph, save_graph
 
 
 def new_graph():
@@ -318,6 +321,166 @@ class CountOrderTest(unittest.TestCase):
             ],
         })
         self.assertEqual(counts, (2, 1, 2, 1))
+
+
+# ---------------------------------------------------------------- Proposal 07D
+
+import tempfile
+from pathlib import Path
+
+import merge_policy
+from graph_management import ONTO as _ONTO
+from merge_policy import build_provenance, plan_graph_merge
+
+
+def plan_apply(graph, entities=(), relations=(), facts=()):
+    provenance = {"source_path": "s.md", "source_sha256": "0" * 64,
+                  "model": "m", "policy_version": 1}
+    plan = plan_graph_merge(
+        graph, {"entities": list(entities), "relations": list(relations),
+                "facts": list(facts)}, provenance)
+    return apply_merge_plan(graph, plan)
+
+
+def plan_entity(identifier, name, kind="Company", confidence=0.9, **extra):
+    record = {"id": identifier, "name": name, "kind": kind,
+              "description": "", "aliases": [], "existing_id": None,
+              "confidence": confidence}
+    record.update(extra)
+    return record
+
+
+class MaterializerTest(unittest.TestCase):
+    """7D.2 to 7D.10: only decided triples reach the copied graph."""
+
+    def test_only_accept_domain_triples_are_asserted(self):
+        source = Graph()
+        source.add((ENTITY["ghost"], RDF.type, OWL.Thing))
+        updated, result = plan_apply(
+            source,
+            [plan_entity("e1", "Nova Corp"),
+             plan_entity("e2", "Shaky Thing", confidence=0.5)],
+            [], [])
+        self.assertIn((ENTITY["nova-corp"], RDF.type, ONTO.Entity),
+                      set(updated))
+        self.assertNotIn((ENTITY["shaky-thing"], RDF.type, ONTO.Entity),
+                         set(updated))
+        self.assertEqual(result["new_entities"], 1)
+
+    def test_duplicate_domain_triples_are_not_re_added_but_audit_is(self):
+        source = Graph()
+        source.add((ENTITY["acme-corp"], RDF.type, ONTO.Entity))
+        source.add((ENTITY["acme-corp"], SKOS.prefLabel, Literal("Acme Corp")))
+        source.add((ENTITY["acme-corp"], ONTO.kind, Literal("Company")))
+        updated, result = plan_apply(
+            source,
+            [plan_entity("e1", "Acme Corp",
+                         existing_id=str(ENTITY["acme-corp"]))],
+            [], [])
+        self.assertEqual(len(updated), len(source) + result["audit_triples"])
+        self.assertEqual(result["duplicates"], 1)
+
+    def test_review_records_persist_without_their_proposed_triples(self):
+        source = Graph()
+        updated, result = plan_apply(
+            source,
+            [plan_entity("e1", "Shaky Thing", confidence=0.5)], [], [])
+        self.assertGreater(result["audit_triples"], 0)
+        self.assertNotIn((ENTITY["shaky-thing"], RDF.type, ONTO.Entity),
+                         set(updated))
+        self.assertEqual(result["review"], 1)
+        # The proposal survives as audit metadata under merge-proposed-entity.
+        proposals = [o for o in updated.objects(None, ONTO.proposedEntity)]
+        self.assertTrue(any("merge-proposed-entity" in str(o)
+                            for o in proposals))
+        self.assertNotIn((ENTITY["shaky-thing"], RDF.type, ONTO.Entity),
+                         set(updated))
+
+    def test_new_entity_boilerplate_matches_the_current_representation(self):
+        updated, _ = plan_apply(Graph(),
+                                [plan_entity("e1", "Nova Corp",
+                                             kind="Widget")], [], [])
+        self.assertIn((CLASS["widget"], RDF.type, OWL.Class), set(updated))
+        self.assertIn((CLASS["widget"], RDFS.subClassOf, ONTO.Entity),
+                      set(updated))
+        self.assertIn((ENTITY["nova-corp"], RDF.type, OWL.NamedIndividual),
+                      set(updated))
+        self.assertIn((ENTITY["nova-corp"], RDF.type, SKOS.Concept),
+                      set(updated))
+
+    def test_property_declaration_and_labeling(self):
+        updated, _ = plan_apply(
+            Graph(),
+            [plan_entity("e1", "Nova Corp"), plan_entity("e2", "Umbra")],
+            [{"subject": "e1", "predicate": "buys", "object": "e2",
+              "confidence": 0.9}], [])
+        self.assertIn((RELATION["buys"], RDF.type, OWL.ObjectProperty),
+                      set(updated))
+        self.assertIn((RELATION["buys"], RDFS.label, Literal("buys")),
+                      set(updated))
+
+    def test_existing_property_labels_are_not_multiplied(self):
+        source = Graph()
+        source.add((RELATION["buys"], RDF.type, OWL.ObjectProperty))
+        source.add((RELATION["buys"], RDFS.label, Literal("buys")))
+        for local, name in (("acme-corp", "Acme Corp"),
+                            ("umbra-corp", "Umbra Corp")):
+            source.add((ENTITY[local], RDF.type, ONTO.Entity))
+            source.add((ENTITY[local], SKOS.prefLabel, Literal(name)))
+            source.add((ENTITY[local], ONTO.kind, Literal("Company")))
+        updated, _ = plan_apply(
+            source,
+            [plan_entity("e1", "Acme Corp",
+                         existing_id=str(ENTITY["acme-corp"])),
+             plan_entity("e2", "Umbra Corp",
+                         existing_id=str(ENTITY["umbra-corp"]))],
+            [{"subject": "e1", "predicate": "buys", "object": "e2",
+              "confidence": 0.9}], [])
+        labels = list(updated.objects(RELATION["buys"], RDFS.label))
+        self.assertEqual(labels, [Literal("buys")])
+
+    def test_namespace_bindings_survive_copy_and_round_trip(self):
+        source = Graph()
+        bind(source)
+        source.add((ONTO.ontology, RDF.type, OWL.Ontology))
+        updated, _ = plan_apply(
+            source, [plan_entity("e1", "Nova Corp")], [], [])
+        prefixes = {prefix for prefix, _ in updated.namespaces()}
+        self.assertIn("onto", prefixes)
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "g.ttl"
+            save_graph(updated, path)
+            reloaded = open_graph(path)
+        self.assertIn("onto", {p for p, _ in reloaded.namespaces()})
+        self.assertIn((ENTITY["nova-corp"], RDF.type, ONTO.Entity),
+                      set(reloaded))
+
+    def test_the_input_graph_stays_triple_identical(self):
+        source = Graph()
+        source.add((ENTITY["acme-corp"], RDF.type, ONTO.Entity))
+        before = set(source)
+        updated, _ = plan_apply(
+            source, [plan_entity("e1", "Nova Corp")], [], [])
+        self.assertEqual(set(source), before)
+        self.assertIsNot(updated, source)
+        self.assertIn((ENTITY["nova-corp"], RDF.type, ONTO.Entity),
+                      set(updated))
+
+    def test_a_forced_failure_returns_no_partially_mutated_input(self):
+        source = Graph()
+        source.add((ENTITY["acme-corp"], RDF.type, ONTO.Entity))
+        before = set(source)
+        provenance = {"source_path": "s.md", "source_sha256": "0" * 64,
+                      "model": "m", "policy_version": 1}
+        plan = plan_graph_merge(
+            source, {"entities": [plan_entity("e1", "Nova Corp")],
+                     "relations": [], "facts": []}, provenance)
+        plan["domain_triples"] = [(None, None, None)]
+        with self.assertRaises(Exception):
+            apply_merge_plan(source, plan)
+        self.assertEqual(set(source), before)
+
+
 
 
 if __name__ == "__main__":

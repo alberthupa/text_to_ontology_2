@@ -556,7 +556,7 @@ class PreparationTest(unittest.TestCase):
 
     def test_a_generous_budget_returns_all_four_sections(self):
         result = self.prepared(100_000)
-        self.assertEqual(set(result), {"text", "budget"})
+        self.assertEqual(set(result), {"text", "budget", "existing_ids"})
         for name in SECTIONS:
             self.assertIn(HEADINGS[name], result["text"])
         self.assertEqual(result["budget"]["dropped_ids"], [])
@@ -645,6 +645,52 @@ class PreparationTest(unittest.TestCase):
         self.assertIn("occurrences=", result["text"])
         self.assertIn("id: ", result["text"])
         self.assertIn("--waives sanctions on-->", result["text"])
+
+
+class ExistingIdsTest(unittest.TestCase):
+    """Proposal 6C: reusable ids from native resources that survived budgeting."""
+
+    def test_native_resource_ids_are_returned_sorted(self):
+        result = prepare_prompt_context(
+            build_task_context(
+                "The temporary US sanctions waiver waives sanctions on Russia.",
+                declared_graph()),
+            {"context_tokens": 100_000})
+        self.assertEqual(result["existing_ids"],
+                         sorted([str(WAIVER), str(ENTITY.russia)]))
+
+    def test_a_zero_budget_returns_no_ids(self):
+        result = prepare_prompt_context(
+            build_task_context(
+                "The temporary US sanctions waiver waives sanctions on Russia.",
+                declared_graph()),
+            {"context_tokens": 0})
+        self.assertEqual(result["existing_ids"], [])
+        self.assertEqual(result["text"], "")
+
+    def test_generic_resources_never_contribute_ids(self):
+        graph = Graph()
+        graph.add((EX.Widget, RDF.type, OWL.Class))
+        graph.add((EX.Widget, RDFS.label, Literal("Widget")))
+        graph.add((EX.widget1, RDF.type, EX.Widget))
+        graph.add((EX.widget1, RDFS.label, Literal("green widget")))
+        result = prepare_prompt_context(
+            build_task_context("A green widget arrived.", graph),
+            {"context_tokens": 100_000})
+        self.assertEqual(result["existing_ids"], [])
+        self.assertIn("green widget", result["text"])
+
+    def test_schema_patterns_and_examples_never_contribute_ids(self):
+        result = prepare_prompt_context(
+            package(schema=[item(f"class|{CLASS.policy}", "class",
+                                 {"uri": CLASS.policy, "triples": []})],
+                    labels=labels()),
+            {"context_tokens": 100_000})
+        self.assertEqual(result["existing_ids"], [])
+
+    def test_the_empty_package_prepares_an_empty_ids_list(self):
+        result = prepare_prompt_context(package(), {"context_tokens": 500})
+        self.assertEqual(result["existing_ids"], [])
 
 
 class ImmutabilityTest(unittest.TestCase):
