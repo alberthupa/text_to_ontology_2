@@ -1,522 +1,350 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>text_to_ontology — Data Flow</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ontology.py — process and data flow</title>
 <style>
   :root {
-    --bg: #0e1420;
-    --panel: #161f31;
-    --panel-2: #1c2740;
-    --border: #2a3854;
-    --text: #e7edf7;
-    --muted: #93a2bf;
-    --accent: #5aa9ff;   /* write path */
-    --green: #7ee0c0;    /* read path / context */
-    --warn: #ffc46b;     /* LLM boundary */
-    --rose: #ff7aa2;     /* validation gate */
-    --mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+    --bg: #09111f;
+    --surface: #111d30;
+    --surface-2: #17263d;
+    --line: #2b3d59;
+    --text: #edf4ff;
+    --muted: #9aabc3;
+    --blue: #68a8ff;
+    --green: #62d6b0;
+    --amber: #ffc56e;
+    --red: #ff7f9f;
+    --violet: #b99cff;
+    --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: radial-gradient(1200px 600px at 80% -10%, #1b2a4a 0%, var(--bg) 55%);
     color: var(--text);
-    line-height: 1.5;
+    background: radial-gradient(900px 500px at 92% -5%, #173257 0%, transparent 65%), var(--bg);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.55;
   }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 22px 80px; }
-
-  header h1 { margin: 0; font-size: 32px; letter-spacing: -.02em; }
-  header p { color: var(--muted); max-width: 720px; margin: 10px 0 0; }
-  .legend {
-    display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 8px;
-    font-size: 13px; color: var(--muted);
+  code { font-family: var(--mono); color: #d8e8ff; }
+  a { color: inherit; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 34px 24px 90px; }
+  .eyebrow { margin: 0 0 8px; color: var(--green); font: 700 12px/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+  h1 { margin: 0; max-width: 900px; font-size: clamp(34px, 5vw, 58px); line-height: 1.04; letter-spacing: -.035em; }
+  .intro { max-width: 880px; margin: 16px 0 0; color: var(--muted); font-size: 17px; }
+  .command { display: inline-block; margin-top: 22px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 9px; background: #0a1425; font: 13px/1.4 var(--mono); }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .fact { padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: 12px/1.3 var(--mono); }
+  .fact b { color: var(--text); }
+  nav { position: sticky; top: 0; z-index: 20; margin: 30px -24px 0; padding: 10px 24px; border-block: 1px solid var(--line); background: rgba(9, 17, 31, .92); backdrop-filter: blur(10px); }
+  nav .links { max-width: 1280px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 5px; }
+  nav a { padding: 5px 10px; border-radius: 6px; color: var(--muted); font: 12px/1.4 var(--mono); text-decoration: none; }
+  nav a:hover { color: var(--text); background: var(--surface-2); }
+  section { margin-top: 54px; scroll-margin-top: 70px; }
+  h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.02em; }
+  .lead { max-width: 900px; margin: 0 0 20px; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 14px; color: var(--muted); font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .diagram-shell { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(180deg, #0d1829, #0a1423); box-shadow: 0 24px 70px rgba(0, 0, 0, .25); }
+  .diagram-note { position: sticky; left: 0; width: max-content; padding: 10px 14px 0; color: var(--muted); font: 11px/1.4 var(--mono); }
+  .diagram { display: block; width: 2240px; height: 830px; }
+  .diagram .lane { fill: rgba(255,255,255,.012); stroke: #263852; stroke-dasharray: 5 5; }
+  .diagram .lane-title { fill: #6f84a3; font: 700 11px var(--mono); letter-spacing: .12em; }
+  .diagram .node rect { fill: #142238; stroke-width: 1.5; }
+  .diagram .node.blue rect { stroke: var(--blue); }
+  .diagram .node.green rect { stroke: var(--green); }
+  .diagram .node.amber rect { stroke: var(--amber); }
+  .diagram .node.red rect { stroke: var(--red); }
+  .diagram .node.violet rect { stroke: var(--violet); }
+  .diagram .node.output rect { fill: #12302f; stroke: var(--green); stroke-width: 2; }
+  .diagram .title { fill: var(--text); font: 700 14px var(--mono); }
+  .diagram .method { fill: #b9c9df; font: 12px var(--mono); }
+  .diagram .small { fill: #8093af; font: 11px var(--mono); }
+  .diagram .step { fill: #09111f; font: 800 11px var(--mono); }
+  .diagram .step-bg { fill: var(--blue); }
+  .diagram .flow { fill: none; stroke: var(--blue); stroke-width: 2; marker-end: url(#arrow-blue); }
+  .diagram .read-flow { fill: none; stroke: var(--green); stroke-width: 2; marker-end: url(#arrow-green); }
+  .diagram .external-flow { fill: none; stroke: var(--amber); stroke-width: 2; marker-end: url(#arrow-amber); }
+  .diagram .bad-flow { fill: none; stroke: var(--red); stroke-width: 2; marker-end: url(#arrow-red); }
+  .diagram .observe-flow { fill: none; stroke: var(--violet); stroke-width: 1.5; stroke-dasharray: 5 5; marker-end: url(#arrow-violet); }
+  .diagram .feedback { fill: none; stroke: var(--green); stroke-width: 2; stroke-dasharray: 8 5; marker-end: url(#arrow-green); }
+  .diagram .payload { fill: #8da0bc; font: 11px var(--mono); }
+  .diagram a:hover rect { filter: brightness(1.22); }
+  .callout-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+  .callout { min-height: 100%; padding: 15px 16px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--muted); font-size: 13px; }
+  .callout b { display: block; margin-bottom: 4px; color: var(--text); font-family: var(--mono); }
+  .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .step-card { padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); scroll-margin-top: 80px; }
+  .step-card h3 { margin: 0; font: 700 15px/1.4 var(--mono); }
+  .step-card h3 .number { color: var(--blue); }
+  .step-card .purpose { margin: 7px 0 13px; color: var(--muted); font-size: 13.5px; }
+  .triplet { display: grid; grid-template-columns: 72px 1fr; gap: 6px 10px; font-size: 13px; }
+  .triplet .key { color: #7488a6; font: 700 10px/1.7 var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+  .triplet .value { color: #cbd8ea; }
+  .decision-flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; align-items: stretch; }
+  .decision { position: relative; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12.5px; }
+  .decision:not(:last-child)::after { content: "→"; position: absolute; z-index: 2; top: 50%; right: -13px; color: var(--violet); transform: translateY(-50%); }
+  .decision b { display: block; margin-bottom: 4px; color: var(--text); font-family: var(--mono); }
+  .report-box { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 20px; border: 1px solid rgba(185, 156, 255, .45); border-radius: 14px; background: rgba(185, 156, 255, .065); }
+  .report-box h3 { margin: 0; color: var(--violet); font: 700 16px/1.4 var(--mono); }
+  .report-box p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+  .report-list { margin: 0; padding-left: 20px; color: #cdd8e9; font-size: 13px; }
+  .report-list li { margin-bottom: 7px; }
+  .report-list code { color: #d7c9ff; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: 13px; }
+  th, td { padding: 11px 13px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: #8296b4; font: 700 10px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+  td:first-child { color: var(--text); font-family: var(--mono); white-space: nowrap; }
+  td:nth-child(2) { color: #cbd8e9; font-family: var(--mono); }
+  td:last-child { color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  .tag { display: inline-block; margin-left: 6px; padding: 1px 5px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); font: 9px/1.4 var(--mono); text-transform: uppercase; }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font: 11px/1.5 var(--mono); }
+  @media (max-width: 900px) {
+    .page { padding-inline: 16px; }
+    nav { margin-inline: -16px; padding-inline: 16px; }
+    .steps, .callout-grid { grid-template-columns: 1fr; }
+    .decision-flow { grid-template-columns: 1fr; }
+    .decision:not(:last-child)::after { content: "↓"; top: auto; right: 50%; bottom: -17px; transform: translateX(50%); }
+    .report-box { grid-template-columns: 1fr; }
   }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
-
-  /* ---------- stage cards ---------- */
-  .stage {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
-    border-radius: 12px;
-    padding: 16px 18px;
-    margin: 0;
-  }
-  .stage.read    { border-left-color: var(--green); }
-  .stage.llm     { border-left-color: var(--warn); }
-  .stage.gate    { border-left-color: var(--rose); }
-  .stage.output  { border-left-color: var(--green); background: #16283a; }
-
-  .stage-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .step-num {
-    font-family: var(--mono); font-size: 12px; font-weight: 700;
-    background: var(--panel-2); border: 1px solid var(--border);
-    color: var(--muted); border-radius: 6px; padding: 2px 8px;
-  }
-  .stage-head h2 {
-    margin: 0; font-family: var(--mono); font-size: 17px; font-weight: 700;
-  }
-  .role {
-    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-    letter-spacing: .08em; padding: 2px 7px; border-radius: 6px; font-weight: 700;
-  }
-  .role.write { background: rgba(90,169,255,.15); color: var(--accent); border: 1px solid rgba(90,169,255,.4); }
-  .role.read  { background: rgba(126,224,192,.14); color: var(--green); border: 1px solid rgba(126,224,192,.4); }
-  .role.llm   { background: rgba(255,196,107,.14); color: var(--warn); border: 1px solid rgba(255,196,107,.4); }
-  .role.gate  { background: rgba(255,122,162,.14); color: var(--rose); border: 1px solid rgba(255,122,162,.4); }
-
-  .io-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.6fr 1fr;
-    gap: 12px;
-    margin-top: 12px;
-  }
-  @media (max-width: 760px) { .io-grid { grid-template-columns: 1fr; } }
-
-  .io { font-size: 13px; }
-  .io .tag {
-    font-family: var(--mono); font-size: 10px; text-transform: uppercase;
-    letter-spacing: .1em; display: block; margin-bottom: 6px;
-  }
-  .io.in  .tag { color: var(--green); }
-  .io.out .tag { color: var(--accent); }
-  .io.mid .tag { color: var(--muted); }
-  .io ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-  .io li { padding-left: 12px; position: relative; color: #cdd9ee; }
-  .io.in  li::before { content: "→"; position: absolute; left: 0; color: var(--green); }
-  .io.out li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
-  .io.mid li::before { content: "·"; position: absolute; left: 0; color: var(--muted); }
-  code, .fn { font-family: var(--mono); font-size: 12px; color: var(--text); }
-  .io .fn { color: var(--green); }
-  .io.out .fn { color: var(--accent); }
-
-  .inside { margin-top: 12px; font-size: 13.5px; color: var(--muted); }
-  .inside ol { margin: 6px 0 0; padding-left: 20px; }
-  .inside li { margin-bottom: 3px; }
-  .inside li b { color: var(--text); font-weight: 600; }
-  .inside code { color: #d6e2f5; background: var(--panel-2); padding: 0 4px; border-radius: 4px; }
-
-  /* ---------- connectors ---------- */
-  .connector {
-    display: flex; align-items: center; gap: 12px;
-    padding: 4px 0 4px 26px; margin: 0;
-  }
-  .connector .arrow { color: var(--accent); font-size: 18px; line-height: 1; }
-  .connector.read-flow .arrow { color: var(--green); }
-  .connector .payload {
-    font-family: var(--mono); font-size: 12px; color: var(--muted);
-    background: var(--panel-2); border: 1px solid var(--border);
-    border-radius: 7px; padding: 4px 10px;
-  }
-  .connector .payload b { color: var(--text); font-weight: 600; }
-
-  .loop-note {
-    margin: 22px 0; padding: 12px 16px;
-    background: rgba(126,224,192,.06);
-    border: 1px solid rgba(126,224,192,.28); border-left: 3px solid var(--green);
-    border-radius: 10px; font-size: 13.5px; color: #bfe6d6;
-  }
-  .loop-note b { color: var(--green); }
-
-  .side-chain {
-    margin: 26px 0 8px; padding: 16px 18px;
-    background: var(--panel); border: 1px dashed rgba(126,224,192,.5); border-radius: 12px;
-  }
-  .side-chain h3 {
-    margin: 0 0 4px; font-family: var(--mono); font-size: 14px; color: var(--green);
-  }
-  .side-chain p { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
-  .chain-row {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-    font-family: var(--mono); font-size: 12.5px;
-  }
-  .chain-node {
-    background: var(--panel-2); border: 1px solid rgba(126,224,192,.4);
-    border-radius: 7px; padding: 5px 10px; color: var(--text);
-  }
-  .chain-node small { display: block; font-family: system-ui; color: var(--muted); font-size: 11px; }
-  .chain-arrow { color: var(--green); }
-
-  footer { margin-top: 50px; padding-top: 16px; border-top: 1px solid var(--border);
-           color: var(--muted); font-size: 12px; font-family: var(--mono); }
 </style>
 </head>
 <body>
-<div class="wrap">
-
+<main class="page">
   <header>
-    <h1>text_to_ontology — full data flow</h1>
-    <p>One run of <code>python ontology.py &lt;source&gt;</code>, stage by stage. Each card shows what enters the module, what happens inside, and what leaves it. The loop body (steps 4–11) executes once per source file.</p>
-    <div class="legend">
-      <span><i class="swatch" style="background:#5aa9ff"></i> write pipeline</span>
-      <span><i class="swatch" style="background:#7ee0c0"></i> read-only / context</span>
-      <span><i class="swatch" style="background:#ffc46b"></i> external LLM</span>
-      <span><i class="swatch" style="background:#ff7aa2"></i> validation gate</span>
+    <p class="eyebrow">Active write path · source traced</p>
+    <h1>How <code>ontology.py</code> turns text into a growing ontology</h1>
+    <p class="intro">The page follows one real run through every transitively related pipeline file. It shows the payload passed between methods, the read-only context branch, the validation and policy gates, the graph-copy write, the per-file feedback loop, and the new verbose report path.</p>
+    <div class="command">python ontology.py &lt;source file or directory&gt; [ontology.ttl] [-v]</div>
+    <div class="facts">
+      <span class="fact"><b>17</b> active Python files</span>
+      <span class="fact"><b>one file</b> processed at a time</span>
+      <span class="fact"><b>read-only plan</b> before mutation</span>
+      <span class="fact"><b>atomic save</b> after each non-empty file</span>
     </div>
   </header>
+  <nav aria-label="Page sections"><div class="links">
+    <a href="#map">Process map</a><a href="#walkthrough">Step details</a><a href="#policy">Policy order</a><a href="#verbose">Verbose report</a><a href="#files">Files and methods</a>
+  </div></nav>
 
-  <!-- STEP 1 -->
-  <div class="stage">
-    <div class="stage-head">
-      <span class="step-num">1</span>
-      <h2>ontology.py — main()</h2>
-      <span class="role write">entry / run loop</span>
+  <section id="map">
+    <h2>The whole process on one map</h2>
+    <p class="lead">Follow the solid arrows from left to right. Green work only reads. Red is a stop branch. The dashed green line is the important feedback loop: a successful save becomes the graph used for the next file's context.</p>
+    <div class="legend" aria-label="Diagram legend">
+      <span><i class="dot" style="background:var(--blue)"></i> orchestration / write path</span>
+      <span><i class="dot" style="background:var(--green)"></i> read-only selection</span>
+      <span><i class="dot" style="background:var(--amber)"></i> external LLM</span>
+      <span><i class="dot" style="background:var(--red)"></i> rejected / stop</span>
+      <span><i class="dot" style="background:var(--violet)"></i> reporting only</span>
     </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li><span class="fn">argv: source path, graph path</span> (default <code>ontology.ttl</code>)</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li>parse args, <b>open the graph</b> (step 2)</li>
-          <li><b>discover source files</b> (step 3)</li>
-          <li>for each file: run the loop body (steps 4–9)</li>
-          <li>blank files are skipped; saves after every file</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">graph object + ordered file list</span></li>
-          <li>exit 1 on any validation failure</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload">CLI args</span></div>
+    <div class="diagram-shell" tabindex="0" aria-label="Horizontally scrollable ontology process diagram">
+      <div class="diagram-note">Scroll horizontally. Diagram nodes link to their detailed step below.</div>
+      <svg class="diagram" viewBox="0 0 2240 830" role="img" aria-labelledby="diagram-title diagram-desc">
+        <title id="diagram-title">ontology.py end-to-end process</title>
+        <desc id="diagram-desc">The command opens a graph and discovers files. Each non-empty file gets graph context, is sent to an LLM, validated, planned, applied to a graph copy, and atomically saved. The saved graph feeds the next file. Verbose reports observe intermediate values.</desc>
+        <defs>
+          <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#68a8ff"/></marker>
+          <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#62d6b0"/></marker>
+          <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ffc56e"/></marker>
+          <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#ff7f9f"/></marker>
+          <marker id="arrow-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#b99cff"/></marker>
+        </defs>
+        <rect class="lane" x="18" y="34" width="410" height="612" rx="14"/><text class="lane-title" x="36" y="59">A · STARTUP + PER-FILE CONTROL</text>
+        <rect class="lane" x="448" y="34" width="680" height="612" rx="14"/><text class="lane-title" x="466" y="59">B · READ-ONLY CONTEXT FOR THIS SOURCE</text>
+        <rect class="lane" x="1148" y="34" width="620" height="612" rx="14"/><text class="lane-title" x="1166" y="59">C · MODEL + TRUST GATES</text>
+        <rect class="lane" x="1788" y="34" width="430" height="612" rx="14"/><text class="lane-title" x="1806" y="59">D · COPY + ATOMIC OUTPUT</text>
 
-  <!-- STEP 2 -->
-  <div class="stage">
-    <div class="stage-head">
-      <span class="step-num">2</span>
-      <h2>graph_management.py</h2>
-      <span class="role write">graph lifecycle</span>
-    </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>graph file path</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li><code>open_graph(path)</code> — parse existing Turtle, <b>or</b> seed base ontology + SHACL shape</li>
-          <li><code>bind()</code> — bind prefixes: <code>BASE ONTO ENTITY CLASS RELATION FACT</code></li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">rdflib Graph (the canonical graph)</span></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload"><b>Graph</b> — everything downstream reads or writes this one object</span></div>
+        <a href="#step-start" class="node blue"><g>
+          <rect x="42" y="88" width="220" height="80" rx="10"/><rect class="step-bg" x="54" y="99" width="22" height="22" rx="6"/><text class="step" x="61" y="114">0</text>
+          <text class="title" x="86" y="115">ontology.py</text><text class="method" x="58" y="140">main() · argparse</text><text class="small" x="58" y="157">source · graph · -v</text>
+        </g></a>
+        <a href="#step-start" class="node blue"><g>
+          <rect x="42" y="214" width="220" height="82" rx="10"/><text class="title" x="58" y="240">graph_management.py</text><text class="method" x="58" y="263">open_graph() · bind()</text><text class="small" x="58" y="281">existing TTL or 8-triple seed</text>
+        </g></a>
+        <a href="#step-ingest" class="node blue"><g>
+          <rect x="42" y="340" width="220" height="94" rx="10"/><rect class="step-bg" x="54" y="351" width="22" height="22" rx="6"/><text class="step" x="61" y="366">1</text>
+          <text class="title" x="86" y="367">ingest_sources.py</text><text class="method" x="58" y="392">find_text_files()</text><text class="method" x="58" y="410">read_source(path)</text><text class="small" x="58" y="427">ordered paths → UTF-8 text</text>
+        </g></a>
+        <g class="node red"><rect x="290" y="353" width="112" height="66" rx="10"/><text class="title" x="310" y="380">blank?</text><text class="small" x="307" y="401">yes → skip file</text></g>
+        <path class="flow" d="M152 168V212"/><text class="payload" x="168" y="195">graph path</text><path class="flow" d="M152 296V338"/><text class="payload" x="168" y="321">source path + graph path</text><path class="flow" d="M262 387H288"/><path class="bad-flow" d="M346 353V316H315"/><text class="payload" x="288" y="307">next path</text>
 
-  <!-- STEP 3 -->
-  <div class="stage">
-    <div class="stage-head">
-      <span class="step-num">3</span>
-      <h2>ingest_sources.py</h2>
-      <span class="role write">io</span>
-    </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>source path (file or directory)</li>
-          <li>graph path (to exclude it from discovery)</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li><code>find_text_files()</code> — direct file as-is, or recursive sorted scan filtered by <code>TEXT_FILES</code> extensions</li>
-          <li><code>read_source(path)</code> — utf-8 with <code>errors="replace"</code></li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">ordered list of paths → raw text per file</span></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload"><b>raw source text</b> (one file at a time — loop body starts here)</span></div>
+        <a href="#step-context" class="node green"><g>
+          <rect x="476" y="96" width="258" height="86" rx="10"/><rect class="step-bg" x="488" y="107" width="22" height="22" rx="6" style="fill:var(--green)"/><text class="step" x="495" y="122">2</text>
+          <text class="title" x="520" y="123">source_concepts.py</text><text class="method" x="492" y="148">extract_source_concepts()</text><text class="small" x="492" y="166">text → ranked concepts</text>
+        </g></a>
+        <a href="#step-views" class="node green"><g>
+          <rect x="476" y="226" width="258" height="86" rx="10"/><text class="title" x="492" y="252">ontology_views.py</text><text class="method" x="492" y="275">build_ontology_views()</text><text class="small" x="492" y="294">current Graph → five views</text>
+        </g></a>
+        <a href="#step-views" class="node green"><g>
+          <rect x="772" y="82" width="322" height="244" rx="12"/><text class="title" x="790" y="109">derived views inside the façade</text>
+          <text class="method" x="790" y="139">graph_partition.partition_graph()</text><text class="small" x="790" y="158">→ schema · instance · support</text><line x1="790" y1="174" x2="1076" y2="174" stroke="#2b3d59"/>
+          <text class="method" x="790" y="202">graph_skeleton.create_graph_skeleton()</text><text class="small" x="790" y="221">schema → explicit declared core</text><line x1="790" y1="237" x2="1076" y2="237" stroke="#2b3d59"/>
+          <text class="method" x="790" y="265">graph_patterns.observed_relationships()</text><text class="small" x="790" y="284">schema + instance → usage evidence</text><text class="small" x="790" y="308">support stays separate</text>
+        </g></a>
+        <a href="#step-context" class="node green"><g>
+          <rect x="590" y="370" width="350" height="112" rx="10"/><rect class="step-bg" x="603" y="382" width="22" height="22" rx="6" style="fill:var(--green)"/><text class="step" x="610" y="397">3</text>
+          <text class="title" x="635" y="398">task_context.py</text><text class="method" x="606" y="426">build_task_context()</text><text class="method" x="606" y="445">select_task_context() · expand()</text><text class="small" x="606" y="465">→ schema · patterns · resources · examples</text>
+        </g></a>
+        <a href="#step-render" class="node green"><g>
+          <rect x="714" y="526" width="384" height="96" rx="10"/><rect class="step-bg" x="727" y="538" width="22" height="22" rx="6" style="fill:var(--green)"/><text class="step" x="734" y="553">4</text>
+          <text class="title" x="759" y="554">context_render.py + prompt_budget.py</text><text class="method" x="730" y="582">prepare_prompt_context() · fit_context_items()</text><text class="small" x="730" y="603">→ context text · allowed existing_ids · budget</text>
+        </g></a>
+        <path class="read-flow" d="M402 386H450Q464 386 464 372V139H474"/><text class="payload" x="420" y="123">raw text</text>
+        <path class="read-flow" d="M402 386H450Q464 386 464 372V269H474"/><text class="payload" x="420" y="252">current graph</text>
+        <path class="read-flow" d="M734 269H770"/><path class="read-flow" d="M605 182V342Q605 356 619 368"/><text class="payload" x="615" y="349">concepts</text>
+        <path class="read-flow" d="M933 326V344Q933 358 919 368"/><text class="payload" x="941" y="352">views</text><path class="read-flow" d="M765 482V524"/><text class="payload" x="780" y="508">ContextPackage</text>
 
-  <!-- STEP 4 -->
-  <div class="stage read">
-    <div class="stage-head">
-      <span class="step-num">4</span>
-      <h2>source_concepts.py</h2>
-      <span class="role read">read-only</span>
-    </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>raw source text</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li><code>extract_source_concepts(text)</code> — tokenize, find heading mentions, phrase runs, keywords</li>
-          <li>weight &amp; rank: mention 3.0 / phrase 2.0 / keyword 1.0, cap at 40</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">concepts: [{text, normalized, kind, weight, origin, position}]</span></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector read-flow"><span class="arrow">↓</span><span class="payload"><b>concepts</b> — "what this text talks about", no RDF involved</span></div>
+        <a href="#step-model" class="node amber"><g>
+          <rect x="1176" y="236" width="268" height="112" rx="10"/><rect class="step-bg" x="1189" y="248" width="22" height="22" rx="6" style="fill:var(--amber)"/><text class="step" x="1196" y="263">5</text>
+          <text class="title" x="1221" y="264">source_parse.py</text><text class="method" x="1192" y="292">make_prompt() · parse_source()</text><text class="small" x="1192" y="313">source + selected context + JSON contract</text><text class="small" x="1192" y="331">calls llm.ask_llm()</text>
+        </g></a>
+        <a href="#step-model" class="node amber"><g><rect x="1176" y="94" width="268" height="86" rx="10"/><text class="title" x="1192" y="121">llm.py → OpenRouter</text><text class="method" x="1192" y="145">model_name() · ask_llm()</text><text class="small" x="1192" y="163">POST → parse returned JSON</text></g></a>
+        <a href="#step-validate" class="node red"><g>
+          <rect x="1484" y="236" width="254" height="112" rx="10"/><rect class="step-bg" x="1497" y="248" width="22" height="22" rx="6" style="fill:var(--red)"/><text class="step" x="1504" y="263">6</text>
+          <text class="title" x="1529" y="264">candidate_validation.py</text><text class="method" x="1500" y="292">validate_candidates()</text><text class="small" x="1500" y="313">shape · normalize · refs · dedupe</text><text class="small" x="1500" y="331">confidence · role/type collisions</text>
+        </g></a>
+        <a href="#step-plan" class="node violet"><g>
+          <rect x="1266" y="432" width="382" height="138" rx="10"/><rect class="step-bg" x="1279" y="444" width="22" height="22" rx="6" style="fill:var(--violet)"/><text class="step" x="1286" y="459">7</text>
+          <text class="title" x="1311" y="460">merge_policy.py</text><text class="method" x="1282" y="488">build_provenance() · plan_graph_merge()</text><text class="method" x="1282" y="507">resolve_entities()</text><text class="small" x="1282" y="529">entity_lookup.entity_catalog()</text><text class="small" x="1282" y="546">entity_lookup.identity_decision()</text><text class="small" x="1282" y="562">→ domain triples + audit triples (not written)</text>
+        </g></a>
+        <g class="node red"><rect x="1500" y="94" width="238" height="86" rx="10"/><text class="title" x="1516" y="121">invalid package → STOP</text><text class="method" x="1516" y="145">format_validation_failure()</text><text class="small" x="1516" y="163">no plan · no apply · no save</text></g>
+        <path class="read-flow" d="M1098 575H1136Q1150 575 1150 561V306Q1150 292 1174 292"/><text class="payload" x="1110" y="559">text + ids</text>
+        <path class="external-flow" d="M1310 236V182"/><text class="payload" x="1324" y="211">prompt</text><path class="external-flow" d="M1444 137H1460Q1474 137 1474 151V220Q1474 234 1482 246"/><text class="payload" x="1451" y="201">candidate JSON</text>
+        <path class="bad-flow" d="M1611 236V182"/><text class="payload" x="1624" y="211">invalid</text><path class="flow" d="M1611 348V390Q1611 404 1597 410L1546 430"/><text class="payload" x="1623" y="390">valid candidates</text>
 
-  <!-- STEP 5 -->
-  <div class="stage read">
-    <div class="stage-head">
-      <span class="step-num">5</span>
-      <h2>task_context.py — build_task_context()</h2>
-      <span class="role read">read-only</span>
-    </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>source text</li>
-          <li>concepts (step 4)</li>
-          <li>current graph → <code>ontology_views.build_ontology_views()</code> → {schema, instance, support, skeleton, patterns}</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li>build indexes over the views (names, texts, schema, resources)</li>
-          <li><code>select_task_context()</code> — match concepts against classes/properties/entities via <b>8 priority tiers</b> (direct name/label/alias first, bounded expansion after)</li>
-          <li>attach usage patterns, resources, examples, labels</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">ContextPackage {concepts, schema, patterns, resources, examples, labels, diagnostics}</span></li>
-        </ul>
-      </div>
-    </div>
-    <div class="inside">↺ this is where the <b>graph feedback loop</b> lands: the graph built so far is re-read (via views) before every file, so each prompt sees everything merged by previous files.</div>
-  </div>
-  <div class="connector read-flow"><span class="arrow">↓</span><span class="payload"><b>ContextPackage</b> — the selected slice of the graph, relevant to this file</span></div>
+        <a href="#step-write" class="node blue"><g>
+          <rect x="1816" y="236" width="266" height="112" rx="10"/><rect class="step-bg" x="1829" y="248" width="22" height="22" rx="6"/><text class="step" x="1836" y="263">8</text>
+          <text class="title" x="1861" y="264">graph_merge.py</text><text class="method" x="1832" y="292">apply_merge_plan()</text><text class="small" x="1832" y="313">copy current graph</text><text class="small" x="1832" y="331">add decided domain + audit triples</text>
+        </g></a>
+        <a href="#step-write" class="node output"><g>
+          <rect x="1816" y="432" width="266" height="112" rx="10"/><rect class="step-bg" x="1829" y="444" width="22" height="22" rx="6" style="fill:var(--green)"/><text class="step" x="1836" y="459">9</text>
+          <text class="title" x="1861" y="460">graph_management.py</text><text class="method" x="1832" y="488">save_graph(updated, path)</text><text class="small" x="1832" y="509">serialize .tmp → os.replace()</text><text class="small" x="1832" y="527">success → updated becomes active graph</text>
+        </g></a>
+        <g class="node output"><rect x="2110" y="432" width="90" height="112" rx="10"/><text class="title" x="2124" y="472">TTL</text><text class="method" x="2124" y="495">saved</text><text class="small" x="2124" y="519">per file</text></g>
+        <path class="flow" d="M1648 501H1772Q1786 501 1786 487V306Q1786 292 1814 292"/><text class="payload" x="1677" y="489">complete MergePlan</text><path class="flow" d="M1949 348V430"/><text class="payload" x="1963" y="392">updated graph copy</text><path class="read-flow" d="M2082 488H2108"/>
+        <path class="feedback" d="M2155 544V610Q2155 630 2135 630H456Q432 630 432 606V286Q432 269 474 269"/><text class="payload" x="1590" y="620">next file reads the newly saved graph</text>
 
-  <!-- STEP 6 -->
-  <div class="stage read">
-    <div class="stage-head">
-      <span class="step-num">6</span>
-      <h2>context_render.py + prompt_budget.py</h2>
-      <span class="role read">read-only</span>
+        <rect x="18" y="674" width="2200" height="126" rx="14" fill="rgba(185,156,255,.045)" stroke="rgba(185,156,255,.45)" stroke-dasharray="5 5"/>
+        <text class="lane-title" x="36" y="699" style="fill:var(--violet)">E · ONTOLOGY.PY -V / --VERBOSE — OBSERVES INTERMEDIATE ARTIFACTS; NEVER WRITES</text>
+        <g class="node violet"><rect x="474" y="720" width="290" height="58" rx="9"/><text class="method" x="490" y="744">report_task_context()</text><text class="small" x="490" y="763">report_skeleton() + selected items</text></g>
+        <g class="node violet"><rect x="790" y="720" width="280" height="58" rx="9"/><text class="method" x="806" y="744">report_context()</text><text class="small" x="806" y="763">kept/dropped + prompt text</text></g>
+        <g class="node violet"><rect x="1176" y="720" width="238" height="58" rx="9"/><text class="method" x="1192" y="744">report_extraction()</text><text class="small" x="1192" y="763">raw JSON response</text></g>
+        <g class="node violet"><rect x="1442" y="720" width="238" height="58" rx="9"/><text class="method" x="1458" y="744">report_validation()</text><text class="small" x="1458" y="763">counts + warnings</text></g>
+        <g class="node violet"><rect x="1708" y="720" width="238" height="58" rx="9"/><text class="method" x="1724" y="744">report_plan()</text><text class="small" x="1724" y="763">identities + outcomes</text></g>
+        <path class="observe-flow" d="M690 482V718"/><path class="observe-flow" d="M930 622V718"/><path class="observe-flow" d="M1295 348V718"/><path class="observe-flow" d="M1561 348V718"/><path class="observe-flow" d="M1708 532H1688Q1674 532 1674 546V696Q1674 710 1706 734"/>
+      </svg>
     </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>ContextPackage (step 5)</li>
-          <li>budget: total 30k, context 1.4k tokens, 4k output reserve</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li><code>render_context_items()</code> — package → compact text lines, declared structure kept apart from observed usage; delimiters defused</li>
-          <li><code>fit_context_items()</code> — keep only complete items (with dependencies) that fit the token ceiling, in priority order</li>
-          <li><code>assemble_context()</code> — fixed section order, empty sections omitted → also derives <code>existing_ids</code></li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">{text: context block, budget, existing_ids}</span></li>
-        </ul>
-      </div>
+    <div class="callout-grid">
+      <div class="callout"><b>Selection is not identity resolution.</b>The prompt sees only relevant resources that fit its budget. Later, merge planning still checks identity against the complete graph.</div>
+      <div class="callout"><b>Validation is fail-closed.</b>One validation error rejects the entire response for that source. The current graph and saved TTL remain unchanged.</div>
+      <div class="callout"><b>Review is still saved as audit.</b>A policy review is not a validation failure. It can add audit records while withholding unsafe domain assertions.</div>
     </div>
-  </div>
-  <div class="connector read-flow"><span class="arrow">↓</span><span class="payload"><b>context text + existing_ids</b> — what the LLM is allowed to see and reuse</span></div>
+  </section>
 
-  <!-- STEP 7 -->
-  <div class="stage llm">
-    <div class="stage-head">
-      <span class="step-num">7</span>
-      <h2>source_parse.py → llm.py</h2>
-      <span class="role llm">external LLM boundary</span>
+  <section id="walkthrough">
+    <h2>Step-by-step: what enters, happens, and leaves</h2>
+    <p class="lead">These are the active calls made by <code>ontology.py</code>, in execution order. Helpers are grouped under the stage that calls them.</p>
+    <div class="steps">
+      <article class="step-card" id="step-start"><h3><span class="number">0.</span> Start and open the graph</h3><p class="purpose"><code>ontology.py:main()</code> owns the run and the only per-file loop.</p><div class="triplet">
+        <span class="key">receives</span><span class="value">CLI source path, optional graph path, optional <code>-v</code>.</span>
+        <span class="key">calls</span><span class="value"><code>graph_management.open_graph()</code>, which binds prefixes and parses existing Turtle or creates the base seed in memory.</span>
+        <span class="key">returns</span><span class="value">The current <code>rdflib.Graph</code>. Opening a missing path does not save it yet.</span>
+      </div></article>
+      <article class="step-card" id="step-ingest"><h3><span class="number">1.</span> Discover and read sources</h3><p class="purpose"><code>ingest_sources.py</code> turns a path into a stable stream of text.</p><div class="triplet">
+        <span class="key">receives</span><span class="value">Source path and output graph path.</span>
+        <span class="key">calls</span><span class="value"><code>find_text_files()</code> recursively scans supported extensions, sorts paths, and excludes the output graph; <code>read_source()</code> reads UTF-8 with replacement.</span>
+        <span class="key">returns</span><span class="value">One raw text at a time. Whitespace-only text immediately skips the rest of the loop.</span>
+      </div></article>
+      <article class="step-card" id="step-context"><h3><span class="number">2–3.</span> Understand the source and select graph context</h3><p class="purpose"><code>task_context.build_task_context()</code> composes the source-only and graph-only branches.</p><div class="triplet">
+        <span class="key">source</span><span class="value"><code>source_concepts.extract_source_concepts()</code> extracts deterministic mentions, phrases, and keywords. <code>text_phrases()</code> supports whole-word matching.</span>
+        <span class="key">graph</span><span class="value"><code>ontology_views.build_ontology_views()</code> derives the five read-only views; <code>entity_lookup.entity_catalog()</code> supplies native entity identities.</span>
+        <span class="key">selects</span><span class="value"><code>select_task_context()</code> uses direct tiers 1–4, then <code>expand()</code> adds bounded dependencies and one-hop neighbors at tiers 5–8.</span>
+        <span class="key">returns</span><span class="value"><code>ContextPackage</code>: concepts, schema, patterns, resources, examples, labels, diagnostics.</span>
+      </div></article>
+      <article class="step-card" id="step-views"><h3><span class="number">2a.</span> Derive five views from the current graph</h3><p class="purpose"><code>ontology_views.py</code> is the façade used inside context selection.</p><div class="triplet">
+        <span class="key">partition</span><span class="value"><code>graph_partition.partition_graph()</code> classifies every triple into disjoint schema, instance, or support graphs.</span>
+        <span class="key">declared</span><span class="value"><code>graph_skeleton.create_graph_skeleton(schema)</code> copies the explicit class/property core and complete supported restrictions. It infers nothing.</span>
+        <span class="key">observed</span><span class="value"><code>graph_patterns.observed_relationships(schema, instance)</code> calculates class–property–range usage evidence and cardinality statistics.</span>
+        <span class="key">returns</span><span class="value"><code>{schema, instance, support, skeleton, patterns}</code>. None is cached between source files.</span>
+      </div></article>
+      <article class="step-card" id="step-render"><h3><span class="number">4.</span> Render and fit the prompt context</h3><p class="purpose"><code>context_render.prepare_prompt_context()</code> turns structured selections into safe, bounded prompt text.</p><div class="triplet">
+        <span class="key">renders</span><span class="value"><code>render_context_items()</code> writes declared, observed, resource, and example blocks; <code>assemble_context()</code> keeps that authority order visible.</span>
+        <span class="key">budgets</span><span class="value"><code>budget_for()</code> adds source token cost. <code>allowance()</code> chooses the smaller limit; <code>prompt_budget.fit_context_items()</code> keeps complete dependency bundles only.</span>
+        <span class="key">returns</span><span class="value">Context text, budget diagnostics, and only the native <code>existing_ids</code> whose resource cards survived packing.</span>
+      </div></article>
+      <article class="step-card" id="step-model"><h3><span class="number">5.</span> Build the extraction prompt and ask the model</h3><p class="purpose"><code>source_parse.py</code> owns the extraction contract; <code>llm.py</code> owns the network boundary.</p><div class="triplet">
+        <span class="key">prompt</span><span class="value"><code>make_prompt()</code> combines source, selected context, context rules, exact JSON shape, endpoint rules, and required confidence.</span>
+        <span class="key">request</span><span class="value"><code>parse_source()</code> calls <code>llm.ask_llm()</code>; <code>model_name()</code> loads the configured OpenRouter model; temperature is zero.</span>
+        <span class="key">returns</span><span class="value">Parsed but untrusted JSON with <code>entities[]</code>, <code>relations[]</code>, and <code>facts[]</code>.</span>
+      </div></article>
+      <article class="step-card" id="step-validate"><h3><span class="number">6.</span> Validate and normalize the complete response</h3><p class="purpose"><code>candidate_validation.validate_candidates()</code> is a read-only structural gate, not an identity matcher.</p><div class="triplet">
+        <span class="key">checks</span><span class="value">Containers and fields, local ID grammar, text normalization, endpoint references, allowed <code>existing_id</code> values, numeric confidence, duplicates, generated-URI roles, and property type collisions.</span>
+        <span class="key">valid</span><span class="value">Returns normalized candidates plus warnings and counts.</span>
+        <span class="key">invalid</span><span class="value"><code>format_validation_failure()</code> raises a run-stopping error. Planning, applying, and saving do not run for that file.</span>
+      </div></article>
+      <article class="step-card" id="step-plan"><h3><span class="number">7.</span> Decide identity and every merge outcome</h3><p class="purpose"><code>merge_policy.py</code> plans everything against the complete graph without mutating it.</p><div class="triplet">
+        <span class="key">origin</span><span class="value"><code>build_provenance()</code> records source path/digest, model, and policy version.</span>
+        <span class="key">identity</span><span class="value"><code>resolve_entities()</code> calls <code>entity_lookup.entity_catalog()</code> and <code>identity_decision()</code> for existing/new/review decisions; planned new entities form a virtual catalog.</span>
+        <span class="key">assertion</span><span class="value"><code>plan_graph_merge()</code> decides accept/duplicate/review, preserves existing canonical values, and creates deterministic audit triples.</span>
+        <span class="key">returns</span><span class="value">A complete <code>MergePlan</code>: identities, field decisions, relation/fact outcomes, domain triples, audit triples, counts, diagnostics.</span>
+      </div></article>
+      <article class="step-card" id="step-write" style="grid-column:1 / -1"><h3><span class="number">8–9.</span> Apply the plan to a copy, then save atomically</h3><p class="purpose">Mutation starts only here, after every policy decision is complete.</p><div class="triplet">
+        <span class="key">copy</span><span class="value"><code>graph_merge.apply_merge_plan()</code> creates a new graph, copies namespaces and all current triples, then adds only the plan's domain and audit triples. It contains no identity or conflict logic.</span>
+        <span class="key">save</span><span class="value"><code>graph_management.save_graph()</code> serializes to <code>&lt;path&gt;.tmp</code> and replaces the target with <code>os.replace()</code>. Failed serialization leaves the old file usable.</span>
+        <span class="key">continue</span><span class="value">Only after save succeeds does <code>graph = updated</code>. The next source file rebuilds context from this larger graph.</span>
+      </div></article>
     </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>raw source text</li>
-          <li>context text (step 6)</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li><code>make_prompt()</code> — instructions + context block (with <code>CONTEXT_RULES</code>) + strict JSON contract + the source</li>
-          <li><code>parse_source()</code> → <code>ask_llm()</code> — POST to OpenRouter, temp 0, strip code fences, parse JSON</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">raw LLM answer: {entities[], relations[], facts[]}</span></li>
-          <li>entities carry {id, name, kind, description, aliases, existing_id}; every record carries confidence 0.0–1.0</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload"><b>candidate JSON</b> — untrusted model output, nothing merged yet</span></div>
+  </section>
 
-  <!-- STEP 8 -->
-  <div class="stage gate">
-    <div class="stage-head">
-      <span class="step-num">8</span>
-      <h2>candidate_validation.py</h2>
-      <span class="role gate">validation gate</span>
+  <section id="policy"><h2>Merge policy: the decision order matters</h2><p class="lead">For a valid package, the planner checks outcomes in this order. An earlier result wins; later rules do not override it.</p>
+    <div class="decision-flow">
+      <div class="decision"><b>1 · identity usable?</b>Ambiguous exact name, kind collision, close spelling, or low-confidence new identity goes to review.</div>
+      <div class="decision"><b>2 · exact duplicate?</b>An existing triple is corroboration, even when confidence is below 0.80. It is not re-added.</div>
+      <div class="decision"><b>3 · explicit conflict?</b>Functional or inverse-functional conflicts go to review. Existing canonical values are never overwritten.</div>
+      <div class="decision"><b>4 · confidence ≥ 0.80?</b>New entities, fields, relations, and facts below the threshold go to review.</div>
+      <div class="decision"><b>5 · accept</b>Additive domain triples and deterministic audit triples enter the completed plan.</div>
     </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>candidate JSON (step 7)</li>
-          <li>current graph (read-only check)</li>
-          <li>allowed existing_ids (from step 6)</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li>normalize containers, text, ids; require numeric confidence in [0, 1] per record</li>
-          <li>check internal references (relations/facts point to declared entities)</li>
-          <li>exact dedupe within the answer</li>
-          <li>reject URI-role/type collisions</li>
-          <li>keep graph-exact candidates — merge policy plans their corroboration</li>
-          <li><b>any error → whole package rejected</b>: no plan, no merge, no save, exit 1</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">{valid, candidates, issues, counts}</span></li>
-          <li>on failure: <code>format_validation_failure()</code> → deterministic CLI error</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload"><b>validated candidates</b> — normalized, deduped, proven conflict-free</span></div>
+  </section>
 
-  <!-- STEP 9 -->
-  <div class="stage gate">
-    <div class="stage-head">
-      <span class="step-num">9</span>
-      <h2>merge_policy.py — build_provenance() + plan_graph_merge()</h2>
-      <span class="role gate">read-only planning</span>
+  <section id="verbose"><h2>What the report task adds with <code>-v</code></h2><p class="lead">Verbose mode exposes the artifacts already moving through the pipeline. It does not alter selection, validation, planning, or saving.</p>
+    <div class="report-box"><div><h3>ontology.py reporting lane</h3><p>Normal mode already prints one-line context, validation, plan, merge, and final totals. Verbose mode expands those checkpoints.</p></div>
+      <ol class="report-list">
+        <li>After context selection, <code>report_task_context()</code> prints extracted concepts, graph candidate counts, direct matches, selected items, and reasons. For the declared-core display it read-only rebuilds <code>partition_graph()</code> → <code>create_graph_skeleton()</code> → <code>report_skeleton()</code>.</li>
+        <li>After packing, <code>report_context()</code> lists kept and dropped item IDs; <code>main()</code> then prints the exact prompt-context text.</li>
+        <li>After the model replies, <code>report_extraction()</code> prints the raw parsed JSON before validation.</li>
+        <li>After validation, <code>report_validation()</code> prints normalized counts and every warning.</li>
+        <li>After planning, <code>report_plan()</code> prints each identity target and every entity/relation/fact outcome with reason codes.</li>
+      </ol>
     </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>validated candidates (step 8)</li>
-          <li>current graph (the complete catalog)</li>
-          <li>source path, text, model name</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li><code>build_provenance()</code> — source path + sha256, model, policy version</li>
-          <li><code>resolve_entities()</code> — per entity: explicit id → unique exact match → ambiguous/kind-collision/close-spelling review → new (confidence ≥ 0.80) or review with a provisional URI; earlier accepted entities join a virtual catalog; URIs reserved so new entities cannot collide</li>
-          <li>per assertion: exact-triple duplicate → functional/inverse-functional conflict review → below-threshold review → accept</li>
-          <li>build sha-addressed audit triples (<code>onto:ExtractionEvent</code>, <code>onto:MergeCandidate</code>)</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">the MergePlan: identities, entity summaries, relation/fact outcomes, domain_triples, audit_triples, counts, diagnostics</span></li>
-          <li>nothing has been written yet</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload"><b>a complete merge plan</b> — every decision made, nothing materialized</span></div>
+  </section>
 
-  <!-- STEP 10 -->
-  <div class="stage">
-    <div class="stage-head">
-      <span class="step-num">10</span>
-      <h2>graph_merge.py — apply_merge_plan()</h2>
-      <span class="role write">materialize into a copy</span>
-    </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>current graph + the MergePlan (step 9)</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li>copy namespace bindings and every source triple into a fresh graph</li>
-          <li>assert only the plan's decided domain and audit triples — no identity or conflict logic here</li>
-          <li>report counts: new / resolved / relations / facts / metadata / duplicates / review / audit triples</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">updated graph copy + counts</span> — the input graph stays triple-identical</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="connector"><span class="arrow">↓</span><span class="payload">updated graph copy</span></div>
-
-  <!-- STEP 11 -->
-  <div class="stage output">
-    <div class="stage-head">
-      <span class="step-num">11</span>
-      <h2>graph_management.py — save_graph()</h2>
-      <span class="role read">output</span>
-    </div>
-    <div class="io-grid">
-      <div class="io in"><span class="tag">in</span>
-        <ul>
-          <li>updated graph copy + path</li>
-        </ul>
-      </div>
-      <div class="io mid"><span class="tag">inside</span>
-        <ol>
-          <li>serialize to a temporary sibling file, then atomic <code>os.replace</code> — <b>after every file</b>; a failed save leaves the old file usable</li>
-          <li>only after a successful save does the copy become the next file's active graph</li>
-        </ol>
-      </div>
-      <div class="io out"><span class="tag">out</span>
-        <ul>
-          <li><span class="fn">ontology.ttl</span> — the single canonical graph</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-
-  <div class="loop-note">
-    <b>Loop back.</b> After the save, the run returns to step 3 for the next file — and steps 4–5
-    re-read the <b>now larger graph</b> through the views. Each successive prompt therefore sees
-    everything merged by the files before it.
-  </div>
-
-  <!-- SIDE CHAIN -->
-  <div class="side-chain">
-    <h3>side chain — derived views (read-only, feeding step 5)</h3>
-    <p>Rebuilt from the current graph before every file. Never writes; each stage is deterministic and tested.</p>
-    <div class="chain-row">
-      <span class="chain-node">ontology.ttl<small>current graph</small></span>
-      <span class="chain-arrow">→</span>
-      <span class="chain-node">graph_partition<small>schema · instance · support (lossless, disjoint)</small></span>
-      <span class="chain-arrow">→</span>
-      <span class="chain-node">graph_skeleton<small>schema → structural core, nothing inferred</small></span>
-      <span class="chain-arrow">+</span>
-      <span class="chain-node">graph_patterns<small>schema＋instance → observed class→property→range usage</small></span>
-      <span class="chain-arrow">→</span>
-      <span class="chain-node">ontology_views<small>façade: all five views as one record</small></span>
-      <span class="chain-arrow">→</span>
-      <span class="chain-node">task_context<small>step 5 consumes this</small></span>
-    </div>
-  </div>
-
-  <footer>data_flow.html — flow only; full module details in app_map.html</footer>
-</div>
+  <section id="files"><h2>Active files and their main methods</h2><p class="lead">This is the transitive execution path of <code>ontology.py</code>. Viewer/report-generation files are separate read-only tools and are not called by this command.</p>
+    <div class="table-wrap"><table><thead><tr><th>File</th><th>Main active methods</th><th>Responsibility in this run</th></tr></thead><tbody>
+      <tr><td>ontology.py</td><td>main(), budget_for(), report_*()</td><td>CLI, per-file orchestration, progress and verbose reporting.</td></tr>
+      <tr><td>graph_management.py</td><td>bind(), open_graph(), save_graph()</td><td>Graph lifecycle, namespaces, seed, atomic Turtle persistence.</td></tr>
+      <tr><td>ingest_sources.py</td><td>find_text_files(), read_source()</td><td>Source discovery, ordering, graph exclusion, text input.</td></tr>
+      <tr><td>source_concepts.py</td><td>extract_source_concepts(), text_phrases()</td><td>Source-only concept signals and whole-word phrase index.</td></tr>
+      <tr><td>ontology_views.py</td><td>build_ontology_views()</td><td>Façade returning schema, instance, support, skeleton, patterns.</td></tr>
+      <tr><td>graph_partition.py</td><td>partition_graph(), choose_view()</td><td>Lossless, disjoint schema/instance/support split.</td></tr>
+      <tr><td>graph_skeleton.py</td><td>create_graph_skeleton(), structural_triples(), supported_restriction()</td><td>Explicit declared class/property core; no inference.</td></tr>
+      <tr><td>graph_patterns.py</td><td>observed_relationships(), pattern_record()</td><td>Empirical class–property–range usage evidence.</td></tr>
+      <tr><td>task_context.py</td><td>build_task_context(), select_task_context(), direct_matches(), expand()</td><td>Relevance matching, bounded expansion, ContextPackage creation.</td></tr>
+      <tr><td>context_render.py</td><td>prepare_prompt_context(), render_context_items(), assemble_context(), allowance()</td><td>Safe semantic rendering, section assembly, budget coordination, reusable-ID list.</td></tr>
+      <tr><td>prompt_budget.py</td><td>estimate_tokens(), context_allowance(), fit_context_items()</td><td>Pessimistic token estimate and all-or-nothing dependency packing.</td></tr>
+      <tr><td>source_parse.py</td><td>make_prompt(), parse_source()</td><td>Extraction instructions, JSON contract, source/context composition.</td></tr>
+      <tr><td>llm.py</td><td>load_env(), model_name(), ask_llm()</td><td>OpenRouter request and JSON response parsing.</td></tr>
+      <tr><td>candidate_validation.py</td><td>validate_candidates(), format_validation_failure()</td><td>Fail-closed structure, normalization, references, confidence, duplicates, compatibility.</td></tr>
+      <tr><td>merge_policy.py</td><td>build_provenance(), resolve_entities(), plan_graph_merge()</td><td>Read-only identity, accept/duplicate/review, conflict, provenance, audit plan.</td></tr>
+      <tr><td>entity_lookup.py</td><td>entity_catalog(), identity_decision(), identity_key()</td><td>Complete-graph identity decisions used by selection and planning.</td></tr>
+      <tr><td>graph_merge.py</td><td>apply_merge_plan() <span class="tag">active</span><br>merge_into_graph() <span class="tag">legacy</span></td><td>Copies and materializes the plan. The older direct merger remains for compatibility but is not called by <code>ontology.py</code>.</td></tr>
+    </tbody></table></div>
+  </section>
+  <footer>Source of truth: the current Python files in this repository. This page intentionally documents the active <code>ontology.py</code> command, not the separate <code>view_ontology.py</code> viewer path.</footer>
+</main>
 </body>
 </html>
