@@ -68,6 +68,27 @@ python ontology.py documents/
 That is the whole workflow. Open `ontology.ttl` in a text editor to see or edit
 the RDF/RDFS/OWL/SHACL/SKOS graph directly.
 
+## Look at the graph
+
+The viewer derives five read-only views of an existing graph and explains each
+one: the schema / instance / support partitions, the declared skeleton copied
+out of the schema, and the usage patterns observed in the instance data.
+
+```bash
+python view_ontology.py                            # print the report for ontology.ttl
+python view_ontology.py other.ttl                  # a different graph
+python view_ontology.py -html                      # write ontology_views.html
+python view_ontology.py other.ttl -html out.html   # a different graph, a chosen file
+```
+
+The HTML page is one standalone file with no external assets. Besides the same
+numbers the terminal prints, it walks through how each view is derived, browses
+every statement, every declared class and property, every observed pattern,
+every entity, and the whole provenance trail, and ends with a glossary. Its
+search boxes, filters, and sliders only change what is displayed — what a view
+contains is decided in the code before the page is generated, and there are no
+filter options on the command line for the same reason.
+
 For each file the run prints one line about the context it selected, for example
 `Context: 32 items, 1333/1400 tokens, 21 items did not fit`. The numbers behind
 it live in `PROMPT_BUDGET` in `prompt_budget.py`; `context_tokens` is the ceiling
@@ -132,6 +153,11 @@ Read-only tools that derive smaller views of an existing graph:
 - `graph_patterns.py` — report which class-property-range patterns the instance
   data actually contains, with evidence
 - `ontology_views.py` — hand back all of the above as one group of views
+- `view_ontology.py` — the viewer's command line: print those views, or write
+  them as an explained HTML page
+- `view_report.py` — turn the views into plain data, with no HTML anywhere in it
+- `view_html.py` — render that data as one self-contained page, explanations
+  included
 
 And the rest:
 

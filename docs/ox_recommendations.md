@@ -15,6 +15,13 @@ plus the issue list — and call `parse_source`-style `ask_llm` again. Reuse the
 existing JSON contract; only the instruction block changes. Keep the hard
 reject as the final fallback.
 
+
+## Albert's note
+deep dive on entity resolution / deduplication
+first, there should be some entity index - is it here? what type of matching is there
+second, there should be extracted subgraph before graph merge
+
+
 ## 2. Provenance on merged triples
 
 Can't tell which source file produced a triple — blocks debugging, selective

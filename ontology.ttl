@@ -300,6 +300,559 @@ fact:target-level a owl:DatatypeProperty ;
 fact:top-near-term-risk a owl:DatatypeProperty ;
     rdfs:label "top near term risk" .
 
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-0-28677d9da76a8631f281048ce1b09f252d3bce256aed3ed5c1b28cba5179de72> a onto:MergeCandidate ;
+    onto:candidateIndex 0 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"Benchmark brief dated 2026-04-12 about Taiwan's military strategy, domestic politics, and position in US-China competition.\",\"existing_id\":null,\"id\":\"e1\",\"kind\":\"Entity\",\"name\":\"Taiwan under gray-zone pressure\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:taiwan-under-gray-zone-pressure ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-1-1c63cc94e55a60e7a92e16ee37691982498a26a2142290b0bcee0ade6dc57c6a> a onto:MergeCandidate ;
+    onto:candidateIndex 1 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"Island facing mounting Chinese gray-zone pressure and pursuing asymmetric defenses in early 2026.\",\"existing_id\":null,\"id\":\"e2\",\"kind\":\"Location\",\"name\":\"Taiwan\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:taiwan ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-10-1a8bfba39b9ecffb32d0a820f6a7e8a3bf767e6add80229152f4fd4cab9f4c63> a onto:MergeCandidate ;
+    onto:candidateIndex 10 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"Taiwan's strategy of building resilient, asymmetric defenses that are cheaper, more mobile, and harder to neutralize than a conventional prestige force.\",\"existing_id\":null,\"id\":\"e11\",\"kind\":\"Policy\",\"name\":\"porcupine strategy\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:porcupine-strategy ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-11-e659195bf8e3e54ded01d4456866f996b196be030811c8e11a967bc0dad1b98d> a onto:MergeCandidate ;
+    onto:candidateIndex 11 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"asymmetric defenses\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"asymmetric defenses\"],\"confidence\":0.99,\"description\":\"Defenses emphasized by Taiwan's porcupine strategy for their lower cost, mobility, and resilience against neutralization.\",\"existing_id\":null,\"id\":\"e12\",\"kind\":\"Entity\",\"name\":\"resilient asymmetric defenses\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:resilient-asymmetric-defenses ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-12-bc760e9cc4d320c934585637f129319769fead5661cff765989c21a02012596b> a onto:MergeCandidate ;
+    onto:candidateIndex 12 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Mobile defensive systems favored by Taiwan's porcupine strategy.\",\"existing_id\":null,\"id\":\"e13\",\"kind\":\"Entity\",\"name\":\"drones\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:drones ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-13-b42a3b01329f99af90ea50fd51f01dc1d3cc62bdf0f6886c401f6df76524dea3> a onto:MergeCandidate ;
+    onto:candidateIndex 13 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Defensive missile systems favored by Taiwan's porcupine strategy.\",\"existing_id\":null,\"id\":\"e14\",\"kind\":\"Entity\",\"name\":\"anti-ship missiles\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:anti-ship-missiles ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-14-8f5924262573ed67461fcbda241150f7ea5c5fabc54a3a5faed163d53282d0ef> a onto:MergeCandidate ;
+    onto:candidateIndex 14 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"defense procurement links\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"defense procurement links\"],\"confidence\":0.98,\"description\":\"Defense procurement relationship that Taiwan continued to deepen with the United States.\",\"existing_id\":null,\"id\":\"e15\",\"kind\":\"Event\",\"name\":\"Taiwan-US defense procurement\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:taiwan-us-defense-procurement ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-15-d328472a92503ea2469ee62332d601a5ba0273e93aabb4291f890f9a54fe2318> a onto:MergeCandidate ;
+    onto:candidateIndex 15 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"Javelin\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"Javelin\"],\"confidence\":1.0,\"description\":\"Anti-tank missile systems included among approved purchases associated with Taiwan's defense procurement.\",\"existing_id\":null,\"id\":\"e16\",\"kind\":\"Entity\",\"name\":\"Javelin anti-tank missiles\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:javelin-anti-tank-missiles ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-16-9c1a4860ec1b1937a3197f1105d2f67b996d8a44b0f2d8098fefc10d92e6437d> a onto:MergeCandidate ;
+    onto:candidateIndex 16 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"Weapon system included among approved purchases associated with Taiwan's defense procurement.\",\"existing_id\":null,\"id\":\"e17\",\"kind\":\"Entity\",\"name\":\"HIMARS\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:himars ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-17-6a0968fa6dddbaaf9846abd292a709014565e607805967a7f2c3b23281cb44e5> a onto:MergeCandidate ;
+    onto:candidateIndex 17 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Taiwanese political party chaired by Cheng Li-wun.\",\"existing_id\":null,\"id\":\"e18\",\"kind\":\"Organization\",\"name\":\"Kuomintang\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:kuomintang ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-18-145f1410afd855dcb39a058a8af1355523fa017bb2216ae5b3e5b43a232e0bd5> a onto:MergeCandidate ;
+    onto:candidateIndex 18 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"Kuomintang chair who made a notable visit to mainland China.\",\"existing_id\":null,\"id\":\"e19\",\"kind\":\"Person\",\"name\":\"Cheng Li-wun\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:cheng-li-wun ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-19-0c7be9b7ee14e2644815051c2a0265ec6d4a3b268de8da39e6004c1d4be3ba57> a onto:MergeCandidate ;
+    onto:candidateIndex 19 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"A notable political visit highlighting the intersection of Taiwan's domestic politics, cross-strait signaling, and future elections.\",\"existing_id\":null,\"id\":\"e20\",\"kind\":\"Event\",\"name\":\"Cheng Li-wun's visit to mainland China\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:cheng-li-wun-s-visit-to-mainland-china ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-2-93b95869ea2a37e087f67a87df77c5660cb33e7a1f9d8e9bf71b57bfb2ad6d1e> a onto:MergeCandidate ;
+    onto:candidateIndex 2 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"mainland China\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[\"mainland China\"],\"confidence\":1.0,\"description\":\"Country applying gray-zone pressure to Taiwan and visited by Kuomintang chair Cheng Li-wun.\",\"existing_id\":\"http://example.org/text-ontology/entity/china\",\"id\":\"e3\",\"kind\":\"Location\",\"name\":\"China\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:china ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-20-8e9c170ae3f2f712ea06e76310ef5245830cd440e4e78b5505b397a79285da16> a onto:MergeCandidate ;
+    onto:candidateIndex 20 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Competition between the United States and China forming part of the larger context of the Taiwan brief.\",\"existing_id\":null,\"id\":\"e21\",\"kind\":\"Event\",\"name\":\"US-China competition\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:us-china-competition ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-3-41f4c28127347084dad4622472ce377167908455eda53a06df7bc6b4f49d036b> a onto:MergeCandidate ;
+    onto:candidateIndex 3 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 1.0 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":1.0,\"description\":\"Country with which Taiwan continued to deepen defense procurement links.\",\"existing_id\":\"http://example.org/text-ontology/entity/united-states\",\"id\":\"e4\",\"kind\":\"Location\",\"name\":\"United States\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:united-states ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-4-e6d3f4a0369ead2d8fc2719ff4fbae263ccc2a23ce5f133811d89dee8c0c039d> a onto:MergeCandidate ;
+    onto:candidateIndex 4 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"gray-zone pressure\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"gray-zone pressure\"],\"confidence\":0.99,\"description\":\"Mounting pressure faced by Taiwan in early 2026 through tactics short of an immediate full-scale invasion.\",\"existing_id\":null,\"id\":\"e5\",\"kind\":\"Event\",\"name\":\"Chinese gray-zone pressure on Taiwan\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:chinese-gray-zone-pressure-on-taiwan ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-5-4ef989adc73d058650b5e501487aa79e1b57ae9894806a2c27e53762d37d24ee> a onto:MergeCandidate ;
+    onto:candidateIndex 5 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"A reported tactic used in gray-zone pressure against Taiwan.\",\"existing_id\":null,\"id\":\"e6\",\"kind\":\"Event\",\"name\":\"airspace pressure\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:airspace-pressure ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-6-241f59068ef2594c299526d6d5378792f0f6ebf32fa0b336f9bfde84c9d7c93b> a onto:MergeCandidate ;
+    onto:candidateIndex 6 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"A reported tactic used in gray-zone pressure against Taiwan.\",\"existing_id\":null,\"id\":\"e7\",\"kind\":\"Event\",\"name\":\"maritime signaling\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:maritime-signaling ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-7-5579abfd8469fce63bbe2f2587abd8874e62c6a3bf0e7bc6ea46f32853d320ec> a onto:MergeCandidate ;
+    onto:candidateIndex 7 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Suspected activity affecting Taiwan's critical infrastructure, including undersea communications links.\",\"existing_id\":null,\"id\":\"e8\",\"kind\":\"Event\",\"name\":\"suspected sabotage or interference\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:suspected-sabotage-or-interference ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-8-9921efca835995d51cd3d86ed8a950041daee87e2c77401f1e4eeed691ab45f4> a onto:MergeCandidate ;
+    onto:candidateIndex 8 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.97 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"critical infrastructure\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"critical infrastructure\"],\"confidence\":0.97,\"description\":\"Critical infrastructure in Taiwan reportedly affected by suspected sabotage or interference.\",\"existing_id\":null,\"id\":\"e9\",\"kind\":\"Infrastructure\",\"name\":\"Taiwan's critical infrastructure\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:taiwan-s-critical-infrastructure ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/entities-9-2ebca048df55a813cab6b32d11f721f1a3c70c80bb630f42125b2b97912bdbd4> a onto:MergeCandidate ;
+    onto:candidateIndex 9 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Undersea communications links identified as an example of critical infrastructure vulnerable to sabotage or interference.\",\"existing_id\":null,\"id\":\"e10\",\"kind\":\"Infrastructure\",\"name\":\"undersea communications links\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:undersea-communications-links ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-0-a385ee6159050d273017ed2ad8d88e07cc6437c70b5728305d949a2ef1d1a55b> a onto:MergeCandidate ;
+    onto:candidateIndex 0 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"predicate\":\"snapshot date\",\"subject\":\"e1\",\"value\":\"2026-04-12\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "2026-04-12" ;
+    rdf:predicate fact:snapshot-date ;
+    rdf:subject entity:taiwan-under-gray-zone-pressure .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-1-d23cc66d768dcfd33c399aa53c776c260a646082961ec545a0d0df76a558bae5> a onto:MergeCandidate ;
+    onto:candidateIndex 1 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"predicate\":\"significance\",\"subject\":\"e1\",\"value\":\"It sits at the intersection of military strategy, domestic politics, and US-China competition.\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "It sits at the intersection of military strategy, domestic politics, and US-China competition." ;
+    rdf:predicate fact:significance ;
+    rdf:subject entity:taiwan-under-gray-zone-pressure .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-2-903e84a4efd428a198e3d61d438f6467aea676a7ec45f7e17e1106120983c0d0> a onto:MergeCandidate ;
+    onto:candidateIndex 2 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"predicate\":\"time\",\"subject\":\"e5\",\"value\":\"early 2026\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "early 2026" ;
+    rdf:predicate fact:time ;
+    rdf:subject entity:chinese-gray-zone-pressure-on-taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-3-f4ea63e10915bafa5da1a82ec6f7544333026b7f626849920b94890a47a72bfc> a onto:MergeCandidate ;
+    onto:candidateIndex 3 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"characterization\",\"subject\":\"e5\",\"value\":\"Mounting concern rather than an immediate full-scale invasion scenario.\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "Mounting concern rather than an immediate full-scale invasion scenario." ;
+    rdf:predicate fact:characterization ;
+    rdf:subject entity:chinese-gray-zone-pressure-on-taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-4-f3409b6efa11822cb2c7a400968cae3190e711481403dec8e2db16aa69ce3ae3> a onto:MergeCandidate ;
+    onto:candidateIndex 4 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"predicate\":\"strategic emphasis\",\"subject\":\"e11\",\"value\":\"Denial rather than mirror-image escalation.\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "Denial rather than mirror-image escalation." ;
+    rdf:predicate fact:strategic-emphasis ;
+    rdf:subject entity:porcupine-strategy .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-5-469721d550d0cd65399be114ed7b3e22e355ec7fbf347d9292a9784dbdbf5cbe> a onto:MergeCandidate ;
+    onto:candidateIndex 5 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"predicate\":\"characteristics\",\"subject\":\"e12\",\"value\":\"Cheaper, more mobile, and harder to neutralize than a conventional prestige force.\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "Cheaper, more mobile, and harder to neutralize than a conventional prestige force." ;
+    rdf:predicate fact:characteristics ;
+    rdf:subject entity:resilient-asymmetric-defenses .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/facts-6-333ee8678c916295c7466a982cb703d99a94f5f25e5b19434b1ca2af0e16e993> a onto:MergeCandidate ;
+    onto:candidateIndex 6 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"predicate\":\"significance\",\"subject\":\"e20\",\"value\":\"Highlighted how Taiwan's domestic politics, cross-strait signaling, and future elections intersect.\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object "Highlighted how Taiwan's domestic politics, cross-strait signaling, and future elections intersect." ;
+    rdf:predicate fact:significance ;
+    rdf:subject entity:cheng-li-wun-s-visit-to-mainland-china .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-0-d7c60dcb4393d752c61744bdc20440f3a82389bd3fba9b07017264e8207d14d6> a onto:MergeCandidate ;
+    onto:candidateIndex 0 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e2\",\"predicate\":\"exerts gray-zone pressure on\",\"subject\":\"e3\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:taiwan ;
+    rdf:predicate relation:exerts-gray-zone-pressure-on ;
+    rdf:subject entity:china .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-1-67b36270be027387726211e08a5bcd917ae0c57842387f8ff754b961096d5c89> a onto:MergeCandidate ;
+    onto:candidateIndex 1 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e5\",\"predicate\":\"faces\",\"subject\":\"e2\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:chinese-gray-zone-pressure-on-taiwan ;
+    rdf:predicate relation:faces ;
+    rdf:subject entity:taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-10-4f49f9ec0aca4472ba41413a07723d3a1df19e4bfa24499fb27fa22d3773b432> a onto:MergeCandidate ;
+    onto:candidateIndex 10 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e13\",\"predicate\":\"favors\",\"subject\":\"e11\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:drones ;
+    rdf:predicate relation:favors ;
+    rdf:subject entity:porcupine-strategy .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-11-2b3ec85b98d8cae6b317ca2b32c54b0cea56c405dc19694f971a275db487c54a> a onto:MergeCandidate ;
+    onto:candidateIndex 11 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e14\",\"predicate\":\"favors\",\"subject\":\"e11\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:anti-ship-missiles ;
+    rdf:predicate relation:favors ;
+    rdf:subject entity:porcupine-strategy .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-12-6f5ce3a41bcef2ab7af2229ad167f771578ea76e959b8ad9aac2db2451e6463e> a onto:MergeCandidate ;
+    onto:candidateIndex 12 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e4\",\"predicate\":\"deepens defense procurement links with\",\"subject\":\"e2\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:united-states ;
+    rdf:predicate relation:deepens-defense-procurement-links-with ;
+    rdf:subject entity:taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-13-f2304ddc5e29af03ca5bcbde3639ce361f8312836938e7d4e9f1cd0392805ad6> a onto:MergeCandidate ;
+    onto:candidateIndex 13 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e2\",\"predicate\":\"connects\",\"subject\":\"e15\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:taiwan ;
+    rdf:predicate relation:connects ;
+    rdf:subject entity:taiwan-us-defense-procurement .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-14-92cd0acb575046d97caf8f47cf8a4dc9ee33a6b370a2e7a6e4bfd2e2b48fda76> a onto:MergeCandidate ;
+    onto:candidateIndex 14 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e4\",\"predicate\":\"connects\",\"subject\":\"e15\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:united-states ;
+    rdf:predicate relation:connects ;
+    rdf:subject entity:taiwan-us-defense-procurement .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-15-71b27ce22ebe1f20a0edf0f44bf5bdbde02caf647c8e9e60760e2d9bf081acf5> a onto:MergeCandidate ;
+    onto:candidateIndex 15 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e16\",\"predicate\":\"includes approved purchase\",\"subject\":\"e15\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:javelin-anti-tank-missiles ;
+    rdf:predicate relation:includes-approved-purchase ;
+    rdf:subject entity:taiwan-us-defense-procurement .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-16-1cd449eec210ebbf6143e3322918b689b1c9b29e82774d6963859cfedffbf4dd> a onto:MergeCandidate ;
+    onto:candidateIndex 16 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e17\",\"predicate\":\"includes approved purchase\",\"subject\":\"e15\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:himars ;
+    rdf:predicate relation:includes-approved-purchase ;
+    rdf:subject entity:taiwan-us-defense-procurement .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-17-66ddb3250d33ed0d0c61a6af23837bea9e7e290c2d98d1730bf52039f94ba5dc> a onto:MergeCandidate ;
+    onto:candidateIndex 17 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.94 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.94,\"object\":\"e11\",\"predicate\":\"reinforces\",\"subject\":\"e16\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:porcupine-strategy ;
+    rdf:predicate relation:reinforces ;
+    rdf:subject entity:javelin-anti-tank-missiles .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-18-312ba9f0cf9ed92e3ac102e6601962a975b62b92e25a305d10879a96c2ece894> a onto:MergeCandidate ;
+    onto:candidateIndex 18 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.94 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.94,\"object\":\"e11\",\"predicate\":\"reinforces\",\"subject\":\"e17\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:porcupine-strategy ;
+    rdf:predicate relation:reinforces ;
+    rdf:subject entity:himars .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-19-af74d47abeed3a88aab52e05c79c93e19a6d587d439e9a32c2b0f6b99260ea86> a onto:MergeCandidate ;
+    onto:candidateIndex 19 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e18\",\"predicate\":\"chairs\",\"subject\":\"e19\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:kuomintang ;
+    rdf:predicate relation:chairs ;
+    rdf:subject entity:cheng-li-wun .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-2-8932af301bc819a3ec35a3e4f9e7bfe5bbbf645f92029c9f49b5d2e5ce55beea> a onto:MergeCandidate ;
+    onto:candidateIndex 2 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e6\",\"predicate\":\"includes tactic\",\"subject\":\"e5\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:airspace-pressure ;
+    rdf:predicate relation:includes-tactic ;
+    rdf:subject entity:chinese-gray-zone-pressure-on-taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-20-aa0aa8b8defd1164e4b33e6cd9a8f28b41c7c322ca1af05ec3441ab127bd79cb> a onto:MergeCandidate ;
+    onto:candidateIndex 20 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e20\",\"predicate\":\"made\",\"subject\":\"e19\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:cheng-li-wun-s-visit-to-mainland-china ;
+    rdf:predicate relation:made ;
+    rdf:subject entity:cheng-li-wun .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-21-610f90c52b142529359335a057397141f675571e049d2d22e9c0cc15ab60dce8> a onto:MergeCandidate ;
+    onto:candidateIndex 21 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e3\",\"predicate\":\"destination\",\"subject\":\"e20\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:china ;
+    rdf:predicate relation:destination ;
+    rdf:subject entity:cheng-li-wun-s-visit-to-mainland-china .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-22-2c53db2c07ec611ef2c4b98255129334d5aa1475d3a24f267b093bc3a90a5b89> a onto:MergeCandidate ;
+    onto:candidateIndex 22 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e4\",\"predicate\":\"involves\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:united-states ;
+    rdf:predicate relation:involves ;
+    rdf:subject entity:us-china-competition .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-23-e896206ee36e42a056155d5243e3cb49c01d0ba07fc737df51c4cbbfea3a249c> a onto:MergeCandidate ;
+    onto:candidateIndex 23 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e3\",\"predicate\":\"involves\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:china ;
+    rdf:predicate relation:involves ;
+    rdf:subject entity:us-china-competition .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-3-1f0a19d5f81ce5028dac46fd5f1485c90b10182a590cb8810ac81aa278582b55> a onto:MergeCandidate ;
+    onto:candidateIndex 3 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e7\",\"predicate\":\"includes tactic\",\"subject\":\"e5\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:maritime-signaling ;
+    rdf:predicate relation:includes-tactic ;
+    rdf:subject entity:chinese-gray-zone-pressure-on-taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-4-e62746a2bdef206c06f1bd4d9a29f1c712b5ca749114c369c32cf0356b2bff64> a onto:MergeCandidate ;
+    onto:candidateIndex 4 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e8\",\"predicate\":\"includes suspected tactic\",\"subject\":\"e5\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:suspected-sabotage-or-interference ;
+    rdf:predicate relation:includes-suspected-tactic ;
+    rdf:subject entity:chinese-gray-zone-pressure-on-taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-5-7a359008e4032ca7e808101eb0dabc46259f99ab4ba2de271174fe467a0166d5> a onto:MergeCandidate ;
+    onto:candidateIndex 5 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e9\",\"predicate\":\"affects\",\"subject\":\"e8\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:taiwan-s-critical-infrastructure ;
+    rdf:predicate relation:affects ;
+    rdf:subject entity:suspected-sabotage-or-interference .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-6-5e05e310335ca8dbfa9e850f6fd5452e588d119e361fc5df27273c3e9c86b770> a onto:MergeCandidate ;
+    onto:candidateIndex 6 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e10\",\"predicate\":\"affects\",\"subject\":\"e8\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:undersea-communications-links ;
+    rdf:predicate relation:affects ;
+    rdf:subject entity:suspected-sabotage-or-interference .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-7-106ec51e188474d41ef55c79857334edfd9e905fc88ce377be00beda4fa62157> a onto:MergeCandidate ;
+    onto:candidateIndex 7 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e10\",\"predicate\":\"includes\",\"subject\":\"e9\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:undersea-communications-links ;
+    rdf:predicate relation:includes ;
+    rdf:subject entity:taiwan-s-critical-infrastructure .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-8-db788a1cd5344ca33ad7469e1ae93d3d9482796ed2326b9bb5343f3cd1aae7d1> a onto:MergeCandidate ;
+    onto:candidateIndex 8 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 1.0 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":1.0,\"object\":\"e11\",\"predicate\":\"pursues\",\"subject\":\"e2\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:porcupine-strategy ;
+    rdf:predicate relation:pursues ;
+    rdf:subject entity:taiwan .
+
+<http://example.org/text-ontology/merge-candidate/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102/relations-9-630491f80be052a87ca9cfbd542cdabe02ddf8a1752d05fb642fef7373fbdbf9> a onto:MergeCandidate ;
+    onto:candidateIndex 9 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e12\",\"predicate\":\"builds\",\"subject\":\"e11\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> ;
+    rdf:object entity:resilient-asymmetric-defenses ;
+    rdf:predicate relation:builds ;
+    rdf:subject entity:porcupine-strategy .
+
 <http://example.org/text-ontology/merge-candidate/f6c6ed221ae47e224ba998a5f730cc6a225ed6646be76f5e94754b0267863247/entities-0-02282097366efcfb663f94b979d352635270bcd989ba8358d55aa407135ac5f8> a onto:MergeCandidate ;
     onto:candidateIndex 0 ;
     onto:candidateSection "entities" ;
@@ -1069,9 +1622,6 @@ relation:prepares a owl:ObjectProperty ;
 relation:published a owl:ObjectProperty ;
     rdfs:label "published" .
 
-relation:pursues a owl:ObjectProperty ;
-    rdfs:label "pursues" .
-
 relation:represents a owl:ObjectProperty ;
     rdfs:label "represents" .
 
@@ -1101,10 +1651,6 @@ relation:waives-sanctions-on a owl:ObjectProperty ;
 
 relation:was-linked-to-conflict-involving a owl:ObjectProperty ;
     rdfs:label "was linked to conflict involving" .
-
-class:infrastructure a owl:Class ;
-    rdfs:label "Infrastructure" ;
-    rdfs:subClassOf onto:Entity .
 
 entity:allied-hormuz-maritime-security-commitments a onto:Entity,
         class:policy,
@@ -1279,6 +1825,12 @@ entity:xi-jinping a onto:Entity,
 fact:accusation a owl:DatatypeProperty ;
     rdfs:label "accusation" .
 
+fact:characteristics a owl:DatatypeProperty ;
+    rdfs:label "characteristics" .
+
+fact:characterization a owl:DatatypeProperty ;
+    rdfs:label "characterization" .
+
 fact:date a owl:DatatypeProperty ;
     rdfs:label "date" .
 
@@ -1294,20 +1846,23 @@ fact:outcome a owl:DatatypeProperty ;
 fact:position-on-frozen-iranian-assets a owl:DatatypeProperty ;
     rdfs:label "position on frozen Iranian assets" .
 
-fact:significance a owl:DatatypeProperty ;
-    rdfs:label "significance" .
+fact:snapshot-date a owl:DatatypeProperty ;
+    rdfs:label "snapshot date" .
+
+fact:strategic-emphasis a owl:DatatypeProperty ;
+    rdfs:label "strategic emphasis" .
 
 fact:strategic-role a owl:DatatypeProperty ;
     rdfs:label "strategic role" .
+
+fact:time a owl:DatatypeProperty ;
+    rdfs:label "time" .
 
 relation:accuses a owl:ObjectProperty ;
     rdfs:label "accuses" .
 
 relation:administers a owl:ObjectProperty ;
     rdfs:label "administers" .
-
-relation:affects a owl:ObjectProperty ;
-    rdfs:label "affects" .
 
 relation:applies-to a owl:ObjectProperty ;
     rdfs:label "applies to" .
@@ -1321,8 +1876,14 @@ relation:backs a owl:ObjectProperty ;
 relation:blocks-implementation-of a owl:ObjectProperty ;
     rdfs:label "blocks implementation of" .
 
+relation:builds a owl:ObjectProperty ;
+    rdfs:label "builds" .
+
 relation:caused a owl:ObjectProperty ;
     rdfs:label "caused" .
+
+relation:chairs a owl:ObjectProperty ;
+    rdfs:label "chairs" .
 
 relation:concerns a owl:ObjectProperty ;
     rdfs:label "concerns" .
@@ -1330,14 +1891,35 @@ relation:concerns a owl:ObjectProperty ;
 relation:conducted a owl:ObjectProperty ;
     rdfs:label "conducted" .
 
+relation:deepens-defense-procurement-links-with a owl:ObjectProperty ;
+    rdfs:label "deepens defense procurement links with" .
+
 relation:demands a owl:ObjectProperty ;
     rdfs:label "demands" .
+
+relation:destination a owl:ObjectProperty ;
+    rdfs:label "destination" .
+
+relation:exerts-gray-zone-pressure-on a owl:ObjectProperty ;
+    rdfs:label "exerts gray zone pressure on" .
+
+relation:faces a owl:ObjectProperty ;
+    rdfs:label "faces" .
 
 relation:has-funding-gap a owl:ObjectProperty ;
     rdfs:label "has funding gap" .
 
+relation:includes a owl:ObjectProperty ;
+    rdfs:label "includes" .
+
+relation:includes-suspected-tactic a owl:ObjectProperty ;
+    rdfs:label "includes suspected tactic" .
+
 relation:located-in a owl:ObjectProperty ;
     rdfs:label "located in" .
+
+relation:made a owl:ObjectProperty ;
+    rdfs:label "made" .
 
 relation:occurred-at a owl:ObjectProperty ;
     rdfs:label "occurred at" .
@@ -1347,6 +1929,9 @@ relation:occurs-in a owl:ObjectProperty ;
 
 relation:pledged-reconstruction-funds-for a owl:ObjectProperty ;
     rdfs:label "pledged reconstruction funds for" .
+
+relation:pursues a owl:ObjectProperty ;
+    rdfs:label "pursues" .
 
 relation:responsible-for-enforcing a owl:ObjectProperty ;
     rdfs:label "responsible for enforcing" .
@@ -1400,8 +1985,23 @@ entity:ukraine a onto:Entity,
     skos:altLabel "Ukrainian" ;
     skos:prefLabel "Ukraine" .
 
-class:person a owl:Class ;
-    rdfs:label "Person" ;
+relation:connects a owl:ObjectProperty ;
+    rdfs:label "connects" .
+
+relation:favors a owl:ObjectProperty ;
+    rdfs:label "favors" .
+
+relation:includes-approved-purchase a owl:ObjectProperty ;
+    rdfs:label "includes approved purchase" .
+
+relation:includes-tactic a owl:ObjectProperty ;
+    rdfs:label "includes tactic" .
+
+relation:reinforces a owl:ObjectProperty ;
+    rdfs:label "reinforces" .
+
+class:infrastructure a owl:Class ;
+    rdfs:label "Infrastructure" ;
     rdfs:subClassOf onto:Entity .
 
 entity:advanced-chips a onto:Entity,
@@ -1418,6 +2018,24 @@ entity:advanced-chips a onto:Entity,
         "semiconductor access",
         "semiconductors" ;
     skos:prefLabel "Advanced chips" .
+
+entity:airspace-pressure a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "airspace pressure" ;
+    onto:kind "Event" ;
+    rdfs:comment "A reported tactic used in gray-zone pressure against Taiwan." ;
+    skos:prefLabel "airspace pressure" .
+
+entity:anti-ship-missiles a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "anti-ship missiles" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Defensive missile systems favored by Taiwan's porcupine strategy." ;
+    skos:prefLabel "anti-ship missiles" .
 
 entity:beit-lahia a onto:Entity,
         class:location,
@@ -1436,6 +2054,26 @@ entity:bureij a onto:Entity,
     onto:kind "Location" ;
     rdfs:comment "Place in Gaza affected by Israeli strikes." ;
     skos:prefLabel "Bureij" .
+
+entity:cheng-li-wun a onto:Entity,
+        class:person,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Cheng Li-wun" ;
+    onto:kind "Person" ;
+    relation:chairs entity:kuomintang ;
+    relation:made entity:cheng-li-wun-s-visit-to-mainland-china ;
+    rdfs:comment "Kuomintang chair who made a notable visit to mainland China." ;
+    skos:prefLabel "Cheng Li-wun" .
+
+entity:drones a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "drones" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Mobile defensive systems favored by Taiwan's porcupine strategy." ;
+    skos:prefLabel "drones" .
 
 entity:european-union a onto:Entity,
         class:organization,
@@ -1501,6 +2139,24 @@ entity:hamas a onto:Entity,
     rdfs:comment "Group that accused mediators and guarantors of failing to enforce agreed ceasefire terms." ;
     skos:prefLabel "Hamas" .
 
+entity:kuomintang a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Kuomintang" ;
+    onto:kind "Organization" ;
+    rdfs:comment "Taiwanese political party chaired by Cheng Li-wun." ;
+    skos:prefLabel "Kuomintang" .
+
+entity:maritime-signaling a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "maritime signaling" ;
+    onto:kind "Event" ;
+    rdfs:comment "A reported tactic used in gray-zone pressure against Taiwan." ;
+    skos:prefLabel "maritime signaling" .
+
 entity:middle-east a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -1549,6 +2205,17 @@ entity:strait-of-hormuz-disruption a onto:Entity,
     skos:altLabel "disruption" ;
     skos:prefLabel "Strait of Hormuz disruption" .
 
+entity:taiwan-under-gray-zone-pressure a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Taiwan under gray-zone pressure" ;
+    fact:significance "It sits at the intersection of military strategy, domestic politics, and US-China competition." ;
+    fact:snapshot-date "2026-04-12" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Benchmark brief dated 2026-04-12 about Taiwan's military strategy, domestic politics, and position in US-China competition." ;
+    skos:prefLabel "Taiwan under gray-zone pressure" .
+
 entity:trump-xi-summit a onto:Entity,
         class:event,
         owl:NamedIndividual,
@@ -1558,6 +2225,17 @@ entity:trump-xi-summit a onto:Entity,
     rdfs:comment "Possible future summit between Donald Trump and Xi Jinping that officials sought to prepare in Paris" ;
     skos:altLabel "future Trump-Xi summit" ;
     skos:prefLabel "Trump-Xi summit" .
+
+entity:us-china-competition a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "US-China competition" ;
+    onto:kind "Event" ;
+    relation:involves entity:china,
+        entity:united-states ;
+    rdfs:comment "Competition between the United States and China forming part of the larger context of the Taiwan brief." ;
+    skos:prefLabel "US-China competition" .
 
 entity:us-iran-nuclear-understandings a onto:Entity,
         class:policy,
@@ -1569,14 +2247,20 @@ entity:us-iran-nuclear-understandings a onto:Entity,
     skos:altLabel "nuclear understandings" ;
     skos:prefLabel "US-Iran nuclear understandings" .
 
+fact:significance a owl:DatatypeProperty ;
+    rdfs:label "significance" .
+
+relation:affects a owl:ObjectProperty ;
+    rdfs:label "affects" .
+
 relation:concerned a owl:ObjectProperty ;
     rdfs:label "concerned" .
 
 relation:occurred-in a owl:ObjectProperty ;
     rdfs:label "occurred in" .
 
-class:organization a owl:Class ;
-    rdfs:label "Organization" ;
+class:person a owl:Class ;
+    rdfs:label "Person" ;
     rdfs:subClassOf onto:Entity .
 
 entity:europe a onto:Entity,
@@ -1624,6 +2308,16 @@ entity:gulf-arab-states a onto:Entity,
     rdfs:comment "States that pledged large sums for Gaza reconstruction, of which only a small share had arrived." ;
     skos:prefLabel "Gulf Arab states" .
 
+entity:himars a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "HIMARS" ;
+    onto:kind "Entity" ;
+    relation:reinforces entity:porcupine-strategy ;
+    rdfs:comment "Weapon system included among approved purchases associated with Taiwan's defense procurement." ;
+    skos:prefLabel "HIMARS" .
+
 entity:islamabad a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -1644,6 +2338,17 @@ entity:israel a onto:Entity,
     rdfs:comment "Country involved in the regional war environment and strikes in Gaza." ;
     skos:prefLabel "Israel" .
 
+entity:javelin-anti-tank-missiles a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Javelin anti-tank missiles" ;
+    onto:kind "Entity" ;
+    relation:reinforces entity:porcupine-strategy ;
+    rdfs:comment "Anti-tank missile systems included among approved purchases associated with Taiwan's defense procurement." ;
+    skos:altLabel "Javelin" ;
+    skos:prefLabel "Javelin anti-tank missiles" .
+
 entity:national-committee-for-the-administration-of-gaza a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -1653,6 +2358,17 @@ entity:national-committee-for-the-administration-of-gaza a onto:Entity,
     relation:administers entity:gaza ;
     rdfs:comment "Planned body whose ability to operate effectively was undermined by the funding shortage." ;
     skos:prefLabel "National Committee for the Administration of Gaza" .
+
+entity:resilient-asymmetric-defenses a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "resilient asymmetric defenses" ;
+    fact:characteristics "Cheaper, more mobile, and harder to neutralize than a conventional prestige force." ;
+    onto:kind "Entity" ;
+    rdfs:comment "Defenses emphasized by Taiwan's porcupine strategy for their lower cost, mobility, and resilience against neutralization." ;
+    skos:altLabel "asymmetric defenses" ;
+    skos:prefLabel "resilient asymmetric defenses" .
 
 entity:shipping-access-through-the-strait-of-hormuz a onto:Entity,
         class:policy,
@@ -1664,6 +2380,32 @@ entity:shipping-access-through-the-strait-of-hormuz a onto:Entity,
     rdfs:comment "Shipping access that Iran linked to its economic demands and leverage around the strait." ;
     skos:altLabel "shipping access" ;
     skos:prefLabel "Shipping access through the Strait of Hormuz" .
+
+entity:taiwan-s-critical-infrastructure a onto:Entity,
+        class:infrastructure,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Taiwan's critical infrastructure" ;
+    onto:kind "Infrastructure" ;
+    relation:includes entity:undersea-communications-links ;
+    rdfs:comment "Critical infrastructure in Taiwan reportedly affected by suspected sabotage or interference." ;
+    skos:altLabel "critical infrastructure" ;
+    skos:prefLabel "Taiwan's critical infrastructure" .
+
+class:organization a owl:Class ;
+    rdfs:label "Organization" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:cheng-li-wun-s-visit-to-mainland-china a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Cheng Li-wun's visit to mainland China" ;
+    fact:significance "Highlighted how Taiwan's domestic politics, cross-strait signaling, and future elections intersect." ;
+    onto:kind "Event" ;
+    relation:destination entity:china ;
+    rdfs:comment "A notable political visit highlighting the intersection of Taiwan's domestic politics, cross-strait signaling, and future elections." ;
+    skos:prefLabel "Cheng Li-wun's visit to mainland China" .
 
 entity:gaza-reconstruction-funding-gap a onto:Entity,
         class:entity,
@@ -1689,6 +2431,40 @@ entity:israeli-strikes-in-gaza a onto:Entity,
     skos:altLabel "Israeli strikes" ;
     skos:prefLabel "Israeli strikes in Gaza" .
 
+entity:suspected-sabotage-or-interference a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "suspected sabotage or interference" ;
+    onto:kind "Event" ;
+    relation:affects entity:taiwan-s-critical-infrastructure,
+        entity:undersea-communications-links ;
+    rdfs:comment "Suspected activity affecting Taiwan's critical infrastructure, including undersea communications links." ;
+    skos:prefLabel "suspected sabotage or interference" .
+
+entity:taiwan-us-defense-procurement a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Taiwan-US defense procurement" ;
+    onto:kind "Event" ;
+    relation:connects entity:taiwan,
+        entity:united-states ;
+    relation:includes-approved-purchase entity:himars,
+        entity:javelin-anti-tank-missiles ;
+    rdfs:comment "Defense procurement relationship that Taiwan continued to deepen with the United States." ;
+    skos:altLabel "defense procurement links" ;
+    skos:prefLabel "Taiwan-US defense procurement" .
+
+entity:undersea-communications-links a onto:Entity,
+        class:infrastructure,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "undersea communications links" ;
+    onto:kind "Infrastructure" ;
+    rdfs:comment "Undersea communications links identified as an example of critical infrastructure vulnerable to sabotage or interference." ;
+    skos:prefLabel "undersea communications links" .
+
 entity:rare-earths a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -1704,9 +2480,6 @@ entity:rare-earths a onto:Entity,
         "rare-earth supply" ;
     skos:prefLabel "Rare earths" .
 
-relation:involves a owl:ObjectProperty ;
-    rdfs:label "involves" .
-
 entity:us-backed-gaza-governance-and-reconstruction-initiative a onto:Entity,
         class:policy,
         owl:NamedIndividual,
@@ -1719,28 +2492,20 @@ entity:us-backed-gaza-governance-and-reconstruction-initiative a onto:Entity,
     skos:altLabel "governance and reconstruction initiative" ;
     skos:prefLabel "US-backed Gaza governance and reconstruction initiative" .
 
-entity:china a onto:Entity,
-        class:location,
+entity:chinese-gray-zone-pressure-on-taiwan a onto:Entity,
+        class:event,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "China" ;
-    fact:advanced-chip-demand "Chinese technology firms continued large orders for high-end processors for 2026 delivery" ;
-    fact:affects "trade, industrial policy, and defense planning across United States, Europe, and East Asia" ;
-    fact:critical-minerals-position "rare earths and related inputs remain concentrated in Chinese-controlled supply chains" ;
-    fact:high-end-processor-orders-for-delivery "2026" ;
-    fact:industrial-overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
-    fact:leverage-area "rare-earth processing and downstream manufacturing" ;
-    fact:overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
-    onto:kind "Location" ;
-    relation:affects entity:east-asia,
-        entity:europe,
-        entity:european-union,
-        entity:united-states ;
-    relation:demands entity:advanced-chips ;
-    relation:imposes entity:chinese-export-controls ;
-    rdfs:comment "Country involved in competition affecting trade and defense planning" ;
-    skos:altLabel "Beijing" ;
-    skos:prefLabel "China" .
+    rdfs:label "Chinese gray-zone pressure on Taiwan" ;
+    fact:characterization "Mounting concern rather than an immediate full-scale invasion scenario." ;
+    fact:time "early 2026" ;
+    onto:kind "Event" ;
+    relation:includes-suspected-tactic entity:suspected-sabotage-or-interference ;
+    relation:includes-tactic entity:airspace-pressure,
+        entity:maritime-signaling ;
+    rdfs:comment "Mounting pressure faced by Taiwan in early 2026 through tactics short of an immediate full-scale invasion." ;
+    skos:altLabel "gray-zone pressure" ;
+    skos:prefLabel "Chinese gray-zone pressure on Taiwan" .
 
 entity:iran a onto:Entity,
         class:location,
@@ -1770,6 +2535,21 @@ entity:middle-east-crisis-of-april-2026 a onto:Entity,
     skos:altLabel "Middle East crisis" ;
     skos:prefLabel "Middle East crisis of April 2026" .
 
+entity:taiwan a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Taiwan" ;
+    onto:kind "Location" ;
+    relation:deepens-defense-procurement-links-with entity:united-states ;
+    relation:faces entity:chinese-gray-zone-pressure-on-taiwan ;
+    relation:pursues entity:porcupine-strategy ;
+    rdfs:comment "Island facing mounting Chinese gray-zone pressure and pursuing asymmetric defenses in early 2026." ;
+    skos:prefLabel "Taiwan" .
+
+relation:involves a owl:ObjectProperty ;
+    rdfs:label "involves" .
+
 entity:gaza a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -1778,6 +2558,78 @@ entity:gaza a onto:Entity,
     onto:kind "Location" ;
     rdfs:comment "Territory where governance and reconstruction efforts were stalled and ceasefire politics remained fragile." ;
     skos:prefLabel "Gaza" .
+
+entity:us-iran-talks-in-islamabad a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "US-Iran talks in Islamabad" ;
+    fact:outcome "Ended without a deal." ;
+    fact:significance "Highest-level direct US-Iran contact in many years." ;
+    onto:kind "Event" ;
+    relation:concerned entity:frozen-iranian-assets,
+        entity:strait-of-hormuz,
+        entity:us-iran-nuclear-understandings ;
+    relation:involves entity:iran,
+        entity:united-states ;
+    relation:occurred-in entity:islamabad ;
+    rdfs:comment "Highest-level direct contact between the United States and Iran in many years, ending without a deal." ;
+    skos:altLabel "US-Iran talks" ;
+    skos:prefLabel "US-Iran talks in Islamabad" .
+
+entity:strait-of-hormuz a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Strait of Hormuz" ;
+    fact:shapes "oil supply" ;
+    fact:strategic-role "Central global energy chokepoint." ;
+    onto:kind "Location" ;
+    rdfs:comment "Strategic chokepoint for oil supply" ;
+    skos:altLabel "Hormuz" ;
+    skos:prefLabel "Strait of Hormuz" .
+
+class:policy a owl:Class ;
+    rdfs:label "Policy" ;
+    rdfs:subClassOf onto:Entity .
+
+entity:porcupine-strategy a onto:Entity,
+        class:policy,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "porcupine strategy" ;
+    fact:strategic-emphasis "Denial rather than mirror-image escalation." ;
+    onto:kind "Policy" ;
+    relation:builds entity:resilient-asymmetric-defenses ;
+    relation:favors entity:anti-ship-missiles,
+        entity:drones ;
+    rdfs:comment "Taiwan's strategy of building resilient, asymmetric defenses that are cheaper, more mobile, and harder to neutralize than a conventional prestige force." ;
+    skos:prefLabel "porcupine strategy" .
+
+entity:china a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "China" ;
+    fact:advanced-chip-demand "Chinese technology firms continued large orders for high-end processors for 2026 delivery" ;
+    fact:affects "trade, industrial policy, and defense planning across United States, Europe, and East Asia" ;
+    fact:critical-minerals-position "rare earths and related inputs remain concentrated in Chinese-controlled supply chains" ;
+    fact:high-end-processor-orders-for-delivery "2026" ;
+    fact:industrial-overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
+    fact:leverage-area "rare-earth processing and downstream manufacturing" ;
+    fact:overcapacity-sectors "electric vehicles, solar components, wind equipment, and semiconductors" ;
+    onto:kind "Location" ;
+    relation:affects entity:east-asia,
+        entity:europe,
+        entity:european-union,
+        entity:united-states ;
+    relation:demands entity:advanced-chips ;
+    relation:exerts-gray-zone-pressure-on entity:taiwan ;
+    relation:imposes entity:chinese-export-controls ;
+    rdfs:comment "Country involved in competition affecting trade and defense planning" ;
+    skos:altLabel "Beijing",
+        "mainland China" ;
+    skos:prefLabel "China" .
 
 entity:united-states a onto:Entity,
         class:location,
@@ -1800,51 +2652,24 @@ entity:united-states a onto:Entity,
         "Washington" ;
     skos:prefLabel "United States" .
 
-entity:us-iran-talks-in-islamabad a onto:Entity,
-        class:event,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "US-Iran talks in Islamabad" ;
-    fact:outcome "Ended without a deal." ;
-    fact:significance "Highest-level direct US-Iran contact in many years." ;
-    onto:kind "Event" ;
-    relation:concerned entity:frozen-iranian-assets,
-        entity:strait-of-hormuz,
-        entity:us-iran-nuclear-understandings ;
-    relation:involves entity:iran,
-        entity:united-states ;
-    relation:occurred-in entity:islamabad ;
-    rdfs:comment "Highest-level direct contact between the United States and Iran in many years, ending without a deal." ;
-    skos:altLabel "US-Iran talks" ;
-    skos:prefLabel "US-Iran talks in Islamabad" .
-
-class:policy a owl:Class ;
-    rdfs:label "Policy" ;
+class:location a owl:Class ;
+    rdfs:label "Location" ;
     rdfs:subClassOf onto:Entity .
-
-entity:strait-of-hormuz a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Strait of Hormuz" ;
-    fact:shapes "oil supply" ;
-    fact:strategic-role "Central global energy chokepoint." ;
-    onto:kind "Location" ;
-    rdfs:comment "Strategic chokepoint for oil supply" ;
-    skos:altLabel "Hormuz" ;
-    skos:prefLabel "Strait of Hormuz" .
 
 class:event a owl:Class ;
     rdfs:label "Event" ;
     rdfs:subClassOf onto:Entity .
 
-class:location a owl:Class ;
-    rdfs:label "Location" ;
-    rdfs:subClassOf onto:Entity .
-
 class:entity a owl:Class ;
     rdfs:label "Entity" ;
     rdfs:subClassOf onto:Entity .
+
+<http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> a onto:ExtractionEvent ;
+    onto:candidatePackageSha256 "87c394d3e2853099cf875759d8349c64738b2c77d38d449aa3300cb2e2ec0854" ;
+    onto:mergePolicyVersion 1 ;
+    onto:modelName "openrouter/pareto-code:nitro" ;
+    onto:sourcePath "sources/07_taiwan_gray_zone_pressure.md" ;
+    onto:sourceSha256 "f3b1eb31a03524ed4df99812f1e9b28de924fd9628b1410daab8290a354f6b39" .
 
 <http://example.org/text-ontology/merge-event/f6c6ed221ae47e224ba998a5f730cc6a225ed6646be76f5e94754b0267863247> a onto:ExtractionEvent ;
     onto:candidatePackageSha256 "32986b0e7de4aef6a2c1bb092bf4b5dd3fea83386a8ca08132ad0e20545f6acb" ;
