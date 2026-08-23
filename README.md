@@ -65,6 +65,17 @@ If the second argument is omitted, the output is `ontology.ttl`:
 python ontology.py documents/
 ```
 
+Save a detailed report as a timestamped Markdown file under `reports/runs/`:
+
+```bash
+python ontology.py documents/ ontology.ttl --report
+```
+
+`--report` writes to the file only, so a successful run stays silent in the
+terminal. The report includes the exact system and user messages sent to the
+extraction LLM. Generated reports are ignored by Git because
+they may be large and may contain source-derived information.
+
 That is the whole workflow. Open `ontology.ttl` in a text editor to see or edit
 the RDF/RDFS/OWL/SHACL/SKOS graph directly.
 
@@ -120,6 +131,8 @@ graph file.
 The pipeline that runs when you invoke the program:
 
 - `ontology.py` — the command line and the run loop
+- `run_report.py` — normal and verbose run reporting to the terminal, a file,
+  or any supplied text stream
 - `ingest_sources.py` — finding and reading source files
 - `source_parse.py` — building the prompt and parsing the LLM's answer
 - `candidate_validation.py` — validating and normalizing a response before merge

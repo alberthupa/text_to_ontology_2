@@ -5,7 +5,7 @@ from unittest import mock
 
 import source_parse
 from graph_management import ENTITY
-from source_parse import make_prompt, parse_source
+from source_parse import make_prompt, parse_prompt, parse_source
 
 
 CONTEXT = """RELEVANT DECLARED ONTOLOGY
@@ -173,6 +173,13 @@ class ParseSourceTest(unittest.TestCase):
         with mock.patch.object(source_parse, "ask_llm", return_value={}) as asked:
             parse_source(SOURCE)
         asked.assert_called_once_with(make_prompt(SOURCE, ""))
+
+    def test_an_already_built_prompt_can_be_sent_without_rebuilding_it(self):
+        prompt = make_prompt(SOURCE, CONTEXT)
+        answer = {"entities": [], "relations": [], "facts": []}
+        with mock.patch.object(source_parse, "ask_llm", return_value=answer) as asked:
+            self.assertIs(parse_prompt(prompt), answer)
+        asked.assert_called_once_with(prompt)
 
 
 if __name__ == "__main__":

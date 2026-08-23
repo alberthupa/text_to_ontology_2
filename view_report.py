@@ -13,7 +13,7 @@ from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
 from graph_management import ONTO
 from graph_patterns import eligible, usable_classes
-from ontology import skeleton_label, skeleton_restriction
+from run_report import skeleton_label, skeleton_restriction
 from task_context import local_name
 
 

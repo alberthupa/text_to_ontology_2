@@ -76,7 +76,9 @@ SOURCE:
 
 def parse_source(text, context_text=""):
     """Ask the model what this one source says, given the context selected for it."""
-    # print("  Prompt text:", flush=True)
-    # print(make_prompt(text, context_text), flush=True)
-    # print("  Asking model...", flush=True)
-    return ask_llm(make_prompt(text, context_text))
+    return parse_prompt(make_prompt(text, context_text))
+
+
+def parse_prompt(prompt):
+    """Send one already-built extraction prompt to the model."""
+    return ask_llm(prompt)

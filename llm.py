@@ -8,6 +8,7 @@ from pathlib import Path
 
 
 DEFAULT_MODEL = "openrouter/pareto-code:nitro"
+SYSTEM_PROMPT = "Extract knowledge. Return only JSON."
 
 
 def load_env(path=None):
@@ -44,7 +45,7 @@ def ask_llm(prompt):
         "model": model_name(),
         "temperature": 0,
         "messages": [
-            {"role": "system", "content": "Extract knowledge. Return only JSON."},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
     }).encode()

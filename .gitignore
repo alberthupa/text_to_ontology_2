@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 sth.txt
 ontology_views.html
+/reports/runs/*
+!/reports/runs/.gitkeep

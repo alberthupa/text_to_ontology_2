@@ -88,6 +88,22 @@
   .decision { position: relative; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12.5px; }
   .decision:not(:last-child)::after { content: "→"; position: absolute; z-index: 2; top: 50%; right: -13px; color: var(--violet); transform: translateY(-50%); }
   .decision b { display: block; margin-bottom: 4px; color: var(--text); font-family: var(--mono); }
+  .budget-formula { margin-bottom: 16px; padding: 16px 18px; border: 1px solid rgba(98, 214, 176, .45); border-radius: 12px; background: rgba(98, 214, 176, .055); }
+  .budget-formula code { display: block; color: var(--green); font-size: clamp(12px, 1.5vw, 15px); white-space: normal; }
+  .budget-formula p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+  .budget-flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; margin-bottom: 16px; }
+  .budget-node { position: relative; min-height: 136px; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--muted); font-size: 12px; }
+  .budget-node:not(:last-child)::after { content: "→"; position: absolute; z-index: 2; top: 50%; right: -14px; color: var(--green); transform: translateY(-50%); }
+  .budget-node .n { display: inline-grid; width: 20px; height: 20px; margin-right: 5px; place-items: center; border-radius: 5px; background: var(--green); color: var(--bg); font: 800 10px var(--mono); }
+  .budget-node b { color: var(--text); font-family: var(--mono); }
+  .budget-node code { display: block; margin-top: 7px; color: #bfeadb; }
+  .budget-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 14px; }
+  .budget-note { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13px; }
+  .budget-note h3 { margin: 0 0 9px; color: var(--text); font: 700 14px/1.4 var(--mono); }
+  .budget-note ul { margin: 0; padding-left: 18px; }
+  .budget-note li { margin-bottom: 7px; }
+  .effect-up { color: var(--green); }
+  .effect-down { color: var(--red); }
   .report-box { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 20px; border: 1px solid rgba(185, 156, 255, .45); border-radius: 14px; background: rgba(185, 156, 255, .065); }
   .report-box h3 { margin: 0; color: var(--violet); font: 700 16px/1.4 var(--mono); }
   .report-box p { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
@@ -108,8 +124,10 @@
     .page { padding-inline: 16px; }
     nav { margin-inline: -16px; padding-inline: 16px; }
     .steps, .callout-grid { grid-template-columns: 1fr; }
-    .decision-flow { grid-template-columns: 1fr; }
+    .decision-flow, .budget-flow { grid-template-columns: 1fr; }
     .decision:not(:last-child)::after { content: "↓"; top: auto; right: 50%; bottom: -17px; transform: translateX(50%); }
+    .budget-node:not(:last-child)::after { content: "↓"; top: auto; right: 50%; bottom: -17px; transform: translateX(50%); }
+    .budget-grid { grid-template-columns: 1fr; }
     .report-box { grid-template-columns: 1fr; }
   }
 </style>
@@ -120,16 +138,16 @@
     <p class="eyebrow">Active write path · source traced</p>
     <h1>How <code>ontology.py</code> turns text into a growing ontology</h1>
     <p class="intro">The page follows one real run through every transitively related pipeline file. It shows the payload passed between methods, the read-only context branch, the validation and policy gates, the graph-copy write, the per-file feedback loop, and the new verbose report path.</p>
-    <div class="command">python ontology.py &lt;source file or directory&gt; [ontology.ttl] [-v]</div>
+    <div class="command">python ontology.py &lt;source file or directory&gt; [ontology.ttl] [-v | --report]</div>
     <div class="facts">
-      <span class="fact"><b>17</b> active Python files</span>
+      <span class="fact"><b>18</b> active Python files</span>
       <span class="fact"><b>one file</b> processed at a time</span>
       <span class="fact"><b>read-only plan</b> before mutation</span>
       <span class="fact"><b>atomic save</b> after each non-empty file</span>
     </div>
   </header>
   <nav aria-label="Page sections"><div class="links">
-    <a href="#map">Process map</a><a href="#walkthrough">Step details</a><a href="#policy">Policy order</a><a href="#verbose">Verbose report</a><a href="#files">Files and methods</a>
+    <a href="#map">Process map</a><a href="#walkthrough">Step details</a><a href="#budget">Budget zoom-in</a><a href="#policy">Policy order</a><a href="#verbose">Verbose report</a><a href="#files">Files and methods</a>
   </div></nav>
 
   <section id="map">
@@ -201,7 +219,7 @@
 
         <a href="#step-model" class="node amber"><g>
           <rect x="1176" y="236" width="268" height="112" rx="10"/><rect class="step-bg" x="1189" y="248" width="22" height="22" rx="6" style="fill:var(--amber)"/><text class="step" x="1196" y="263">5</text>
-          <text class="title" x="1221" y="264">source_parse.py</text><text class="method" x="1192" y="292">make_prompt() · parse_source()</text><text class="small" x="1192" y="313">source + selected context + JSON contract</text><text class="small" x="1192" y="331">calls llm.ask_llm()</text>
+          <text class="title" x="1221" y="264">source_parse.py</text><text class="method" x="1192" y="292">make_prompt() · parse_prompt()</text><text class="small" x="1192" y="313">source + selected context + JSON contract</text><text class="small" x="1192" y="331">calls llm.ask_llm()</text>
         </g></a>
         <a href="#step-model" class="node amber"><g><rect x="1176" y="94" width="268" height="86" rx="10"/><text class="title" x="1192" y="121">llm.py → OpenRouter</text><text class="method" x="1192" y="145">model_name() · ask_llm()</text><text class="small" x="1192" y="163">POST → parse returned JSON</text></g></a>
         <a href="#step-validate" class="node red"><g>
@@ -279,7 +297,7 @@
       </div></article>
       <article class="step-card" id="step-model"><h3><span class="number">5.</span> Build the extraction prompt and ask the model</h3><p class="purpose"><code>source_parse.py</code> owns the extraction contract; <code>llm.py</code> owns the network boundary.</p><div class="triplet">
         <span class="key">prompt</span><span class="value"><code>make_prompt()</code> combines source, selected context, context rules, exact JSON shape, endpoint rules, and required confidence.</span>
-        <span class="key">request</span><span class="value"><code>parse_source()</code> calls <code>llm.ask_llm()</code>; <code>model_name()</code> loads the configured OpenRouter model; temperature is zero.</span>
+        <span class="key">request</span><span class="value"><code>ontology.py</code> builds the prompt once, reports it, then <code>parse_prompt()</code> sends that exact string to <code>llm.ask_llm()</code>. <code>model_name()</code> loads the configured OpenRouter model; temperature is zero.</span>
         <span class="key">returns</span><span class="value">Parsed but untrusted JSON with <code>entities[]</code>, <code>relations[]</code>, and <code>facts[]</code>.</span>
       </div></article>
       <article class="step-card" id="step-validate"><h3><span class="number">6.</span> Validate and normalize the complete response</h3><p class="purpose"><code>candidate_validation.validate_candidates()</code> is a read-only structural gate, not an identity matcher.</p><div class="triplet">
@@ -301,6 +319,71 @@
     </div>
   </section>
 
+  <section id="budget">
+    <h2>Zoom-in: <code>budget_for()</code> → <code>prepare_prompt_context()</code></h2>
+    <p class="lead">This budget controls only the ontology-context block placed beside the source text. It decides how many selected graph items survive into the prompt; it does not shorten the source and does not directly limit the model's response.</p>
+
+    <div class="budget-formula">
+      <code>effective context budget = min(context_tokens, max(0, total_limit − fixed_prompt_tokens − source_tokens − output_reserve − safety_margin))</code>
+      <p>Then <code>assembly_overhead</code> for headings and line breaks is reserved. Only the remainder is available to item bundles.</p>
+    </div>
+
+    <div class="budget-flow" aria-label="Budget calculation flow">
+      <div class="budget-node"><span class="n">1</span><b>ontology.budget_for(text)</b><code>dict(PROMPT_BUDGET, source_tokens=estimate_tokens(text))</code>The shared defaults are copied, then this file's estimated source cost is added.</div>
+      <div class="budget-node"><span class="n">2</span><b>estimate_tokens(text)</b><code>ceil(len(text) / 3)</code>This is deliberately pessimistic and deterministic. Longer source text increases <code>source_tokens</code>.</div>
+      <div class="budget-node"><span class="n">3</span><b>context_render.allowance()</b><code>min(explicit ceiling, arithmetic remainder)</code>When both controls exist, the smaller one always wins.</div>
+      <div class="budget-node"><span class="n">4</span><b>assembly_overhead()</b><code>item space = budget − headings − line breaks</code>The calculation reserves formatting cost before choosing items.</div>
+      <div class="budget-node"><span class="n">5</span><b>fit_context_items()</b><code>priority → dependencies → whole bundle fits?</code>Items are never sliced. A bundle is kept whole or named in <code>dropped_ids</code>.</div>
+    </div>
+
+    <div class="budget-grid">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Control</th><th>Current value</th><th>If increased</th><th>What it really controls</th></tr></thead>
+          <tbody>
+            <tr><td>context_tokens</td><td>1,400</td><td class="effect-up">Usually more context</td><td>The direct ceiling and normal tuning knob. Lowering it drops lower-priority context sooner.</td></tr>
+            <tr><td>total_limit</td><td>30,000</td><td class="effect-up">More arithmetic room</td><td>A bookkeeping limit, not a detected model window. At current defaults it normally does not bind because 1,400 is smaller.</td></tr>
+            <tr><td>fixed_prompt_tokens</td><td>400</td><td class="effect-down">Less context</td><td>Reserved estimate for instructions and fixed prompt structure.</td></tr>
+            <tr><td>output_reserve</td><td>4,000</td><td class="effect-down">Less context</td><td>Space kept aside in the arithmetic for the answer. It is not passed to OpenRouter as a response-token limit.</td></tr>
+            <tr><td>safety_margin</td><td>500</td><td class="effect-down">Less context</td><td>Extra protection against estimation error.</td></tr>
+            <tr><td>source_tokens</td><td>Per file</td><td class="effect-down">Less context</td><td>Automatically calculated by <code>budget_for(text)</code>. It is affected by source length, not configured in <code>PROMPT_BUDGET</code>.</td></tr>
+            <tr><td>chars_per_token</td><td>3</td><td class="effect-up">Lower estimated cost</td><td>The estimator divisor. Raising it estimates fewer tokens; lowering it is more conservative.</td></tr>
+            <tr><td>count_tokens</td><td>estimate_tokens</td><td>Depends on counter</td><td>An injectable callable for tests or a future exact tokenizer. It prices headings and every rendered item.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="budget-note">
+        <h3>What changes in the returned output?</h3>
+        <ul>
+          <li><code>text</code>: contains fewer or more complete declared, observed, resource, and example blocks.</li>
+          <li><code>budget.items</code>: the exact items that survived, ordered by relevance.</li>
+          <li><code>budget.dropped_ids</code>: every rendered item that did not fit.</li>
+          <li><code>budget.used_tokens</code>: item-text cost only. Formatting overhead was reserved separately.</li>
+          <li><code>budget.budget_tokens</code>: the effective budget before subtracting formatting overhead.</li>
+          <li><code>existing_ids</code>: only IDs from native resource cards that survived. Dropping such a card means the LLM may no longer submit that URI as <code>existing_id</code>.</li>
+        </ul>
+      </aside>
+    </div>
+
+    <h3 style="margin:24px 0 10px;font:700 15px var(--mono)">Worked examples with the current defaults</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Source size</th><th>Estimated source_tokens</th><th>Arithmetic remainder</th><th>Effective context budget</th><th>Likely effect</th></tr></thead>
+        <tbody>
+          <tr><td>3,000 characters</td><td>1,000</td><td>30,000 − 400 − 1,000 − 4,000 − 500 = 24,100</td><td>min(1,400, 24,100) = <b>1,400</b></td><td><code>context_tokens</code> binds; this is the normal case.</td></tr>
+          <tr><td>75,000 characters</td><td>25,000</td><td>100</td><td>min(1,400, 100) = <b>100</b></td><td>After formatting overhead, few or no item bundles may fit.</td></tr>
+          <tr><td>78,000 characters</td><td>26,000</td><td>clamped from −900 to 0</td><td><b>0</b></td><td>The prompt still contains the full source and extraction instructions, but no ontology-context block.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout-grid">
+      <div class="callout"><b>Best normal control: context_tokens.</b>It directly changes how much ontology context can be carried without pretending that <code>total_limit</code> is the model's real window.</div>
+      <div class="callout"><b>Priority decides what survives.</b>Direct matches are considered before dependencies and indirect observations. Dependency bundles must fit together.</div>
+      <div class="callout"><b>Selection caps live elsewhere.</b><code>task_context.DEFAULT_LIMITS</code> controls how many candidate classes, properties, patterns, resources, and examples reach the renderer before budgeting.</div>
+    </div>
+  </section>
+
   <section id="policy"><h2>Merge policy: the decision order matters</h2><p class="lead">For a valid package, the planner checks outcomes in this order. An earlier result wins; later rules do not override it.</p>
     <div class="decision-flow">
       <div class="decision"><b>1 · identity usable?</b>Ambiguous exact name, kind collision, close spelling, or low-confidence new identity goes to review.</div>
@@ -311,21 +394,23 @@
     </div>
   </section>
 
-  <section id="verbose"><h2>What the report task adds with <code>-v</code></h2><p class="lead">Verbose mode exposes the artifacts already moving through the pipeline. It does not alter selection, validation, planning, or saving.</p>
-    <div class="report-box"><div><h3>ontology.py reporting lane</h3><p>Normal mode already prints one-line context, validation, plan, merge, and final totals. Verbose mode expands those checkpoints.</p></div>
+  <section id="verbose"><h2>One reporter for <code>-v</code> and <code>--report</code></h2><p class="lead">Verbose mode exposes the artifacts already moving through the pipeline. <code>-v</code> writes them to the terminal. <code>--report</code> writes them only to a timestamped Markdown file in <code>reports/runs/</code>, keeping a successful terminal run silent. Reporting does not alter selection, validation, planning, or saving.</p>
+    <div class="report-box"><div><h3>run_report.py reporting lane</h3><p><code>ontology.py</code> only calls one reporter object. Normal mode produces compact summaries; verbose mode expands the same checkpoints. The reporter writes to replaceable text streams, so terminal and Markdown output do not need separate implementations.</p></div>
       <ol class="report-list">
-        <li>After context selection, <code>report_task_context()</code> prints extracted concepts, graph candidate counts, direct matches, selected items, and reasons. For the declared-core display it read-only rebuilds <code>partition_graph()</code> → <code>create_graph_skeleton()</code> → <code>report_skeleton()</code>.</li>
-        <li>After packing, <code>report_context()</code> lists kept and dropped item IDs; <code>main()</code> then prints the exact prompt-context text.</li>
-        <li>After the model replies, <code>report_extraction()</code> prints the raw parsed JSON before validation.</li>
-        <li>After validation, <code>report_validation()</code> prints normalized counts and every warning.</li>
-        <li>After planning, <code>report_plan()</code> prints each identity target and every entity/relation/fact outcome with reason codes.</li>
+        <li><code>RunReporter.context_selection()</code> prints concepts, graph candidates, selected items, reasons, and the full declared skeleton used by the selector; it labels that skeleton as not sent wholesale.</li>
+        <li><code>RunReporter.llm_input()</code> prints the exact system and user messages sent to the extraction LLM, including instructions, selected ontology context, and source.</li>
+        <li><code>prompt_context()</code> prints budget decisions, reusable IDs, and the exact selected context text.</li>
+        <li><code>model_replied()</code> prints the parsed but still untrusted extraction record by record.</li>
+        <li><code>validation()</code> prints pass/fail, normalization and duplicate counts, and path-addressed errors or warnings.</li>
+        <li><code>merge_plan()</code> and <code>saved()</code> print identity methods, field and assertion outcomes, reason codes, conflicts, domain/audit counts, and the final graph change.</li>
       </ol>
     </div>
   </section>
 
   <section id="files"><h2>Active files and their main methods</h2><p class="lead">This is the transitive execution path of <code>ontology.py</code>. Viewer/report-generation files are separate read-only tools and are not called by this command.</p>
     <div class="table-wrap"><table><thead><tr><th>File</th><th>Main active methods</th><th>Responsibility in this run</th></tr></thead><tbody>
-      <tr><td>ontology.py</td><td>main(), budget_for(), report_*()</td><td>CLI, per-file orchestration, progress and verbose reporting.</td></tr>
+      <tr><td>ontology.py</td><td>main(), run_pipeline(), budget_for()</td><td>CLI and per-file orchestration; sends every checkpoint to one reporter.</td></tr>
+      <tr><td>run_report.py</td><td>RunReporter, default_report_path()</td><td>Compact terminal output, verbose terminal output, or file-only Markdown reports under <code>reports/runs/</code>.</td></tr>
       <tr><td>graph_management.py</td><td>bind(), open_graph(), save_graph()</td><td>Graph lifecycle, namespaces, seed, atomic Turtle persistence.</td></tr>
       <tr><td>ingest_sources.py</td><td>find_text_files(), read_source()</td><td>Source discovery, ordering, graph exclusion, text input.</td></tr>
       <tr><td>source_concepts.py</td><td>extract_source_concepts(), text_phrases()</td><td>Source-only concept signals and whole-word phrase index.</td></tr>
@@ -336,8 +421,8 @@
       <tr><td>task_context.py</td><td>build_task_context(), select_task_context(), direct_matches(), expand()</td><td>Relevance matching, bounded expansion, ContextPackage creation.</td></tr>
       <tr><td>context_render.py</td><td>prepare_prompt_context(), render_context_items(), assemble_context(), allowance()</td><td>Safe semantic rendering, section assembly, budget coordination, reusable-ID list.</td></tr>
       <tr><td>prompt_budget.py</td><td>estimate_tokens(), context_allowance(), fit_context_items()</td><td>Pessimistic token estimate and all-or-nothing dependency packing.</td></tr>
-      <tr><td>source_parse.py</td><td>make_prompt(), parse_source()</td><td>Extraction instructions, JSON contract, source/context composition.</td></tr>
-      <tr><td>llm.py</td><td>load_env(), model_name(), ask_llm()</td><td>OpenRouter request and JSON response parsing.</td></tr>
+      <tr><td>source_parse.py</td><td>make_prompt(), parse_prompt(), parse_source()</td><td>Extraction instructions, JSON contract, source/context composition, and prompt dispatch.</td></tr>
+      <tr><td>llm.py</td><td>SYSTEM_PROMPT, load_env(), model_name(), ask_llm()</td><td>System message, OpenRouter request, and JSON response parsing.</td></tr>
       <tr><td>candidate_validation.py</td><td>validate_candidates(), format_validation_failure()</td><td>Fail-closed structure, normalization, references, confidence, duplicates, compatibility.</td></tr>
       <tr><td>merge_policy.py</td><td>build_provenance(), resolve_entities(), plan_graph_merge()</td><td>Read-only identity, accept/duplicate/review, conflict, provenance, audit plan.</td></tr>
       <tr><td>entity_lookup.py</td><td>entity_catalog(), identity_decision(), identity_key()</td><td>Complete-graph identity decisions used by selection and planning.</td></tr>

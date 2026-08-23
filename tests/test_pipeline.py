@@ -163,6 +163,68 @@ class ReportingTest(unittest.TestCase):
         self.assertIn("2 new, 0 resolved, 0 relations, 0 facts", printed)
         self.assertIn(f"triples to {graph_path}", printed)
 
+    def test_verbose_report_uses_the_same_numbered_pipeline_sections(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "notes.txt"
+            source.write_text("Alice has an uncertain date.", encoding="utf-8")
+            graph_path = root / "graph.ttl"
+            response = {
+                "entities": [{
+                    "id": "e1", "name": "Alice", "kind": "Person",
+                    "description": "", "aliases": [],
+                    "existing_id": None, "confidence": 0.9,
+                }],
+                "relations": [],
+                "facts": [{
+                    "subject": "e1", "predicate": "important date",
+                    "value": "unknown", "confidence": 0.5,
+                }],
+            }
+
+            with run_main(["-v", str(source), str(graph_path)],
+                          FakeLLM(response)) as printed:
+                pass
+
+        for section in ("[2-3] Context selection inputs", "[4] Prompt context",
+                        "[5] Main LLM call and extraction", "[6] Validation: PASS",
+                        "[7] Merge plan", "[8] Apply and save"):
+            self.assertIn(section, printed)
+        self.assertIn("Identity e1: NEW", printed)
+        self.assertIn("Fact[0]: REVIEW", printed)
+        self.assertIn("reason: confidence.below_auto_accept", printed)
+        self.assertIn(f"Saved atomically to {graph_path}", printed)
+
+    def test_report_is_saved_without_terminal_output(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "notes.txt"
+            source.write_text("Acme Corp exists.", encoding="utf-8")
+            graph_path = root / "graph.ttl"
+            previous = Path.cwd()
+            os.chdir(root)
+            try:
+                with run_main([str(source), str(graph_path), "--report"],
+                              FakeLLM(entity_response("Acme Corp"))) as printed:
+                    pass
+            finally:
+                os.chdir(previous)
+
+            reports = list((root / "reports" / "runs").glob("*.md"))
+            self.assertEqual(len(reports), 1)
+            saved_report = reports[0].read_text(encoding="utf-8")
+
+        self.assertIn("# Ontology extraction report", saved_report)
+        self.assertIn("## [5] Main LLM call and extraction", saved_report)
+        self.assertIn("System message:", saved_report)
+        self.assertIn("Extract knowledge. Return only JSON.", saved_report)
+        self.assertIn("Acme Corp exists.", saved_report)
+        self.assertIn("## [6] Validation: PASS", saved_report)
+        self.assertIn("## [7] Merge plan", saved_report)
+        self.assertIn("## [8] Apply and save", saved_report)
+        self.assertIn("Identity e1: NEW", saved_report)
+        self.assertEqual(printed, "")
+
 
 class ErrorTest(unittest.TestCase):
     def test_a_directory_without_text_files_raises(self):
