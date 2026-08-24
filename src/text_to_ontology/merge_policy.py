@@ -76,7 +76,8 @@ class _Planner:
     """One planning pass over one graph and one candidate package."""
 
     def __init__(self, graph, candidates, provenance,
-                 min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE):
+                 min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE,
+                 allocate_uri=None, provisional_uri=None):
         self.min_new_confidence = min_new_confidence
         self.graph = graph
         self.candidates = {
@@ -85,8 +86,10 @@ class _Planner:
             for section in ("entities", "relations", "facts")
         }
         self.provenance = dict(provenance)
+        # None keeps resolve_entities' canonical defaults.
         self.identities = resolve_entities(
-            self.candidates, graph, min_new_confidence=min_new_confidence)
+            self.candidates, graph, min_new_confidence=min_new_confidence,
+            allocate_uri=allocate_uri, provisional_uri=provisional_uri)
         self.catalog = entity_catalog(graph)
         self.planned = self._planned_entries()
         # Virtual state: triples accepted earlier in this same plan.
@@ -551,28 +554,37 @@ class _Planner:
 
 
 def resolve_entities(candidates, graph,
-                     min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE):
+                     min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE,
+                     allocate_uri=None, provisional_uri=None):
     """One identity decision per candidate entity, in normalized order.
 
     Read only. Earlier accepted new entities become visible to later candidates
     through a virtual catalog; every allocated URI is reserved so two new
-    entities cannot claim one URI before materialization.
+    entities cannot claim one URI before materialization. The `allocate_uri`
+    and `provisional_uri` callables decide which URIs new or proposed entities
+    receive; the defaults allocate canonical entity/ slugs.
     """
     catalog = entity_catalog(graph)
     reserved = {str(subject) for subject in graph.subjects()}
     planned = []
     decisions = {}
 
-    def allocate(name):
-        """The next free slug URI, reserving it for this plan."""
-        stem, number = slug(name), 1
-        while True:
-            suffix = "" if number == 1 else f"-{number}"
-            uri = ENTITY[stem + suffix]
-            if str(uri) not in reserved:
-                reserved.add(str(uri))
-                return uri
-            number += 1
+    if allocate_uri is None:
+        def allocate(name):
+            """The next free slug URI, reserving it for this plan."""
+            stem, number = slug(name), 1
+            while True:
+                suffix = "" if number == 1 else f"-{number}"
+                uri = ENTITY[stem + suffix]
+                if str(uri) not in reserved:
+                    reserved.add(str(uri))
+                    return uri
+                number += 1
+    else:
+        def allocate(name):
+            uri = allocate_uri(name)
+            reserved.add(str(uri))
+            return uri
 
     for entity in candidates.get("entities", []):
         local_id = entity.get("id")
@@ -581,7 +593,9 @@ def resolve_entities(candidates, graph,
         decision = identity_decision(
             entity, catalog, planned_catalog=planned,
             min_new_confidence=min_new_confidence,
-            allocate_uri=allocate, provisional_uri=proposed_entity_uri,
+            allocate_uri=allocate,
+            provisional_uri=(provisional_uri if provisional_uri is not None
+                             else proposed_entity_uri),
         )
         decisions[str(local_id)] = decision
         if decision["status"] == "new":
@@ -595,7 +609,10 @@ def resolve_entities(candidates, graph,
 
 
 def plan_graph_merge(graph, candidates, provenance,
-                     min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE):
+                     min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE,
+                     allocate_uri=None, provisional_uri=None):
     """Build the complete read-only merge plan for one valid candidate package."""
     return _Planner(graph, candidates, provenance,
-                    min_new_confidence=min_new_confidence).build()
+                    min_new_confidence=min_new_confidence,
+                    allocate_uri=allocate_uri,
+                    provisional_uri=provisional_uri).build()

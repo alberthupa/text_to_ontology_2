@@ -102,6 +102,39 @@ class RunReporter:
     def blank_source(self):
         self.verbose_line("  Blank source: skipped")
 
+    def document_staging(self, document_id, staging_name, windows):
+        """Announce one document's stable source staging graph."""
+        self.line(f"  Document {document_id}: {windows} window(s); "
+                  f"staging graph {staging_name}")
+
+    def window_started(self, number, total, window_id):
+        if self.verbose:
+            self.line(f"  Window {number}/{total}: {window_id}")
+
+    def window_admitted(self, number, total, counts, source_size):
+        """Report what one window added to its source graph - not publication."""
+        accepted = counts.get("relation_triples", 0) + counts.get(
+            "fact_triples", 0)
+        summary = (f"  Window {number}/{total} admitted "
+                   f"{counts.get('new_entities', 0)} new entities and "
+                   f"{accepted} assertions; source graph now "
+                   f"{source_size} triples")
+        if not self.verbose:
+            self.line(summary)
+            return
+        self.section(f"Source-local admission, window {number}/{total}")
+        self.line(summary)
+        self.line(f"  Corroborated in source graph: {counts.get('duplicates', 0)}")
+        self.line(f"  Held for review in source graph: {counts.get('review', 0)}")
+
+    def staging_failed(self, document_id, retained, sidecar_path):
+        """Record whether a failed document's staging graphs were kept."""
+        if retained and sidecar_path is not None:
+            self.line(f"  Staging graphs of {document_id} retained for "
+                      f"diagnosis in {sidecar_path}")
+        else:
+            self.line(f"  Staging graphs of {document_id} discarded")
+
     def context_selection(self, context, source_graph):
         """Report the structured context selected before prompt budgeting."""
         if not self.verbose:

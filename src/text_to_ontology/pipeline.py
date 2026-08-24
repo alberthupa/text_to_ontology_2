@@ -1,14 +1,17 @@
-"""The readable run loop: source files in, one growing Turtle graph out."""
+"""The readable run loop: source documents, windows, staged graphs, one file."""
 
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
+from rdflib import Graph
+
+from .candidate_graph import build_candidate_graph
 from .candidate_validation import format_validation_failure, validate_candidates
-from .context_render import prepare_prompt_context
 from .graph_management import LocalTurtleStore, save_graph
 from .graph_merge import apply_merge_plan
+from .graph_store import RdflibGraphStore
 from .ingest_sources import find_text_files, read_source
 from .llm import SYSTEM_PROMPT, OpenRouterExtractor
 from .merge_policy import (
@@ -20,18 +23,38 @@ from .prompt_budget import PROMPT_BUDGET, estimate_tokens
 from .repair import extract_validated
 from .run_report import RunReporter
 from .source_parse import make_prompt
+from .source_staging import (
+    final_graphs_snapshot,
+    layered_context_text,
+    plan_window_admission,
+    retain_staging,
+    source_staging_graph_name,
+    window_activity_id,
+    window_candidate_graph_name,
+)
 from .task_context import build_task_context
+from .windowing import (
+    DEFAULT_TARGET_TOKENS,
+    DEFAULT_OVERLAP_TOKENS,
+    WINDOW_STRATEGY_VERSION,
+    make_source_document,
+    plan_windows,
+)
 
 
 @dataclass
 class WindowingConfig:
     """How a source document is split into extraction windows.
 
-    Strategy version 1 sends every short document as one whole-text window.
-    Real windowing arrives with the documents-and-windowing milestone.
+    A short document stays one whole-text window; a long one is cut on
+    headings, paragraphs, and sentences with a token overlap between
+    adjacent windows.
     """
 
-    strategy_version: int = 1
+    target_tokens: int = DEFAULT_TARGET_TOKENS
+    overlap_tokens: int = DEFAULT_OVERLAP_TOKENS
+    strategy_version: int = WINDOW_STRATEGY_VERSION
+    count_tokens: object = estimate_tokens
 
 
 @dataclass
@@ -61,6 +84,18 @@ class MergeConfig:
 
 
 @dataclass
+class ProcessingConfig:
+    """How source staging graphs behave when a window fails.
+
+    With `retain_staging_on_failure`, the failed document's source staging
+    graph and window candidate graphs are exported to a sidecar TriG file
+    next to the output graph for diagnosis; otherwise they are discarded.
+    """
+
+    retain_staging_on_failure: bool = False
+
+
+@dataclass
 class RunRequest:
     """One complete request: sources in, knowledge into one graph file."""
 
@@ -70,6 +105,7 @@ class RunRequest:
     context: ContextConfig = field(default_factory=ContextConfig)
     extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
     merge: MergeConfig = field(default_factory=MergeConfig)
+    processing: ProcessingConfig = field(default_factory=ProcessingConfig)
 
 
 @dataclass
@@ -81,6 +117,7 @@ class RunResult:
     files_total: int
     files_saved: int
     files_blank: int
+    windows_processed: int = 0
 
 
 class Extractor(Protocol):
@@ -98,14 +135,18 @@ class Reporter(Protocol):
 
     def source_started(self, path, index, total, graph_size): ...
     def blank_source(self): ...
+    def document_staging(self, document_id, staging_name, windows): ...
+    def window_started(self, number, total, window_id): ...
     def context_selection(self, context, source_graph): ...
     def prompt_context(self, prompt_context): ...
     def asking_model(self, model): ...
     def llm_input(self, system_prompt, user_prompt): ...
     def model_replied(self, extraction, elapsed): ...
     def validation(self, validation): ...
+    def window_admitted(self, number, total, counts, source_size): ...
     def merge_plan(self, plan, candidates, graph): ...
     def saved(self, graph_path, before_size, updated, counts): ...
+    def staging_failed(self, document_id, retained, sidecar_path): ...
     def finished(self, graph, graph_path): ...
     def failed(self, error): ...
 
@@ -115,12 +156,152 @@ def budget_for(text, budget):
     return dict(budget, source_tokens=estimate_tokens(text))
 
 
+def _window_context(window_text, final_graph, source_graph, budget_config):
+    """Select and budget what this window's prompt may see.
+
+    Canonical knowledge comes from the final ontology; earlier-window
+    knowledge comes from the source staging graph and is clearly marked as
+    such in the rendered prompt context. Returns the budgeted prompt context
+    and the canonical selection package, for reporting.
+    """
+    canonical = build_task_context(window_text, final_graph)
+    source = (build_task_context(window_text, source_graph)
+              if len(source_graph) else None)
+    prompt_context = layered_context_text(
+        canonical, source, budget_config, count_tokens=estimate_tokens)
+    return prompt_context, canonical
+
+
+def _extract_window(window, request, final_graph, source_graph, extractor,
+                    reporter):
+    """Ask the model about one window and validate the answer."""
+    prompt_context, canonical_context = _window_context(
+        window.text, final_graph, source_graph,
+        budget_for(window.text, request.context.budget))
+    reporter.context_selection(canonical_context, final_graph)
+    reporter.prompt_context(prompt_context)
+
+    model = extractor.model()
+    prompt = make_prompt(window.text, prompt_context["text"])
+    reporter.asking_model(model)
+    reporter.llm_input(SYSTEM_PROMPT, prompt)
+    started = time.monotonic()
+
+    # Send the prompt; a messy answer is repaired by the model itself,
+    # under the same validation gate, at most repair_attempts times.
+    outcome = extract_validated(
+        extractor, prompt,
+        lambda data: validate_candidates(
+            data, final_graph, prompt_context["existing_ids"]),
+        max_repair_attempts=request.extraction.repair_attempts,
+    )
+    reporter.model_replied(
+        outcome.validation["candidates"] if outcome.validation else {},
+        time.monotonic() - started)
+    if outcome.validation is not None:
+        reporter.validation(outcome.validation)
+    if not outcome.ok:
+        raise RuntimeError(
+            outcome.raw_problem
+            or format_validation_failure(outcome.validation))
+    return model, outcome.validation["candidates"]
+
+
+def _admit_window(window, candidates, request, document, staging,
+                  source_graph, model, reporter):
+    """Build the candidate RDF and admit accepted assertions locally.
+
+    The admission plan sees only the source staging graph: earlier windows of
+    this same document, never canonical individuals. The candidate graph is
+    kept alongside as evidence under its own stable name.
+    """
+    activity_id = window_activity_id(
+        document.document_id, window.window_id, model, candidates)
+    candidate = build_candidate_graph(
+        candidates, document.document_id, window.window_id, activity_id, model)
+    candidate_name = window_candidate_graph_name(
+        document.document_id, window.window_id)
+    staging.put(candidate_name, candidate)
+
+    provenance = build_provenance(Path(document.name), window.text, model)
+    plan = plan_window_admission(
+        source_graph, candidates, provenance, document.document_id,
+        min_new_confidence=request.merge.min_auto_accept_confidence)
+    return apply_merge_plan(source_graph, plan)
+
+
+def _process_document(document, request, final_graph, extractor, reporter):
+    """Run every window of one document through staging.
+
+    Returns the admitted window packages. The final ontology is never written
+    to here; a snapshot taken before the first window must still be exact
+    after every later one.
+    """
+    windows = plan_windows(document, request.windowing)
+    staging_name = source_staging_graph_name(document.document_id)
+    reporter.document_staging(document.document_id, staging_name, len(windows))
+
+    staging = RdflibGraphStore()
+    staging.put(staging_name, Graph())
+    source_graph = staging.get(staging_name)
+    snapshot = final_graphs_snapshot(final_graph)
+    packages = []
+    try:
+        for number, window in enumerate(windows, start=1):
+            reporter.window_started(number, len(windows), window.window_id)
+            model, candidates = _extract_window(
+                window, request, final_graph, source_graph, extractor, reporter)
+            source_graph, counts = _admit_window(
+                window, candidates, request, document, staging, source_graph,
+                model, reporter)
+            if final_graphs_snapshot(final_graph) != snapshot:
+                raise RuntimeError(
+                    "the final ontology changed during window processing")
+            staging.put(staging_name, source_graph)
+            reporter.window_admitted(number, len(windows), counts,
+                                     len(source_graph))
+            packages.append((window, model, candidates))
+    except BaseException:
+        retained = request.processing.retain_staging_on_failure
+        sidecar = (retain_staging(staging, document.document_id,
+                                  request.graph_path) if retained else None)
+        reporter.staging_failed(document.document_id, retained, sidecar)
+        raise
+    return packages
+
+
+def _publish_packages(path, final_graph, packages, request, reporter):
+    """Interim per-window publication into the final ontology.
+
+    This is still the direct merge path: one read-only plan per window
+    package against the complete canonical graph, applied to copies, saved
+    atomically once the document completes. The single document-level
+    transaction that replaces it belongs to the final-merge milestone.
+    """
+    totals = {
+        "new_entities": 0, "resolved_entities": 0, "relation_triples": 0,
+        "fact_triples": 0, "duplicates": 0, "review": 0, "audit_triples": 0,
+    }
+    for window, model, candidates in packages:
+        provenance = build_provenance(path, window.text, model)
+        plan = plan_graph_merge(
+            final_graph, candidates, provenance,
+            min_new_confidence=request.merge.min_auto_accept_confidence)
+        reporter.merge_plan(plan, candidates, final_graph)
+        final_graph, counts = apply_merge_plan(final_graph, plan)
+        for key in totals:
+            totals[key] += counts.get(key, 0)
+    return final_graph, totals
+
+
 def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
     """Add the knowledge of every source file to one graph file.
 
     The public entry point of the application. Give it a request plus three
     adapters - where graphs live, who answers prompts, who hears about it -
-    and it returns what happened.
+    and it returns what happened. Each document is processed window by window
+    into its own source staging graph first; the final ontology is touched
+    only after a document's last window was admitted.
     """
     graph_store = graph_store or LocalTurtleStore()
     extractor = extractor or OpenRouterExtractor(model=request.extraction.model)
@@ -132,65 +313,25 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         raise RuntimeError("No text-like files found")
 
     blank_files = 0
+    windows_processed = 0
     for index, path in enumerate(files, start=1):
         reporter.source_started(path, index, len(files), len(graph))
-        text = read_source(path)
-        if not text.strip():
+        raw_text = read_source(path)
+        if not raw_text.strip():
             reporter.blank_source()
             blank_files += 1
             continue
 
-        # Choose potentially useful items before budgeting. Each gets a priority.
-        context = build_task_context(text, graph)
-        reporter.context_selection(context, graph)
-
-        # Prepare the budgeted context text that will be placed in the prompt.
-        prompt_context = prepare_prompt_context(
-            context, budget_for(text, request.context.budget))
-        reporter.prompt_context(prompt_context)
-
-        model = extractor.model()
-        prompt = make_prompt(text, prompt_context["text"])
-        reporter.asking_model(model)
-        reporter.llm_input(SYSTEM_PROMPT, prompt)
-        started = time.monotonic()
-
-        # Send the prompt; a messy answer is repaired by the model itself,
-        # under the same validation gate, at most repair_attempts times.
-        started = time.monotonic()
-        outcome = extract_validated(
-            extractor, prompt,
-            lambda data: validate_candidates(
-                data, graph, prompt_context["existing_ids"]),
-            max_repair_attempts=request.extraction.repair_attempts,
-        )
-        reporter.model_replied(
-            outcome.validation["candidates"] if outcome.validation else {},
-            time.monotonic() - started)
-        if outcome.validation is not None:
-            validation = outcome.validation
-            reporter.validation(validation)
-        if not outcome.ok:
-            raise RuntimeError(outcome.raw_problem or format_validation_failure(validation))
-
-        # Record where this extraction came from and which model/policy produced it.
-        provenance = build_provenance(path, text, model)
-
-        # Decide what to accept, corroborate, or hold for review without changing
-        # the graph.
-        plan = plan_graph_merge(
-            graph, validation["candidates"], provenance,
-            min_new_confidence=request.merge.min_auto_accept_confidence)
-
-        # Show the merge decisions before anything is written.
-        reporter.merge_plan(plan, validation["candidates"], graph)
-
-        # Apply the completed plan to a copy of the graph.
+        document = make_source_document(path.name, raw_text)
         before_size = len(graph)
-        updated, counts = apply_merge_plan(graph, plan)
-        save_graph(updated, request.graph_path)
-        graph = updated
-        reporter.saved(request.graph_path, before_size, updated, counts)
+        packages = _process_document(
+            document, request, graph, extractor, reporter)
+        windows_processed += len(packages)
+
+        graph, counts = _publish_packages(
+            path, graph, packages, request, reporter)
+        save_graph(graph, request.graph_path)
+        reporter.saved(request.graph_path, before_size, graph, counts)
     reporter.finished(graph, request.graph_path)
 
     return RunResult(
@@ -199,5 +340,5 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         files_total=len(files),
         files_saved=len(files) - blank_files,
         files_blank=blank_files,
+        windows_processed=windows_processed,
     )
-

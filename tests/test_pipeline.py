@@ -567,7 +567,6 @@ class ValidationGateTest(unittest.TestCase):
             (root / "a_blank.txt").write_text("   \n\t", encoding="utf-8")
             (root / "b_real.txt").write_text("Acme Corp exists.", encoding="utf-8")
             with mock.patch.object(pipeline, "validate_candidates") as validator, \
-                    mock.patch.object(pipeline, "apply_merge_plan") as merged, \
                     mock.patch.object(pipeline, "save_graph") as saved:
                 validator.return_value = {
                     "valid": True,
@@ -580,15 +579,11 @@ class ValidationGateTest(unittest.TestCase):
                                                       "facts": 0,
                                                       "aliases": 0}},
                 }
-                merged.return_value = (graph_management.Graph(), {
-                    "new_entities": 1, "resolved_entities": 0,
-                    "relation_triples": 0, "fact_triples": 0,
-                    "metadata_triples": 0, "duplicates": 0, "review": 0,
-                    "audit_triples": 0})
                 run_api(root, graph_path, FakeExtractor(entity_response("Acme Corp")))
-        validator.assert_called_once()
-        merged.assert_called_once()
-        saved.assert_called_once()
+        # The one real file is validated and published once; the blank file
+        # never reaches extraction at all.
+        self.assertEqual(validator.call_count, 1)
+        self.assertEqual(saved.call_count, 1)
 
 
 class MergePolicyPipelineTest(unittest.TestCase):

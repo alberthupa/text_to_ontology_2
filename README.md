@@ -4,15 +4,18 @@ This is a deliberately small experiment, not a framework. Give it one text file
 or a directory of text-like files. It asks an LLM to extract entities,
 relations, and literal facts, then saves them in one Turtle (`.ttl`) graph.
 
-Running it again with the same graph adds knowledge to that graph. For each
-source file it picks the part of the current graph that text actually relates to
-— relevant classes and properties, how the existing data uses them, and the
-existing resources it may be talking about — and shows the LLM only that, inside
-a token budget. Identity is decided explicitly before anything is written: an
-exact identifier or a unique exact name/alias match resolves to the existing
-entity, an ambiguous or close-spelling match is held for review, and only
-confident, unambiguous records create new entities. That matching still searches
-the whole graph, not just what was sent.
+Every source file is one document with a stable content-derived ID. A long
+document is split into reproducible overlapping windows, and each window's
+answer is admitted into that document's own *source staging graph* before
+anything canonical happens: a later window sees what earlier windows already
+extracted (clearly marked `(this document)` in its prompt), repeated names are
+reconciled inside the document instead of duplicated, and anything ambiguous or
+conflicting is held for review rather than silently merged. The final ontology
+is only touched after a document's last window was admitted. Identity against
+the whole existing graph is still decided explicitly at that point: an exact
+identifier or a unique exact name/alias match resolves to the existing entity,
+an ambiguous or close-spelling match is held for review, and only confident,
+unambiguous records create new entities.
 
 ## Install
 
@@ -112,7 +115,11 @@ print(result.triples, "triples in", result.graph_path)
 ```
 
 `RunRequest` carries the source, the graph path, and the configuration:
-`WindowingConfig`, `ContextConfig`, `ExtractionConfig`, and `MergeConfig`.
+`WindowingConfig` (window target/overlap size in tokens), `ContextConfig`,
+`ExtractionConfig`, `MergeConfig`, and `ProcessingConfig`
+(`retain_staging_on_failure` exports a failed document's staging graphs to a
+sidecar TriG file next to the output graph for diagnosis; by default they are
+discarded).
 When the model's answer is messy — unparseable JSON or a contract violation —
 it is sent back to the model for self-repair up to
 `ExtractionConfig(repair_attempts=...)` times (default 2; 0 disables repair)
@@ -144,13 +151,15 @@ search boxes, filters, and sliders only change what is displayed — what a view
 contains is decided in the code before the page is generated, and there are no
 filter options on the command line for the same reason.
 
-For each file the run prints one line about the context it selected, for example
-`Context: 32 items, 1333/1400 tokens, 21 items did not fit`. The numbers behind
-it live in `PROMPT_BUDGET` in `prompt_budget.py`; `context_tokens` is the ceiling
+For each document the run prints one line about its staging graph and windows,
+for example `Document doc-13ed72f8: 6 window(s); staging graph ...`, plus one
+`Window k/n admitted ...` line per window showing how the source graph grew.
+The numbers behind the prompt budget live in `PROMPT_BUDGET` in
+`prompt_budget.py`; `context_tokens` is the ceiling
 on how much ontology context one prompt may carry, and lowering it makes the
 prompt smaller by dropping the least relevant items first.
 
-Each non-empty file's answer is validated before it may change the graph. The
+Each non-empty window's answer is validated before it may change anything. The
 run prints a `Validated:` line, then plans the merge and prints a `Planned:`
 line before anything is written. Every record the model returns must carry a
 `confidence` from 0.0 to 1.0 — the model's confidence that the source text
@@ -194,6 +203,13 @@ The pipeline that runs when you invoke the program:
   decisions, acceptance, corroboration, conflict review, and provenance
 - `src/text_to_ontology/entity_lookup.py` — deciding whether an entity is
   already in the graph
+- `src/text_to_ontology/candidate_graph.py` — turning one validated response
+  into an inspectable RDF candidate graph with PROV-O/DQV confidence
+- `src/text_to_ontology/source_staging.py` — one provisional source graph per
+  document: stable staging-graph names, source-local admission planning, the
+  marked layered prompt context, and diagnostic retention on failure
+- `src/text_to_ontology/windowing.py` — stable documents and reproducible
+  overlapping text windows
 - `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and
   the legacy direct merger) into the graph
 - `src/text_to_ontology/graph_management.py` — opening, seeding, naming, and

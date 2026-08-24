@@ -40,7 +40,7 @@ confidence representation, and Python packaging.
 - Started: 2026-08-24
 - Target release:
 - Last updated: 2026-08-24
-- Current milestone: M2 (documents and windowing)
+- Current milestone: M6 (source reconciliation and validation) is next
 - Current branch:
 - Overall notes:
 
@@ -298,7 +298,7 @@ the normal milestone acceptance evidence.
 | M2 Documents and windowing | [x] | ox-alpha agent | milestone/m02-documents-windowing | (pending commit) | 2026-08-24 |
 | M3 Local RDF dataset/store | [x] | ox-alpha agent | milestone/m03-local-graph-store | (pending commit) | 2026-08-24 |
 | M4 Candidate RDF and confidence | [x] | ox-alpha agent | milestone/m04-candidate-rdf-confidence | (pending commit) | 2026-08-24 |
-| M5 Incremental source graph | [ ] | | | | |
+| M5 Incremental source graph | [x] | ox-alpha agent | milestone/m05-incremental-source-graph | (pending commit) | 2026-08-24 |
 | M6 Source reconciliation and validation | [ ] | | | | |
 | M7 One final document merge | [ ] | | | | |
 | M8 SPARQL context and skeleton | [ ] | | | | |
@@ -953,7 +953,7 @@ identity resolution or publication.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [ ] Blocked  [x] Complete
 
 ### Acceptance criteria
 
@@ -985,48 +985,128 @@ identity resolution or publication.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M5-T1 → AC1, AC9:** Add deterministic source graph naming from document
+- [x] **M5-T1 → AC1, AC9:** Add deterministic source graph naming from document
   digest and graph namespace configuration.
-- [ ] **M5-T2 → AC2:** Add a readable per-window orchestration loop inside the
-  per-document loop.
-- [ ] **M5-T3 → AC2, AC3:** Extract the current identity/merge rules into a
+  (`source_staging.source_staging_graph_name` / `window_candidate_graph_name`
+  under `.../text-ontology/staging/{document_id}[/{window_id}]`; the document
+  ID is already the content digest prefix.)
+- [x] **M5-T2 → AC2:** Add a readable per-window orchestration loop inside the
+  per-document loop. (`pipeline._process_document`: staging dataset, one
+  candidate graph + admission plan + snapshot check per window.)
+- [x] **M5-T3 → AC2, AC3:** Extract the current identity/merge rules into a
   source-local admission policy that sees only the source graph for individual
-  identity decisions.
-- [ ] **M5-T4 → AC3, AC4:** Store canonical identity hints from prompt context as
+  identity decisions. (`plan_window_admission` reuses merge policy with a
+  provisional allocator; canonical resources are absent from the staging
+  catalog, so existing_id hints cannot resolve there.)
+- [x] **M5-T4 → AC3, AC4:** Store canonical identity hints from prompt context as
   operational merge hints, not as already-decided canonical mappings in the
   source graph.
-- [ ] **M5-T5 → AC4:** Extend context selection inputs with the source graph and
+  (Hints survive only inside audit records (`onto:normalizedCandidate`) of the
+  staging graph and drive final publication planning; staged entity URIs are
+  always provisional.)
+- [x] **M5-T5 → AC4:** Extend context selection inputs with the source graph and
   mark source-local versus canonical context clearly in prompt rendering.
-- [ ] **M5-T6 → AC5, AC8:** Add final-graph snapshot assertions around every
+  (`layered_context_text`: two selection packages, one shared budget,
+  source-local lines prefixed `(this document)`, provisional resources never
+  offered as `existing_id`.)
+- [x] **M5-T6 → AC5, AC8:** Add final-graph snapshot assertions around every
   window success and failure path.
-- [ ] **M5-T7 → AC6, AC7:** Add fixtures where an entity crosses a window
+  (`final_graphs_snapshot` compared after every window inside
+  `_process_document`; failure-path file-immutability covered by tests.)
+- [x] **M5-T7 → AC6, AC7:** Add fixtures where an entity crosses a window
   boundary, has an exact repeated name, has an alias, and has an ambiguous name.
-- [ ] **M5-T8 → AC8:** Define staging retention configuration and cleanup rules.
-- [ ] **M5-T9 → AC9:** Add a two-file directory test proving separate source
-  graphs and ordered per-document handling.
-- [ ] **M5-T10 → AC10:** Update verbose/report output with document/window/source
-  graph terminology.
+  (`tests/test_source_staging.py` repeated-name/kind-collision cases;
+  `tests/test_pipeline_windowing.py` cross-window Acme Corp fixture.)
+- [x] **M5-T8 → AC8:** Define staging retention configuration and cleanup rules.
+  (`ProcessingConfig.retain_staging_on_failure`; default discards in-memory
+  staging, retention exports `<graph>.staging/<document_id>.trig`.)
+- [x] **M5-T9 → AC9:** Add a two-file directory test proving separate source
+  graphs and ordered per-document handling. (`DirectorySeparationTest`.)
+- [x] **M5-T10 → AC10:** Update verbose/report output with document/window/source
+  graph terminology. (`RunReporter.document_staging`, `.window_started`,
+  `.window_admitted`, `.staging_failed`; publication counts unchanged.)
 
 ### Required evidence
 
-- [ ] Multi-window source graph triple/quad summary:
-- [ ] Final graph before/after-each-window equality evidence:
-- [ ] Cross-window identity test result:
-- [ ] Ambiguous local identity test result:
-- [ ] Window-failure retention/cleanup results:
+- [x] Multi-window source graph triple/quad summary: a four-paragraph fixture
+  (target 60 tokens, no overlap) produced 6 windows. Window 1 admitted 1 new
+  entity and grew the source staging graph to 25 triples; windows 2–6 repeated
+  the same exact name, were corroborated locally (`0 new entities` each), and
+  the source graph ended at 42 triples (growth is audit/evidence only — no
+  duplicate domain assertions). Reporter lines: `Document doc-…: 6 window(s);
+  staging graph …/staging/doc-…`, `Window k/6 admitted …`.
+- [x] Final graph before/after-each-window equality evidence:
+  `FinalOntologyUntouchedTest` shows the output file does not even exist while
+  any window runs, and that document two observes only document one's
+  publication throughout its windows. Additionally `_process_document` takes a
+  `final_graphs_snapshot` before window 1 and raises
+  "the final ontology changed during window processing" if it ever differs.
+- [x] Cross-window identity test result:
+  `AdmissionTest.test_a_repeated_exact_name_from_an_earlier_window_resolves`
+  (second window's record resolves `existing`/`exact_name` to the first
+  window's provisional IRI) and
+  `CrossWindowIdentityTest` at pipeline level (`Window 1/6 admitted 1 new`,
+  windows 2–6 admit 0 new).
+- [x] Ambiguous local identity test result:
+  `AdmissionTest.test_a_local_name_collision_is_retained_not_silently_resolved`:
+  two same-name/different-kind records stage exactly one entity; the colliding
+  record is retained with `identity.kind_collision`; a later window mentioning
+  the colliding name is held again instead of silently merged.
+- [x] Window-failure retention/cleanup results: `WindowFailureTest`. Default:
+  failure propagates, the final file does not exist/is unchanged, no sidecar is
+  written, reporter prints `Staging graphs of doc-… discarded`. With
+  `retain_staging_on_failure=True`: `graph.ttl.staging/doc-….trig` exists,
+  contains the `staging/doc-…` graphs, parses as TriG, and reporter prints
+  `retained for diagnosis`.
+
+Full deterministic suite: `python3 -m unittest discover -s tests -p 'test_*.py'`
+→ `Ran 757 tests ... OK (skipped=1)`; the skip is the opt-in install smoke test.
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- Source graph naming version:
+- Owner: ox-alpha coding agent
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: milestone/m05-incremental-source-graph
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
+- Source graph naming version: 1
+  (`.../text-ontology/staging/{document_id}` for the source graph,
+  `.../{document_id}/{window_id}` for window candidate graphs)
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - New module `source_staging.py`; admission reuses merge policy unchanged
+    except for URI allocation: new staged entities get deterministic
+    provisional IRIs `provisional/{document_id}/{slug}[-n]` via
+    `merge_policy.plan_graph_merge(..., allocate_uri=...)` (the planner now
+    accepts injected allocators; defaults preserve canonical behavior).
+  - The staging area is an in-memory `RdflibGraphStore` per run holding one
+    source staging graph plus one M4 candidate graph per window under stable
+    names; it is discarded unless retention is configured (AC8), in which case
+    a failed document's graphs are atomically exported to a TriG sidecar next
+    to the output graph.
+  - Canonical `existing_id` hints never resolve inside staging (canonical
+    resources are not in its catalog); they survive in audit records and still
+    drive final publication planning (M5-T4).
+  - Prompt context for window N layers two selection packages into one shared
+    budget: canonical context plus source-graph context with every line marked
+    `(this document)`; provisional resources render as generic URIs, never as
+    reusable `existing_id` values (M5-T5).
+  - Interim publication remains the direct per-window merge against the
+    complete canonical graph, saved once per completed document; it is clearly
+    marked as the path M7 replaces with one document-level transaction.
+    User-facing behavior for short (one-window) documents is unchanged.
+  - `RunResult` gained `windows_processed`; `pipeline.WindowingConfig` now
+    carries real target/overlap/tokenizer settings and feeds `plan_windows`
+    directly.
+  - A blank document still produces no windows and no staging work; the
+    snapshot guard makes mid-document canonical drift an explicit error.
+- Known follow-ups: replace the interim direct publication with the single
+  document-level read-only plan + atomic transaction (M7); remap reified
+  candidate statements/DQV measurements onto canonical evidence (M7-T7);
+  persist staging graphs through the configured store rather than in-memory
+  when a use case demands cross-run inspection.
+- Acceptance evidence location: this section; outputs reproducible via the
+  recorded commands and fixtures.
 
 ---
 
