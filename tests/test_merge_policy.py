@@ -80,7 +80,7 @@ class ExplicitIdTest(unittest.TestCase):
     def test_the_decision_record_has_exactly_the_agreed_fields(self):
         decision = decide(candidate("e1", "Acme"), [])
         self.assertEqual(set(decision), {
-            "local_id", "status", "uri", "method", "score", "suggestions",
+            "local_id", "status", "uri", "method", "identity_score", "suggestions",
             "reason_codes"})
 
 
@@ -124,7 +124,7 @@ class AmbiguousExactTest(unittest.TestCase):
         self.assertEqual(decision["reason_codes"], ["identity.ambiguous_exact"])
         self.assertEqual([s["uri"] for s in decision["suggestions"]],
                          [BASE + "alpha", BASE + "zeta"])
-        self.assertIsNone(decision["score"])
+        self.assertIsNone(decision["identity_score"])
 
     def test_matches_under_different_kinds_are_not_ambiguous(self):
         catalog = [item("acme-person", ["Acme Corp"], "Person"),
@@ -171,10 +171,10 @@ class CloseSpellingTest(unittest.TestCase):
         self.assertEqual(decision["status"], "review")
         self.assertEqual(decision["method"], "close_spelling")
         self.assertEqual(decision["reason_codes"], ["identity.close_spelling"])
-        self.assertGreaterEqual(decision["score"], 0.96)
+        self.assertGreaterEqual(decision["identity_score"], 0.96)
         self.assertEqual(len(decision["suggestions"]), 1)
         self.assertEqual(decision["suggestions"][0]["uri"], BASE + "forces")
-        self.assertGreaterEqual(decision["suggestions"][0]["score"], 0.96)
+        self.assertGreaterEqual(decision["suggestions"][0]["identity_score"], 0.96)
 
     def test_tied_close_spellings_are_review_with_all_suggestions(self):
         catalog = self.close_catalog("one", "two")

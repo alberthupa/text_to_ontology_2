@@ -282,7 +282,7 @@ class RunReporter:
             self.line(f"    confidence: {record.get('confidence', '')}")
             self._reasons(decision.get("reason_codes", []), indent="    ")
             for suggestion in decision.get("suggestions", []):
-                score = suggestion.get("score")
+                score = suggestion.get("identity_score")
                 score_text = "" if score is None else f", score {score:.3f}"
                 self.line(f"    suggestion: "
                           f"{self._term(suggestion['uri'], graph)} "

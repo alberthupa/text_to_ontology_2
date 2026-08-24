@@ -13,6 +13,7 @@ from rdflib.namespace import RDF, SKOS
 from text_to_ontology import graph_management, pipeline
 from text_to_ontology.api import (
     ContextConfig,
+    ExtractionConfig,
     RunRequest,
     run_text_to_graph,
 )
@@ -51,6 +52,13 @@ def entity_response(*names):
         "relations": [],
         "facts": [],
     }
+
+
+def no_repair(source, graph_path):
+    """A request with model self-repair disabled: first answer is final."""
+    return RunRequest(
+        source=Path(source), graph_path=Path(graph_path),
+        extraction=ExtractionConfig(repair_attempts=0))
 
 
 def run_api(source, graph_path, fake_extractor, verbose=False, request=None):
@@ -477,7 +485,7 @@ class ValidationGateTest(unittest.TestCase):
                         "existing_id": ghost, "confidence": 0.9,
                     }],
                     "relations": [], "facts": [],
-                }))
+                }), request=no_repair(source, graph_path))
         self.assertIn("existing_id", str(caught.exception))
 
     def test_a_valid_existing_id_from_the_prompt_resolves(self):
@@ -531,7 +539,8 @@ class ValidationGateTest(unittest.TestCase):
             (root / "03.txt").write_text("Beta Corp exists.", encoding="utf-8")
             fake = FakeExtractor(entity_response("Acme Corp"), {})
             with self.assertRaises(RuntimeError):
-                run_api(root, graph_path, fake)
+                run_api(root, graph_path, fake,
+                        request=no_repair(root, graph_path))
             graph = graph_management.open_graph(graph_path)
         self.assertEqual(len(fake.prompts), 2)
         self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),

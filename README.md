@@ -113,6 +113,11 @@ print(result.triples, "triples in", result.graph_path)
 
 `RunRequest` carries the source, the graph path, and the configuration:
 `WindowingConfig`, `ContextConfig`, `ExtractionConfig`, and `MergeConfig`.
+When the model's answer is messy — unparseable JSON or a contract violation —
+it is sent back to the model for self-repair up to
+`ExtractionConfig(repair_attempts=...)` times (default 2; 0 disables repair)
+before the window is rejected. Every answer, repaired or not, must pass the
+same validation gate.
 Any adapter can be replaced — pass an object with `model()` and
 `extract(prompt)` as the extractor (a fake in tests), or anything with
 `load(path)` and `save(graph, path)` as the graph store. The core pipeline

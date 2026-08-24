@@ -297,7 +297,7 @@ the normal milestone acceptance evidence.
 | M1 Public API and thin CLI | [x] | ox-alpha agent | milestone/m01-public-api-cli | (pending commit) | 2026-08-24 |
 | M2 Documents and windowing | [x] | ox-alpha agent | milestone/m02-documents-windowing | (pending commit) | 2026-08-24 |
 | M3 Local RDF dataset/store | [x] | ox-alpha agent | milestone/m03-local-graph-store | (pending commit) | 2026-08-24 |
-| M4 Candidate RDF and confidence | [ ] | | | | |
+| M4 Candidate RDF and confidence | [x] | ox-alpha agent | milestone/m04-candidate-rdf-confidence | (pending commit) | 2026-08-24 |
 | M5 Incremental source graph | [ ] | | | | |
 | M6 Source reconciliation and validation | [ ] | | | | |
 | M7 One final document merge | [ ] | | | | |
@@ -804,7 +804,7 @@ PROV-O, and DQV terms without inventing infrastructure predicates.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [x] Complete
 
 ### Acceptance criteria
 
@@ -836,51 +836,109 @@ PROV-O, and DQV terms without inventing infrastructure predicates.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M4-T1 → AC1:** Keep and test the current response-validation gate as the
+- [x] **M4-T1 → AC1:** Keep and test the current response-validation gate as the
   only path into candidate graph construction.
-- [ ] **M4-T2 → AC2, AC3:** Define deterministic provisional IRI and vocabulary
+  (The gate is unchanged; `build_candidate_graph` accepts only the normalized
+  package that `validate_candidates` returns, and repair never bypasses it.)
+- [x] **M4-T2 → AC2, AC3:** Define deterministic provisional IRI and vocabulary
   mapping rules. Make blank-node avoidance explicit for candidate individuals.
-- [ ] **M4-T3 → AC3:** Add conservative literal datatype parsing and tests for
+  (Provisional IRIs are `.../provisional/{document_id}/{local_id}`; all record,
+  statement, and measurement resources use deterministic IRIs — no blank nodes.)
+- [x] **M4-T3 → AC3:** Add conservative literal datatype parsing and tests for
   dates, integers, decimals, booleans, strings, invalid dates, and leading-zero
   identifiers.
-- [ ] **M4-T4 → AC4:** Implement record collections and RDF 1.1 statement
+- [x] **M4-T4 → AC4:** Implement record collections and RDF 1.1 statement
   reification using only RDF/PROV terms.
-- [ ] **M4-T5 → AC5:** Define the extraction-confidence metric as an instance of
+- [x] **M4-T5 → AC5:** Define the extraction-confidence metric as an instance of
   `dqv:Metric`; add measurement construction and range tests.
-- [ ] **M4-T6 → AC6:** Build the PROV-O chain from document/window through
+  (Metric IRI: `http://example.org/text-ontology/metric/extraction-confidence`.)
+- [x] **M4-T6 → AC6:** Build the PROV-O chain from document/window through
   extraction activity to candidate record and measurement.
-- [ ] **M4-T7 → AC7:** Rename ambiguous existing fields so extraction confidence
+- [x] **M4-T7 → AC7:** Rename ambiguous existing fields so extraction confidence
   and identity similarity cannot be confused.
-- [ ] **M4-T8 → AC8:** Add serialization and parse-back tests with multiple
+  (Identity decisions now carry `identity_score`; extraction records keep
+  `confidence`. No code derives one from the other.)
+- [x] **M4-T8 → AC8:** Add serialization and parse-back tests with multiple
   records supporting the same RDF triple at different confidence values.
-- [ ] **M4-T9 → AC9:** Add a vocabulary allow-list test for infrastructure
+- [x] **M4-T9 → AC9:** Add a vocabulary allow-list test for infrastructure
   predicates/classes while allowing project-owned domain terms and resource
   identifiers.
-- [ ] **M4-T10 → AC1–AC9:** Document the candidate graph with one complete Turtle
+- [x] **M4-T10 → AC1–AC9:** Document the candidate graph with one complete Turtle
   example and explain that DQV is the selected interoperable pattern, not a
-  universal confidence law.
+  universal confidence law. (`docs/candidate_graph.md`.)
 
 ### Required evidence
 
-- [ ] Candidate Turtle example:
-- [ ] JSON-to-RDF round-trip test result:
-- [ ] Confidence range/type test result:
-- [ ] Vocabulary allow-list result:
-- [ ] Example showing two independent confidence measurements for one triple:
+- [x] Candidate Turtle example: `docs/candidate_graph.md`, generated from the
+  module's output for one entity plus one date fact; shows assertions,
+  reified evidence, DQV measurements, metric declaration, and PROV chain.
+- [x] JSON-to-RDF round-trip test result:
+  `RoundTripTest.test_turtle_round_trip_is_isomorphic` serializes a built
+  candidate graph to Turtle, parses it back, and asserts full isomorphism;
+  `..._evidence_still_points_at_its_triple` verifies a record's reified member
+  still names an asserted triple after the round trip. Full suite:
+  `python3 -m unittest discover -s tests -p 'test_*.py'` →
+  `Ran 732 tests ... OK (skipped=1)`.
+- [x] Confidence range/type test result:
+  `ConfidenceMeasurementTest` asserts every record has exactly one
+  `dqv:QualityMeasurement` with `dqv:value` typed `xsd:decimal` in `[0,1]`,
+  pointing at the project-owned `dqv:Metric`.
+- [x] Vocabulary allow-list result:
+  `VocabularyTest.test_only_allowed_predicates_appear` walks every triple of a
+  built graph and requires each predicate to be one of the allowed standard
+  terms (RDF/RDFS/SKOS/PROV/DQV) or a generated domain property (class:/fact:/
+  relation:) — no custom infrastructure predicates;
+  `test_kind_strings_became_types_not_literals` confirms kinds are types.
+- [x] Example showing two independent confidence measurements for one triple:
+  `AssertionAndEvidenceTest.test_two_records_can_support_one_triple_at_
+  different_confidence` builds a package where two relation records assert the
+  identical triple with confidences 0.85 and 0.55; both record collections
+  reify it and two separate measurements carry the two values.
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- Candidate mapping version:
-- Metric IRI:
+- Owner: ox-alpha coding agent
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: milestone/m04-candidate-rdf-confidence
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
+- Candidate mapping version: 1 (`CANDIDATE_MAPPING_VERSION`)
+- Metric IRI: `http://example.org/text-ontology/metric/extraction-confidence`
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - New module `candidate_graph.py`: validated package in, deterministic RDF
+    graph out. It has no path to raw LLM answers; only `validate_candidates`
+    output reaches it (AC1).
+  - All candidate resources get deterministic IRIs under
+    `http://example.org/text-ontology/` (candidate/, provisional/, document/,
+    window/, activity/, agent/, metric/); blank nodes are avoided entirely so
+    graphs can be compared and merged by IRI later.
+  - Kinds map to generated class IRIs typed `owl:Class` with
+    `rdfs:subClassOf onto:Entity`, mirroring what merge policy declares today;
+    the string-valued kind literal is gone from candidate graphs.
+  - Conservative literals: ISO calendar dates → `xsd:date`, JSON bool/int/
+    finite float → their XSD types via `Decimal(str(v))` for floats; leading
+    zero strings and impossible dates stay plain literals.
+  - User-requested early delivery of bounded self-repair (originally M6-T1/T2):
+    new `repair.py` coordinator sends the model its own original answer plus
+    the deterministic issue list up to `ExtractionConfig.repair_attempts`
+    times (default 2). Unparseable answers surface as the new
+    `llm.InvalidResponseError` (a `RuntimeError`) and become repair prompts
+    quoting the raw text; network failures propagate untouched. Repaired
+    answers pass through exactly the same validation gate; exhausted attempts
+    reject the window as before. Two pipeline tests were updated to disable
+    repair explicitly since they encode immediate-rejection semantics.
+  - Identity similarity renamed to `identity_score` across entity_lookup /
+    reports / merge-policy tests (AC7): `confidence` is now exclusively
+    extraction confidence.
+  - rdflib does not bundle a DQV namespace, so the W3C namespace is defined
+    locally in one place.
+- Known follow-ups: the pipeline still merges candidates through the legacy
+  direct path; wiring candidate graphs into source staging graphs and per-window
+  admission belongs to M5/M7. The verbose reporter prints final validation
+  counts only, not per-repair-attempt detail.
+- Acceptance evidence location: this section; outputs reproducible via the
+  recorded commands.
 
 ---
 

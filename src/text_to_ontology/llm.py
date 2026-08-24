@@ -11,6 +11,10 @@ DEFAULT_MODEL = "openrouter/pareto-code:nitro"
 SYSTEM_PROMPT = "Extract knowledge. Return only JSON."
 
 
+class InvalidResponseError(RuntimeError):
+    """The model answered, but the answer is not one parseable JSON object."""
+
+
 def load_env(path=None):
     """Load simple KEY=value lines from a .env in the working directory."""
     path = Path(path) if path else Path(".env")
@@ -68,11 +72,12 @@ def ask_llm(prompt):
     # Also accept JSON wrapped in a Markdown code block.
     start, end = answer.find("{"), answer.rfind("}")
     if start < 0 or end < 0:
-        raise RuntimeError(f"The model did not return JSON:\n{answer}")
+        raise InvalidResponseError(f"The model did not return JSON:\n{answer}")
     try:
         return json.loads(answer[start:end + 1])
     except json.JSONDecodeError as error:
-        raise RuntimeError(f"The model returned invalid JSON:\n{answer}") from error
+        raise InvalidResponseError(
+            f"The model returned invalid JSON:\n{answer}") from error
 
 
 class OpenRouterExtractor:

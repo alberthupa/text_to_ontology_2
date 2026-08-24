@@ -59,13 +59,13 @@ def identify_entity(entity, catalog):
     for item in catalog:
         if not new_kind or identity_key(item["kind"]) != new_kind:
             continue
-        score = max(
+        identity_score = max(
             (SequenceMatcher(None, identity_key(entity["name"]), identity_key(name)).ratio()
              for name in item["names"]),
             default=0,
         )
-        if score >= 0.96:
-            close.append((score, item["id"]))
+        if identity_score >= 0.96:
+            close.append((identity_score, item["id"]))
     close.sort(reverse=True)
     if close and (len(close) == 1 or close[0][0] > close[1][0]):
         return URIRef(close[0][1])
@@ -88,20 +88,20 @@ def identity_decision(entity, catalog, planned_catalog=(), *,
     `provisional_uri` callables, which see the planner's URI reservations.
 
     The result has exactly these fields: local_id, status (existing, new, or
-    review), uri, method, score, suggestions, reason_codes. A close spelling
+    review), uri, method, identity_score, suggestions, reason_codes. A close spelling
     never resolves automatically; it only produces review evidence.
     """
     local_id = entity.get("id")
     kind = identity_key(entity.get("kind") or "")
     name_keys = _keys([entity.get("name"), *(entity.get("aliases") or [])])
 
-    def decision(status, uri, method, score=None, suggestions=(), reasons=()):
+    def decision(status, uri, method, identity_score=None, suggestions=(), reasons=()):
         return {
             "local_id": local_id,
             "status": status,
             "uri": uri,
             "method": method,
-            "score": score,
+            "identity_score": identity_score,
             "suggestions": sorted(suggestions, key=lambda item: item["uri"]),
             "reason_codes": sorted(set(reasons)),
         }
@@ -129,7 +129,7 @@ def identity_decision(entity, catalog, planned_catalog=(), *,
             method = "exact_alias"
         return decision("existing", URIRef(item["id"]), method)
     if len(exact) > 1:
-        suggestions = [{"uri": item["id"], "method": "exact", "score": None}
+        suggestions = [{"uri": item["id"], "method": "exact", "identity_score": None}
                        for item, _ in exact]
         return decision("review", None, "ambiguous_exact",
                         suggestions=suggestions,
@@ -142,7 +142,7 @@ def identity_decision(entity, catalog, planned_catalog=(), *,
     ]
     if collisions:
         suggestions = [{"uri": item["id"], "method": "kind_collision",
-                        "score": None} for item in collisions]
+                        "identity_score": None} for item in collisions]
         return decision("review", None, "kind_collision",
                         suggestions=suggestions,
                         reasons=("identity.kind_collision",))
@@ -154,17 +154,18 @@ def identity_decision(entity, catalog, planned_catalog=(), *,
             item_kind = identity_key(item["kind"])
             if not kind or not item_kind or item_kind != kind:
                 continue
-            score = max(
+            identity_score = max(
                 (SequenceMatcher(None, preferred, key).ratio()
                  for key in _keys(item["names"])),
                 default=0,
             )
-            if score >= CLOSE_SPELLING_THRESHOLD:
+            if identity_score >= CLOSE_SPELLING_THRESHOLD:
                 close.append({"uri": item["id"], "method": "close_spelling",
-                              "score": score})
+                              "identity_score": identity_score})
     if close:
-        top = max(item["score"] for item in close)
-        return decision("review", None, "close_spelling", score=top,
+        top = max(item["identity_score"] for item in close)
+        return decision("review", None, "close_spelling",
+                        identity_score=top,
                         suggestions=close,
                         reasons=("identity.close_spelling",))
 

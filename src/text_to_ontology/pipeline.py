@@ -17,6 +17,7 @@ from .merge_policy import (
     plan_graph_merge,
 )
 from .prompt_budget import PROMPT_BUDGET, estimate_tokens
+from .repair import extract_validated
 from .run_report import RunReporter
 from .source_parse import make_prompt
 from .task_context import build_task_context
@@ -42,9 +43,14 @@ class ContextConfig:
 
 @dataclass
 class ExtractionConfig:
-    """Which model answers extraction prompts (None: adapter default)."""
+    """Which model answers extraction prompts, and how often it may retry.
+
+    `repair_attempts` bounds how many times a messy answer is sent back to
+    the model for self-repair before the window is rejected.
+    """
 
     model: str | None = None
+    repair_attempts: int = 2
 
 
 @dataclass
@@ -149,16 +155,23 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         reporter.llm_input(SYSTEM_PROMPT, prompt)
         started = time.monotonic()
 
-        # Send the prompt to the LLM and parse its JSON response.
-        extraction = extractor.extract(prompt)
-        reporter.model_replied(extraction, time.monotonic() - started)
-
-        # Is this LLM package structurally valid and safe enough for merge policy?
-        validation = validate_candidates(
-            extraction, graph, prompt_context["existing_ids"])
-        reporter.validation(validation)
-        if not validation["valid"]:
-            raise RuntimeError(format_validation_failure(validation))
+        # Send the prompt; a messy answer is repaired by the model itself,
+        # under the same validation gate, at most repair_attempts times.
+        started = time.monotonic()
+        outcome = extract_validated(
+            extractor, prompt,
+            lambda data: validate_candidates(
+                data, graph, prompt_context["existing_ids"]),
+            max_repair_attempts=request.extraction.repair_attempts,
+        )
+        reporter.model_replied(
+            outcome.validation["candidates"] if outcome.validation else {},
+            time.monotonic() - started)
+        if outcome.validation is not None:
+            validation = outcome.validation
+            reporter.validation(validation)
+        if not outcome.ok:
+            raise RuntimeError(outcome.raw_problem or format_validation_failure(validation))
 
         # Record where this extraction came from and which model/policy produced it.
         provenance = build_provenance(path, text, model)
