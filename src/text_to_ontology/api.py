@@ -23,8 +23,11 @@ environment configuration, and exit codes.
 
 from .graph_management import GraphStore, LocalTurtleStore
 from .llm import OpenRouterExtractor
+from .source_reconciliation import SourceGraphArtifact
+from .source_validation import SourceValidationError, SourceValidationResult
 from .pipeline import (
     ContextConfig,
+    DocumentResult,
     ExtractionConfig,
     Extractor,
     MergeConfig,
@@ -32,12 +35,14 @@ from .pipeline import (
     Reporter,
     RunRequest,
     RunResult,
+    ValidationConfig,
     WindowingConfig,
     run_text_to_graph,
 )
 
 __all__ = [
     "ContextConfig",
+    "DocumentResult",
     "ExtractionConfig",
     "Extractor",
     "GraphStore",
@@ -48,6 +53,10 @@ __all__ = [
     "Reporter",
     "RunRequest",
     "RunResult",
+    "SourceGraphArtifact",
+    "SourceValidationError",
+    "SourceValidationResult",
+    "ValidationConfig",
     "WindowingConfig",
     "run_text_to_graph",
 ]

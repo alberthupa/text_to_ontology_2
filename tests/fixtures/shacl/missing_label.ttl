@@ -1,0 +1,6 @@
+@prefix entity: <http://example.org/text-ontology/entity/> .
+@prefix fact: <http://example.org/text-ontology/fact/> .
+@prefix onto: <http://example.org/text-ontology/> .
+
+entity:acme a onto:Entity ;
+    fact:founded-year 2024 .

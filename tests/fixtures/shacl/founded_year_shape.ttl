@@ -1,0 +1,12 @@
+@prefix fact: <http://example.org/text-ontology/fact/> .
+@prefix onto: <http://example.org/text-ontology/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+onto:SourceEntityFoundedYearShape a sh:NodeShape ;
+    sh:targetClass onto:Entity ;
+    sh:property [
+        sh:path fact:founded-year ;
+        sh:minCount 1 ;
+        sh:datatype xsd:integer
+    ] .

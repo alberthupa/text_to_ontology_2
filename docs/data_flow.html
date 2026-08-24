@@ -140,12 +140,21 @@
     <p class="intro">The page follows one real run through every transitively related pipeline file. It shows the payload passed between methods, the read-only context branch, the validation and policy gates, the graph-copy write, the per-file feedback loop, and the new verbose report path.</p>
     <div class="command">python ontology.py &lt;source file or directory&gt; [ontology.ttl] [-v | --report]</div>
     <div class="facts">
-      <span class="fact"><b>18</b> active Python files</span>
+      <span class="fact"><b>M6</b> reconciliation + SHACL gate</span>
       <span class="fact"><b>one file</b> processed at a time</span>
       <span class="fact"><b>read-only plan</b> before mutation</span>
       <span class="fact"><b>atomic save</b> after each non-empty file</span>
     </div>
   </header>
+  <div class="callout" style="margin-top:18px">
+    <b>M6 update — complete-source gate</b>
+    Window candidates first build one source-local graph. Before the merge-policy
+    stage shown below, <code>source_reconciliation.py</code> reports local
+    identities, aliases, duplicate supports, and conflicts;
+    <code>source_validation.py</code> then validates the complete source graph
+    against the combined configured SHACL graphs. Failure stops before final
+    planning and leaves the final ontology unchanged.
+  </div>
   <nav aria-label="Page sections"><div class="links">
     <a href="#map">Process map</a><a href="#walkthrough">Step details</a><a href="#budget">Budget zoom-in</a><a href="#policy">Policy order</a><a href="#verbose">Verbose report</a><a href="#files">Files and methods</a>
   </div></nav>

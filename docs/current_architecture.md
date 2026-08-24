@@ -4,6 +4,31 @@
 > Target audience: another AI/LLM agent that must navigate, modify, or extend this codebase.
 > All facts below are taken directly from the files; function signatures are quoted verbatim.
 
+## M6 current-source update (2026-08-24)
+
+The active pipeline now has two complete-document gates between window
+admission and the existing final merge planner:
+
+1. `source_reconciliation.reconcile_document(...)` reads the completed source
+   graph, its window candidate graphs, and local admission plans. It returns a
+   plain report covering local entities, aliases, overlap duplicates with every
+   independent PROV/DQV support, unresolved identities, and conflicts.
+2. `source_validation.validate_source_graph(...)` combines every configured
+   SHACL graph and runs pySHACL once against the complete source graph. With no
+   explicit `ValidationConfig.shape_graphs`, shapes embedded in the legacy
+   Turtle graph are copied into the validation input.
+
+Only a conformant source reaches `_publish_packages()`. Non-conformance raises
+`SourceValidationError`, whose standard SHACL report, reconciliation report,
+and deterministic source artifact remain inspectable. The artifact contains
+canonical N-Triples plus the document digest, window-strategy version,
+candidate-mapping version, extractor identities, and graph digest.
+
+`RunRequest` now includes `ValidationConfig`; successful `RunResult.documents`
+contains one `DocumentResult` per non-blank source. The final Turtle graph is
+still the M5/M6 compatibility publication target; replacing its interim
+per-window plans with one named-graph transaction remains M7 work.
+
 ---
 
 ## 1. Purpose

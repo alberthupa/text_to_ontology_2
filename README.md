@@ -10,8 +10,10 @@ answer is admitted into that document's own *source staging graph* before
 anything canonical happens: a later window sees what earlier windows already
 extracted (clearly marked `(this document)` in its prompt), repeated names are
 reconciled inside the document instead of duplicated, and anything ambiguous or
-conflicting is held for review rather than silently merged. The final ontology
-is only touched after a document's last window was admitted. Identity against
+conflicting is held for review rather than silently merged. After the last
+window, the complete source graph gets an explicit reconciliation report and is
+validated against every configured SHACL shape graph. The final ontology is
+only touched after that gate passes. Identity against
 the whole existing graph is still decided explicitly at that point: an exact
 identifier or a unique exact name/alias match resolves to the existing entity,
 an ambiguous or close-spelling match is held for review, and only confident,
@@ -25,8 +27,9 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-`pyproject.toml` is the single dependency declaration (`rdflib` is the only
-runtime dependency); there is no `requirements.txt`. Python 3.12+ is required.
+`pyproject.toml` is the single dependency declaration (`rdflib` and `pyshacl`
+are the runtime dependencies); there is no `requirements.txt`. Python 3.12+ is
+required.
 The tests need the same editable install:
 
 ```bash
@@ -116,7 +119,8 @@ print(result.triples, "triples in", result.graph_path)
 
 `RunRequest` carries the source, the graph path, and the configuration:
 `WindowingConfig` (window target/overlap size in tokens), `ContextConfig`,
-`ExtractionConfig`, `MergeConfig`, and `ProcessingConfig`
+`ExtractionConfig`, `MergeConfig`, `ValidationConfig` (optional explicit SHACL
+shape graphs), and `ProcessingConfig`
 (`retain_staging_on_failure` exports a failed document's staging graphs to a
 sidecar TriG file next to the output graph for diagnosis; by default they are
 discarded).
@@ -125,6 +129,13 @@ it is sent back to the model for self-repair up to
 `ExtractionConfig(repair_attempts=...)` times (default 2; 0 disables repair)
 before the window is rejected. Every answer, repaired or not, must pass the
 same validation gate.
+On success, `RunResult.documents` contains each document's reconciliation
+report, standard SHACL report, and deterministic canonical N-Triples source
+artifact. Its metadata associates the export with the document digest,
+window-strategy version, candidate-mapping version, and extractor identities.
+SHACL non-conformance raises `SourceValidationError`; the source artifact,
+reconciliation report, and standard SHACL report remain available on that
+exception while the final graph stays unchanged.
 Any adapter can be replaced — pass an object with `model()` and
 `extract(prompt)` as the extractor (a fake in tests), or anything with
 `load(path)` and `save(graph, path)` as the graph store. The core pipeline
@@ -154,6 +165,8 @@ filter options on the command line for the same reason.
 For each document the run prints one line about its staging graph and windows,
 for example `Document doc-13ed72f8: 6 window(s); staging graph ...`, plus one
 `Window k/n admitted ...` line per window showing how the source graph grew.
+After the last window it prints `Reconciled source:` and `SHACL source
+validation:` lines before any final merge plan is built.
 The numbers behind the prompt budget live in `PROMPT_BUDGET` in
 `prompt_budget.py`; `context_tokens` is the ceiling
 on how much ontology context one prompt may carry, and lowering it makes the
@@ -208,6 +221,10 @@ The pipeline that runs when you invoke the program:
 - `src/text_to_ontology/source_staging.py` — one provisional source graph per
   document: stable staging-graph names, source-local admission planning, the
   marked layered prompt context, and diagnostic retention on failure
+- `src/text_to_ontology/source_reconciliation.py` — the complete-document
+  report, overlap support accounting, and deterministic source artifacts
+- `src/text_to_ontology/source_validation.py` — explicit shape-graph combining
+  and the pySHACL gate with its standard validation report
 - `src/text_to_ontology/windowing.py` — stable documents and reproducible
   overlapping text windows
 - `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and

@@ -1,0 +1,8 @@
+@prefix entity: <http://example.org/text-ontology/entity/> .
+@prefix fact: <http://example.org/text-ontology/fact/> .
+@prefix onto: <http://example.org/text-ontology/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+entity:acme a onto:Entity ;
+    skos:prefLabel "Acme Corp" ;
+    fact:founded-year 2024 .

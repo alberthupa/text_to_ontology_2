@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import OWL, RDF, RDFS, SKOS
+from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
 from .graph_partition import partition_graph
 from .graph_skeleton import create_graph_skeleton
@@ -126,6 +126,55 @@ class RunReporter:
         self.line(summary)
         self.line(f"  Corroborated in source graph: {counts.get('duplicates', 0)}")
         self.line(f"  Held for review in source graph: {counts.get('review', 0)}")
+
+    def reconciliation(self, report):
+        """Report the complete document's local identity and assertion state."""
+        counts = report["counts"]
+        summary = (
+            f"  Reconciled source: {counts['local_entities']} local entities, "
+            f"{counts['aliases']} aliases, "
+            f"{counts['duplicate_assertions']} duplicate assertions, "
+            f"{counts['unresolved_identities']} unresolved identities, "
+            f"{counts['conflicts']} conflicts")
+        self.line(summary)
+        if not self.verbose:
+            return
+        self.section("[6a] Complete-source reconciliation")
+        self.line(summary)
+        for entity in report["local_entities"]:
+            self.line(f"  Entity: {entity['name']} ({entity['uri']})")
+            self.line(f"    kind: {entity['kind']}")
+            self.line("    aliases: " +
+                      (", ".join(entity["aliases"]) or "(none)"))
+        for assertion in report["duplicate_assertions"]:
+            self.line("  Duplicate assertion: " +
+                      " | ".join(assertion["triple"]))
+            self.line(f"    independent supports: "
+                      f"{assertion['support_count']}")
+        for identity in report["unresolved_identities"]:
+            self.line(f"  Unresolved {identity['local_id']} in "
+                      f"{identity['window_id']}: " +
+                      ", ".join(identity["reason_codes"]))
+        for conflict in report["conflicts"]:
+            self.line(f"  Conflict {conflict['section']}[{conflict['index']}] "
+                      f"in {conflict['window_id']}: " +
+                      ", ".join(conflict["reason_codes"]))
+
+    def source_validation(self, result):
+        """Report the SHACL gate before any final merge plan is built."""
+        result_count = len(set(result.report_graph.subjects(
+            RDF.type, SH.ValidationResult)))
+        status = "PASS" if result.conforms else "FAIL"
+        summary = (f"  SHACL source validation: {status}; "
+                   f"{result.shape_graphs_checked} shape graph(s), "
+                   f"{result_count} result(s)")
+        self.line(summary)
+        if self.verbose:
+            self.section(f"[6b] Complete-source SHACL validation: {status}")
+            self.line(summary)
+            if not result.conforms:
+                self.block(result.report_graph.serialize(format="turtle"),
+                           language="turtle")
 
     def staging_failed(self, document_id, retained, sidecar_path):
         """Record whether a failed document's staging graphs were kept."""

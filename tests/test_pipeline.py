@@ -211,6 +211,8 @@ class ReportingTest(unittest.TestCase):
 
         for section in ("[2-3] Context selection inputs", "[4] Prompt context",
                         "[5] Main LLM call and extraction", "[6] Validation: PASS",
+                        "[6a] Complete-source reconciliation",
+                        "[6b] Complete-source SHACL validation: PASS",
                         "[7] Merge plan", "[8] Apply and save"):
             self.assertIn(section, printed)
         self.assertIn("Identity e1: NEW", printed)

@@ -66,7 +66,8 @@ def provisional_entity_iri(document_id, local_id):
 
 
 def build_candidate_graph(candidates, document_id, window_id, activity_id,
-                          extractor_model):
+                          extractor_model, entity_iris=None,
+                          assertion_triples=None):
     """One validated package in, one candidate graph out. Deterministic."""
     graph = Graph()
     bind(graph)
@@ -77,8 +78,11 @@ def build_candidate_graph(candidates, document_id, window_id, activity_id,
     _declare_provenance_chain(graph, document_id, window_id, activity_id,
                               extractor_model)
 
+    entity_iris = entity_iris or {}
+    assertion_triples = assertion_triples or {}
     entities = {
-        record["id"]: provisional_entity_iri(document_id, record["id"])
+        record["id"]: entity_iris.get(
+            record["id"], provisional_entity_iri(document_id, record["id"]))
         for record in candidates["entities"]
     }
     for index, record in enumerate(candidates["entities"]):
@@ -87,20 +91,20 @@ def build_candidate_graph(candidates, document_id, window_id, activity_id,
                      _entity_triples(record, entities[record["id"]]))
     for index, record in enumerate(candidates["relations"]):
         record_iri = _record_iri(document_id, window_id, "relation", index)
-        triple = (
+        triple = assertion_triples.get(("relations", index), (
             entities[record["subject"]],
             RELATION[slug(record["predicate"])],
             entities[record["object"]],
-        )
+        ))
         _emit_record(graph, record_iri, activity_id, record["confidence"],
                      [triple])
     for index, record in enumerate(candidates["facts"]):
         record_iri = _record_iri(document_id, window_id, "fact", index)
-        triple = (
+        triple = assertion_triples.get(("facts", index), (
             entities[record["subject"]],
             FACT[slug(record["predicate"])],
             literal_value(record["value"]),
-        )
+        ))
         _emit_record(graph, record_iri, activity_id, record["confidence"],
                      [triple])
     return graph

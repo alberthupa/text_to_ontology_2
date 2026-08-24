@@ -40,7 +40,11 @@ def repair_prompt(original=None, raw_problem=None, issues=()):
     if issues:
         listed = "\n".join(
             f"- [{issue['severity']}] {issue['path']}: {issue['message']}"
-            for issue in issues)
+            for issue in sorted(
+                issues,
+                key=lambda item: (
+                    item.get("path", ""), item.get("code", ""),
+                    item.get("severity", ""), item.get("message", ""))))
         issue_block = f"ISSUES:\n{listed}\n"
     return REPAIR_PROMPT.format(
         problem=problem, issue_block=issue_block, original=original_text)

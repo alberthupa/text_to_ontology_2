@@ -34,14 +34,14 @@ confidence representation, and Python packaging.
 
 ## Status and ownership
 
-- Overall status: [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- Overall status: [ ] Not started  [x] In progress  [ ] Blocked  [ ] Complete
 - Plan owner:
 - Technical owner:
 - Started: 2026-08-24
 - Target release:
 - Last updated: 2026-08-24
-- Current milestone: M6 (source reconciliation and validation) is next
-- Current branch:
+- Current milestone: M7 (document-level final merge and publication) is next
+- Current branch: milestone/m06-source-reconciliation-validation
 - Overall notes:
 
 Use only one status checkbox on each status line. Anyone changing milestone
@@ -1121,7 +1121,7 @@ the final ontology is touched.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [ ] Blocked  [x] Complete
 
 ### Acceptance criteria
 
@@ -1146,45 +1146,72 @@ the final ontology is touched.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M6-T1 → AC1, AC2:** Add a bounded repair coordinator around extraction
+- [x] **M6-T1 → AC1, AC2:** Add a bounded repair coordinator around extraction
   response validation. Use the existing JSON contract for repaired output.
-- [ ] **M6-T2 → AC1:** Add tests for first-repair success, exhausted repairs,
+- [x] **M6-T2 → AC1:** Add tests for first-repair success, exhausted repairs,
   invalid repaired JSON, and network failure during repair.
-- [ ] **M6-T3 → AC3:** Reconcile duplicate record collections while retaining
+- [x] **M6-T3 → AC3:** Reconcile duplicate record collections while retaining
   every independent PROV/DQV evidence record.
-- [ ] **M6-T4 → AC4:** Define and implement a plain document reconciliation
+- [x] **M6-T4 → AC4:** Define and implement a plain document reconciliation
   report; do not create an RDF workflow vocabulary for the report.
-- [ ] **M6-T5 → AC5, AC6:** Add the SHACL adapter and combine configured shape
+- [x] **M6-T5 → AC5, AC6:** Add the SHACL adapter and combine configured shape
   graphs explicitly for source validation.
-- [ ] **M6-T6 → AC5:** Add shape fixtures for valid data, a missing required
+- [x] **M6-T6 → AC5:** Add shape fixtures for valid data, a missing required
   label, datatype mismatch, and constraints spread across multiple shape graphs.
-- [ ] **M6-T7 → AC6:** Persist or return the standard SHACL validation report in
+- [x] **M6-T7 → AC6:** Persist or return the standard SHACL validation report in
   the run result without publishing source assertions.
-- [ ] **M6-T8 → AC7:** Add source-graph canonical digest/export metadata and
+- [x] **M6-T8 → AC7:** Add source-graph canonical digest/export metadata and
   deterministic tests.
-- [ ] **M6-T9 → AC8:** Add final-dataset equality assertions to every new failure
+- [x] **M6-T9 → AC8:** Add final-dataset equality assertions to every new failure
   path.
 
 ### Required evidence
 
-- [ ] Repair-attempt test matrix:
-- [ ] Duplicate assertion with multiple provenance supports example:
-- [ ] SHACL valid/non-conformant results:
-- [ ] Complete source graph export path or returned artifact:
-- [ ] Final graph immutability result:
+- [x] Repair-attempt test matrix: `tests/test_repair.py` covers no repair,
+  first/second repair success, exhausted repairs, invalid repaired JSON, and
+  initial/during-repair network failures.
+- [x] Duplicate assertion with multiple provenance supports example:
+  `DuplicateSupportTest` admits the same relation from two windows and reports
+  one source assertion with two independent candidate-graph PROV/DQV supports.
+- [x] SHACL valid/non-conformant results: `tests/test_source_validation.py`
+  uses the M6 fixtures for valid data, missing label, datatype mismatch, and
+  constraints combined from two shape graphs.
+- [x] Complete source graph export path or returned artifact:
+  `DocumentResult.source_artifact` on success and
+  `SourceValidationError.source_artifact` on failure carry canonical N-Triples
+  and association metadata.
+- [x] Final graph immutability result: `FinalGraphImmutabilityTest` and
+  `PipelineSourceValidationTest` assert unchanged final bytes through repair,
+  reconciliation, SHACL success, exhausted repair, and SHACL failure.
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- SHACL dependency/configuration:
+- Owner: Codex
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: `milestone/m06-source-reconciliation-validation`
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
+- SHACL dependency/configuration: `pyshacl>=0.30,<1`; explicit graphs come from
+  `ValidationConfig.shape_graphs`, otherwise embedded legacy-Turtle shapes are
+  used.
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - Reconciliation remains a read-only plain report; no RDF workflow vocabulary
+    was added.
+  - Candidate evidence uses the source-local resolved IRIs from each admission
+    plan, so overlap records reify the same admitted relation/fact while keeping
+    separate window-scoped PROV collections and DQV measurements.
+  - Canonical N-Triples is returned as an in-memory source artifact. Failed
+    staging TriG export remains controlled by
+    `ProcessingConfig.retain_staging_on_failure`.
+  - The M5 interim publication path remains intentionally unchanged; M7 owns
+    the single document-level named-graph publication transaction.
+- Known follow-ups: M7 must map the reconciled source proposal to canonical
+  identities once, validate the proposed post-merge data, and publish final
+  data/provenance/review named graphs in one transaction.
+- Acceptance evidence location: this section and the M6 test modules; full
+  deterministic suite: `.venv/bin/python -m unittest discover -s tests -p
+  'test_*.py'` → `Ran 775 tests ... OK (skipped=1)` on 2026-08-24.
 
 ---
 

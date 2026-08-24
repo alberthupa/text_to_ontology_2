@@ -1,0 +1,10 @@
+@prefix onto: <http://example.org/text-ontology/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+onto:SourceEntityLabelShape a sh:NodeShape ;
+    sh:targetClass onto:Entity ;
+    sh:property [
+        sh:path skos:prefLabel ;
+        sh:minCount 1
+    ] .

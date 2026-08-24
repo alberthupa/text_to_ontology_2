@@ -217,13 +217,21 @@
       Turtle graph. This page maps every file, class, function, and constant in the repository.
     </p>
     <div class="pill-row">
-      <span class="pill">Python 3 · <b>17 source files</b></span>
-      <span class="pill">depends on <b>rdflib</b> only</span>
+      <span class="pill">Python 3 · <b>32 source files</b></span>
+      <span class="pill">depends on <b>rdflib + pyshacl</b></span>
       <span class="pill">LLM: <b>OpenRouter</b> (Pareto router)</span>
       <span class="pill">output: <b>ontology.ttl</b></span>
-      <span class="pill"><b>16</b> test files · <b>611</b> cases</span>
+      <span class="pill"><b>29</b> test files · <b>775</b> cases</span>
     </div>
   </header>
+
+  <div class="callout green">
+    <b>M6 source-completion gate:</b> after all windows are admitted,
+    <code>source_reconciliation.py</code> produces the document report and
+    deterministic artifact, then <code>source_validation.py</code> combines the
+    configured SHACL graphs. Only a conformant source reaches the final merge
+    planner shown below; non-conformance leaves the final ontology unchanged.
+  </div>
 
   <!-- 1. OVERVIEW -->
   <section id="overview">
@@ -248,6 +256,8 @@
           <li><span class="fn">source_parse.py</span><span class="desc">build the prompt → LLM</span></li>
           <li><span class="fn">llm.py</span><span class="desc">OpenRouter client</span></li>
           <li><span class="fn">candidate_validation.py</span><span class="desc">validate + normalize before planning</span></li>
+          <li><span class="fn">source_reconciliation.py</span><span class="desc">complete-document report + deterministic artifact</span></li>
+          <li><span class="fn">source_validation.py</span><span class="desc">combined SHACL gate before final planning</span></li>
           <li><span class="fn">merge_policy.py</span><span class="desc">read-only merge planning + provenance</span></li>
           <li><span class="fn">entity_lookup.py</span><span class="desc">identity decisions (existing/new/review)</span></li>
           <li><span class="fn">graph_merge.py</span><span class="desc">apply_merge_plan into a graph copy</span></li>

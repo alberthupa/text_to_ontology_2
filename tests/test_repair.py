@@ -121,6 +121,32 @@ class RepairFailureTest(unittest.TestCase):
             extract_validated(DownExtractor(), "prompt", strict_validation,
                               max_repair_attempts=3)
 
+    def test_invalid_json_returned_by_repair_uses_the_remaining_bound(self):
+        extractor = ScriptedExtractor(
+            {},
+            InvalidResponseError("The model returned invalid JSON: broken"),
+            entity_response("Acme Corp"),
+        )
+        outcome = extract_validated(extractor, "prompt", strict_validation,
+                                    max_repair_attempts=2)
+        self.assertTrue(outcome.ok)
+        self.assertEqual(outcome.repair_attempts, 2)
+        self.assertIn("broken", extractor.prompts[2])
+
+    def test_a_network_failure_during_repair_propagates(self):
+        class RepairGoesDown(ScriptedExtractor):
+            def extract(self, prompt):
+                self.prompts.append(prompt)
+                if len(self.prompts) == 1:
+                    return {}
+                raise RuntimeError("OpenRouter error 503 during repair")
+
+        extractor = RepairGoesDown()
+        with self.assertRaisesRegex(RuntimeError, "during repair"):
+            extract_validated(extractor, "prompt", strict_validation,
+                              max_repair_attempts=3)
+        self.assertEqual(len(extractor.prompts), 2)
+
 
 class PromptShapeTest(unittest.TestCase):
     def test_the_prompt_names_the_problem_and_shows_the_original(self):
@@ -135,6 +161,15 @@ class PromptShapeTest(unittest.TestCase):
         prompt = repair_prompt(raw_problem="garbage { not json")
         self.assertIn("not one parseable JSON object", prompt)
         self.assertIn("garbage { not json", prompt)
+
+    def test_issue_order_is_deterministic(self):
+        issues = [
+            {"severity": "error", "path": "facts[1]", "message": "second"},
+            {"severity": "error", "path": "entities[0]", "message": "first"},
+        ]
+        forward = repair_prompt(original={}, issues=issues)
+        backward = repair_prompt(original={}, issues=reversed(issues))
+        self.assertEqual(forward, backward)
 
 
 class PipelineRepairTest(unittest.TestCase):

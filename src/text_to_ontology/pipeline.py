@@ -32,6 +32,17 @@ from .source_staging import (
     window_activity_id,
     window_candidate_graph_name,
 )
+from .source_reconciliation import (
+    SourceGraphArtifact,
+    build_source_artifact,
+    reconcile_document,
+)
+from .source_validation import (
+    SourceValidationError,
+    SourceValidationResult,
+    embedded_shape_graph,
+    validate_source_graph,
+)
 from .task_context import build_task_context
 from .windowing import (
     DEFAULT_TARGET_TOKENS,
@@ -96,6 +107,18 @@ class ProcessingConfig:
 
 
 @dataclass
+class ValidationConfig:
+    """SHACL shape graphs applied to every complete source graph.
+
+    With no explicit graphs, the compatibility Turtle graph's embedded shapes
+    are used. Supplying graphs replaces that default and all supplied graphs
+    are combined for one validation pass.
+    """
+
+    shape_graphs: tuple = ()
+
+
+@dataclass
 class RunRequest:
     """One complete request: sources in, knowledge into one graph file."""
 
@@ -106,6 +129,18 @@ class RunRequest:
     extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
     merge: MergeConfig = field(default_factory=MergeConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
+    validation: ValidationConfig = field(default_factory=ValidationConfig)
+
+
+@dataclass
+class DocumentResult:
+    """The reconciled and validated source artifact for one saved document."""
+
+    path: Path
+    document_id: str
+    source_artifact: SourceGraphArtifact
+    reconciliation_report: dict
+    source_validation: SourceValidationResult
 
 
 @dataclass
@@ -118,6 +153,18 @@ class RunResult:
     files_saved: int
     files_blank: int
     windows_processed: int = 0
+    documents: tuple[DocumentResult, ...] = ()
+
+
+@dataclass
+class _StagedDocument:
+    """Internal state kept until reconciliation and validation finish."""
+
+    packages: list
+    staging: RdflibGraphStore
+    source_graph: Graph
+    candidate_graphs: dict
+    admission_plans: list
 
 
 class Extractor(Protocol):
@@ -144,6 +191,8 @@ class Reporter(Protocol):
     def model_replied(self, extraction, elapsed): ...
     def validation(self, validation): ...
     def window_admitted(self, number, total, counts, source_size): ...
+    def reconciliation(self, report): ...
+    def source_validation(self, result): ...
     def merge_plan(self, plan, candidates, graph): ...
     def saved(self, graph_path, before_size, updated, counts): ...
     def staging_failed(self, document_id, retained, sidecar_path): ...
@@ -215,19 +264,33 @@ def _admit_window(window, candidates, request, document, staging,
     this same document, never canonical individuals. The candidate graph is
     kept alongside as evidence under its own stable name.
     """
+    provenance = build_provenance(Path(document.name), window.text, model)
+    provenance["window_id"] = window.window_id
+    plan = plan_window_admission(
+        source_graph, candidates, provenance, document.document_id,
+        min_new_confidence=request.merge.min_auto_accept_confidence)
+    entity_iris = {
+        local_id: decision["uri"]
+        for local_id, decision in plan["identities"].items()
+        if decision["status"] != "review" and decision.get("uri") is not None
+    }
+    assertion_triples = {
+        (section, item["index"]): item["triple"]
+        for section in ("relations", "facts")
+        for item in plan[section]
+        if item.get("triple") is not None
+    }
     activity_id = window_activity_id(
         document.document_id, window.window_id, model, candidates)
     candidate = build_candidate_graph(
-        candidates, document.document_id, window.window_id, activity_id, model)
+        candidates, document.document_id, window.window_id, activity_id, model,
+        entity_iris=entity_iris, assertion_triples=assertion_triples)
     candidate_name = window_candidate_graph_name(
         document.document_id, window.window_id)
     staging.put(candidate_name, candidate)
 
-    provenance = build_provenance(Path(document.name), window.text, model)
-    plan = plan_window_admission(
-        source_graph, candidates, provenance, document.document_id,
-        min_new_confidence=request.merge.min_auto_accept_confidence)
-    return apply_merge_plan(source_graph, plan)
+    updated, counts = apply_merge_plan(source_graph, plan)
+    return updated, counts, plan
 
 
 def _process_document(document, request, final_graph, extractor, reporter):
@@ -246,12 +309,13 @@ def _process_document(document, request, final_graph, extractor, reporter):
     source_graph = staging.get(staging_name)
     snapshot = final_graphs_snapshot(final_graph)
     packages = []
+    admission_plans = []
     try:
         for number, window in enumerate(windows, start=1):
             reporter.window_started(number, len(windows), window.window_id)
             model, candidates = _extract_window(
                 window, request, final_graph, source_graph, extractor, reporter)
-            source_graph, counts = _admit_window(
+            source_graph, counts, plan = _admit_window(
                 window, candidates, request, document, staging, source_graph,
                 model, reporter)
             if final_graphs_snapshot(final_graph) != snapshot:
@@ -261,13 +325,34 @@ def _process_document(document, request, final_graph, extractor, reporter):
             reporter.window_admitted(number, len(windows), counts,
                                      len(source_graph))
             packages.append((window, model, candidates))
+            admission_plans.append({"window_id": window.window_id,
+                                    "plan": plan})
     except BaseException:
         retained = request.processing.retain_staging_on_failure
         sidecar = (retain_staging(staging, document.document_id,
                                   request.graph_path) if retained else None)
         reporter.staging_failed(document.document_id, retained, sidecar)
         raise
-    return packages
+    candidate_graphs = {
+        name: staging.get(name)
+        for name in staging.graph_names()
+        if name != staging_name
+    }
+    return _StagedDocument(
+        packages=packages,
+        staging=staging,
+        source_graph=source_graph,
+        candidate_graphs=candidate_graphs,
+        admission_plans=admission_plans,
+    )
+
+
+def _shape_graphs(request, final_graph):
+    """Configured shapes, or shapes embedded in the legacy Turtle graph."""
+    if request.validation.shape_graphs:
+        return tuple(request.validation.shape_graphs)
+    embedded = embedded_shape_graph(final_graph)
+    return (embedded,) if len(embedded) else ()
 
 
 def _publish_packages(path, final_graph, packages, request, reporter):
@@ -314,6 +399,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
 
     blank_files = 0
     windows_processed = 0
+    documents = []
     for index, path in enumerate(files, start=1):
         reporter.source_started(path, index, len(files), len(graph))
         raw_text = read_source(path)
@@ -324,14 +410,44 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
 
         document = make_source_document(path.name, raw_text)
         before_size = len(graph)
-        packages = _process_document(
+        before_snapshot = final_graphs_snapshot(graph)
+        staged = _process_document(
             document, request, graph, extractor, reporter)
-        windows_processed += len(packages)
+        windows_processed += len(staged.packages)
+
+        reconciliation = reconcile_document(
+            document.document_id, staged.source_graph,
+            staged.candidate_graphs, staged.admission_plans)
+        reporter.reconciliation(reconciliation)
+        models = [model for _window, model, _candidates in staged.packages]
+        artifact = build_source_artifact(
+            document, staged.source_graph, request.windowing, models)
+        validation = validate_source_graph(
+            staged.source_graph, _shape_graphs(request, graph))
+        reporter.source_validation(validation)
+        if not validation.conforms:
+            retained = request.processing.retain_staging_on_failure
+            sidecar = (retain_staging(
+                staged.staging, document.document_id, request.graph_path)
+                if retained else None)
+            reporter.staging_failed(document.document_id, retained, sidecar)
+            raise SourceValidationError(
+                validation, artifact, reconciliation, sidecar)
+        if final_graphs_snapshot(graph) != before_snapshot:
+            raise RuntimeError(
+                "the final ontology changed during source reconciliation")
 
         graph, counts = _publish_packages(
-            path, graph, packages, request, reporter)
+            path, graph, staged.packages, request, reporter)
         save_graph(graph, request.graph_path)
         reporter.saved(request.graph_path, before_size, graph, counts)
+        documents.append(DocumentResult(
+            path=path,
+            document_id=document.document_id,
+            source_artifact=artifact,
+            reconciliation_report=reconciliation,
+            source_validation=validation,
+        ))
     reporter.finished(graph, request.graph_path)
 
     return RunResult(
@@ -341,4 +457,5 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         files_saved=len(files) - blank_files,
         files_blank=blank_files,
         windows_processed=windows_processed,
+        documents=tuple(documents),
     )

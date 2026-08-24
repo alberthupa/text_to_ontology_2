@@ -165,6 +165,7 @@ class _Planner:
             "source_path": self.provenance["source_path"],
             "source_sha256": self.provenance["source_sha256"],
             "model": self.provenance["model"],
+            "window_id": self.provenance.get("window_id"),
             "package_sha256": self.package_digest(),
         })
         return ONTO["merge-event/" + hashlib.sha256(
