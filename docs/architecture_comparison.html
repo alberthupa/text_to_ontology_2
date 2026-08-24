@@ -1,0 +1,699 @@
+<title>Three Roads to Jena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, dl, dd { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    /* neutrals, biased slightly toward the indigo structural accent */
+    --ground:      #F6F6F9;
+    --surface:     #FFFFFF;
+    --surface-alt: #EFEFF4;
+    --rule:        #DEDEE6;
+    --rule-strong: #C4C4D1;
+    --ink:         #1A1B25;
+    --ink-soft:    #43455A;
+    --ink-faint:   #6E7089;
+
+    /* structural accent — used for rules, marks, emphasis. Never for data. */
+    --accent:      #2C3A5C;
+    --accent-soft: #E6E9F2;
+
+    /* proposal identity — the only saturated colour on the page */
+    --ox:          #96552B;
+    --ox-bg:       #F6EBE2;
+    --oa:          #2F6088;
+    --oa-bg:       #E4EDF5;
+    --ds:          #4F6F35;
+    --ds-bg:       #E8EFE0;
+
+    --shadow: 0 1px 2px rgba(26, 27, 37, .05), 0 8px 24px -16px rgba(26, 27, 37, .28);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #14151C;
+      --surface:     #1B1D26;
+      --surface-alt: #232532;
+      --rule:        #2E3040;
+      --rule-strong: #444759;
+      --ink:         #ECECF2;
+      --ink-soft:    #B4B6C6;
+      --ink-faint:   #8A8CA1;
+
+      --accent:      #A9BAD9;
+      --accent-soft: #23293A;
+
+      --ox:          #D8996B;
+      --ox-bg:       #2C221B;
+      --oa:          #7FB3DA;
+      --oa-bg:       #1A242E;
+      --ds:          #9CBE78;
+      --ds-bg:       #1F2619;
+
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .9);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #14151C;
+    --surface:     #1B1D26;
+    --surface-alt: #232532;
+    --rule:        #2E3040;
+    --rule-strong: #444759;
+    --ink:         #ECECF2;
+    --ink-soft:    #B4B6C6;
+    --ink-faint:   #8A8CA1;
+
+    --accent:      #A9BAD9;
+    --accent-soft: #23293A;
+
+    --ox:          #D8996B;
+    --ox-bg:       #2C221B;
+    --oa:          #7FB3DA;
+    --oa-bg:       #1A242E;
+    --ds:          #9CBE78;
+    --ds-bg:       #1F2619;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .9);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Archivo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 16.5px;
+    line-height: 1.62;
+    font-feature-settings: "kern";
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 2.5rem) 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 6vw, 4.75rem);
+  }
+
+  /* ---------- type ---------- */
+
+  h1, h2, h3 { font-family: "Newsreader", Georgia, "Times New Roman", serif; font-weight: 500; text-wrap: balance; line-height: 1.15; }
+  h1 { font-size: clamp(2.4rem, 6vw, 3.9rem); letter-spacing: -.015em; }
+  h2 { font-size: clamp(1.6rem, 3.4vw, 2.1rem); letter-spacing: -.01em; }
+  h3 { font-size: 1.16rem; font-weight: 600; letter-spacing: -.005em; }
+
+  .eyebrow {
+    font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: .705rem;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+
+  p { max-width: 68ch; }
+  .lede { font-family: "Newsreader", Georgia, serif; font-size: clamp(1.1rem, 2.2vw, 1.32rem); line-height: 1.55; color: var(--ink-soft); max-width: 60ch; }
+
+  code, .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-size: .855em; }
+  code { background: var(--surface-alt); padding: .08em .34em; border-radius: 3px; color: var(--ink); }
+
+  a { color: var(--accent); text-underline-offset: .18em; text-decoration-thickness: 1px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---------- header ---------- */
+
+  .masthead { display: flex; flex-direction: column; gap: 1.4rem; }
+  .masthead .rule { height: 3px; background: var(--accent); width: 4.5rem; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: .5rem 1.6rem;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .74rem;
+    color: var(--ink-faint); padding-top: .9rem; border-top: 1px solid var(--rule);
+  }
+
+  /* ---------- section frame ---------- */
+
+  section { display: flex; flex-direction: column; gap: 1.5rem; }
+  .section-head { display: flex; flex-direction: column; gap: .55rem; border-top: 1px solid var(--rule-strong); padding-top: 1.1rem; }
+
+  /* ---------- proposal cards ---------- */
+
+  .cards { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); }
+  .card {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 1.35rem 1.35rem 1.5rem; display: flex; flex-direction: column; gap: .85rem;
+    box-shadow: var(--shadow); border-top: 3px solid var(--mark, var(--rule-strong));
+  }
+  .card h3 { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .8rem; font-weight: 500;
+             letter-spacing: .14em; text-transform: uppercase; color: var(--mark); }
+  .card .thesis { font-family: "Newsreader", Georgia, serif; font-size: 1.28rem; line-height: 1.3; color: var(--ink); }
+  .card dl { display: flex; flex-direction: column; gap: .7rem; font-size: .875rem; }
+  .card dt { font-family: "JetBrains Mono", monospace; font-size: .66rem; letter-spacing: .13em;
+             text-transform: uppercase; color: var(--ink-faint); margin-bottom: .12rem; }
+  .card dd { color: var(--ink-soft); }
+  .card .stat { margin-top: auto; padding-top: .9rem; border-top: 1px solid var(--rule);
+                font-family: "JetBrains Mono", monospace; font-size: .72rem; color: var(--ink-faint);
+                font-variant-numeric: tabular-nums; }
+
+  .ox { --mark: var(--ox); --mark-bg: var(--ox-bg); }
+  .oa { --mark: var(--oa); --mark-bg: var(--oa-bg); }
+  .ds { --mark: var(--ds); --mark-bg: var(--ds-bg); }
+
+  .chip {
+    display: inline-block; font-family: "JetBrains Mono", monospace; font-size: .66rem;
+    letter-spacing: .1em; text-transform: uppercase; padding: .12rem .45rem;
+    border-radius: 3px; background: var(--mark-bg); color: var(--mark);
+    white-space: nowrap; vertical-align: baseline;
+  }
+
+  /* ---------- callout ---------- */
+
+  .note {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 1.05rem 1.25rem; border-radius: 0 4px 4px 0;
+    display: flex; flex-direction: column; gap: .5rem;
+  }
+  .note p { max-width: 74ch; }
+  .note .eyebrow { color: var(--accent); }
+
+  /* ---------- agreement list ---------- */
+
+  .agree { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+  .agree li {
+    display: grid; grid-template-columns: 2.2rem 1fr; gap: 0 1rem;
+    padding: .85rem 0; border-bottom: 1px solid var(--rule); align-items: baseline;
+  }
+  .agree .n { font-family: "JetBrains Mono", monospace; font-size: .74rem; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .agree strong { font-weight: 600; }
+  .agree p { color: var(--ink-soft); font-size: .93rem; margin-top: .18rem; max-width: 76ch; }
+
+  /* ---------- tables ---------- */
+
+  .scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { width: 100%; min-width: 720px; font-size: .885rem; }
+  th, td { text-align: left; padding: .78rem .95rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-family: "JetBrains Mono", monospace; font-size: .67rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 500;
+    background: var(--surface-alt); border-bottom: 1px solid var(--rule-strong); white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.q { color: var(--ink); font-weight: 500; min-width: 11rem; }
+  td.call { color: var(--ink-soft); }
+  td.call b { color: var(--ink); font-weight: 600; }
+  .pos { color: var(--ink-soft); }
+  .pos b { display: block; font-family: "JetBrains Mono", monospace; font-size: .66rem;
+           letter-spacing: .1em; text-transform: uppercase; font-weight: 500; margin-bottom: .15rem; }
+  .pos.ox b { color: var(--ox); }
+  .pos.oa b { color: var(--oa); }
+  .pos.ds b { color: var(--ds); }
+
+  /* ---------- gaps ---------- */
+
+  .gaps { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .gap {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 1.15rem 1.25rem; display: flex; flex-direction: column; gap: .5rem;
+  }
+  .gap h3 { font-size: 1.02rem; }
+  .gap p { font-size: .9rem; color: var(--ink-soft); max-width: none; }
+
+  /* ---------- recommendation ---------- */
+
+  .steps { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+  .steps li {
+    display: grid; grid-template-columns: 3.4rem 1fr; gap: 0 1rem;
+    padding: .95rem 0; border-bottom: 1px solid var(--rule);
+  }
+  .steps .n {
+    font-family: "JetBrains Mono", monospace; font-size: .72rem; color: var(--accent);
+    letter-spacing: .06em; padding-top: .2rem; font-variant-numeric: tabular-nums;
+  }
+  .steps strong { font-weight: 600; }
+  .steps p { color: var(--ink-soft); font-size: .9rem; margin-top: .2rem; max-width: 76ch; }
+
+  .verdict { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .verdict > div {
+    border: 1px solid var(--rule); border-left: 3px solid var(--mark, var(--accent));
+    border-radius: 0 4px 4px 0; background: var(--surface); padding: 1.1rem 1.2rem;
+    display: flex; flex-direction: column; gap: .4rem;
+  }
+  .verdict h3 { font-family: "JetBrains Mono", monospace; font-size: .72rem; letter-spacing: .13em;
+                text-transform: uppercase; color: var(--mark); font-weight: 500; }
+  .verdict p { font-size: .9rem; color: var(--ink-soft); max-width: none; }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.2rem; color: var(--ink-faint); font-size: .82rem; }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="rule"></div>
+    <p class="eyebrow">text_to_ontology &nbsp;·&nbsp; architecture review &nbsp;·&nbsp; 24 August 2026</p>
+    <h1>Three Roads to Jena</h1>
+    <p class="lede">Three independent proposals for turning a working pile of nineteen Python files
+      into a modular, graph-currency pipeline. They agree on far more than they disagree — and the
+      disagreements are the only part worth your time.</p>
+    <div class="meta">
+      <span>5,895 lines of Python</span>
+      <span>18 test files</span>
+      <span>318 KB ontology.ttl</span>
+      <span>1 dependency (rdflib)</span>
+    </div>
+  </header>
+
+  <!-- ================= AT A GLANCE ================= -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">01 — At a glance</p>
+      <h2>What each proposal actually is</h2>
+    </div>
+
+    <div class="cards">
+      <article class="card ox">
+        <h3>ox</h3>
+        <p class="thesis">The shape of the thing, in twelve pages.</p>
+        <dl>
+          <div><dt>Strongest at</dt><dd>Getting you moving. A layered diagram, a nine-row module table mapped onto today's files, and a six-step migration you could start this afternoon.</dd></div>
+          <div><dt>Leaves out</dt><dd>Package layout, configuration, any callable API, and what the intermediate extraction looks like.</dd></div>
+        </dl>
+        <p class="stat">12.8 KB &nbsp;·&nbsp; 9 modules &nbsp;·&nbsp; 6 migration steps</p>
+      </article>
+
+      <article class="card oa">
+        <h3>openai</h3>
+        <p class="thesis">A modular monolith with a real API boundary.</p>
+        <dl>
+          <div><dt>Strongest at</dt><dd>Contracts. <code>run_text_to_graph()</code> as the one entry point, typed config records, candidate RDF graphs before merge, graph roles supplied by configuration, SHACL as a gate.</dd></div>
+          <div><dt>Leaves out</dt><dd>Restraint. Eight subpackages and five config classes before there are five modules; the longest read by a wide margin.</dd></div>
+        </dl>
+        <p class="stat">22.9 KB &nbsp;·&nbsp; 8 subpackages &nbsp;·&nbsp; 5 phases</p>
+      </article>
+
+      <article class="card ds">
+        <h3>deepseek</h3>
+        <p class="thesis">ox, plus a folder you can read as a sentence.</p>
+        <dl>
+          <div><dt>Strongest at</dt><dd>Legibility and honesty about the present. A flat <code>modules/</code> directory named for verbs, <code>vocab.py</code> as the single URI authority, and the only audit of the vocabulary the code writes today.</dd></div>
+          <div><dt>Leaves out</dt><dd>Everything ox leaves out — it inherits the same silence on API surface and configuration.</dd></div>
+        </dl>
+        <p class="stat">17.5 KB &nbsp;·&nbsp; 10 modules &nbsp;·&nbsp; 7 migration steps</p>
+      </article>
+    </div>
+
+    <div class="note">
+      <p class="eyebrow">Read the three as two</p>
+      <p>ox and deepseek are not independent. They share whole sentences (“already ~80% true”, “the loose
+        files feeling”), an identical named-graph table, and migration steps 1–5 in the same order with the
+        same size labels. deepseek is ox expanded — a directory layout, a vocabulary audit, and one extra
+        migration step. So the apparent 3-of-3 consensus below is really 2-of-2: the ox/deepseek line and
+        the openai line arrived at the same core independently. That is a strong signal for the core, and it
+        means where <span class="chip oa">openai</span> stands alone, it is a genuine second opinion rather
+        than a minority vote.</p>
+    </div>
+  </section>
+
+  <!-- ================= AGREEMENT ================= -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">02 — Settled</p>
+      <h2>What all three already agree on</h2>
+      <p>Treat this list as decided. Nothing below is contested by any proposal, and most of it is a
+        formalization of what your code does already rather than a change of direction.</p>
+    </div>
+
+    <ul class="agree">
+      <li><span class="n">01</span><div>
+        <strong>The graph is the only currency between modules.</strong>
+        <p>Plain functions with the shape <code>module(graph, params) → graph | data</code>. No plugin
+          registry, no abstract base classes, no framework. The “API” is the set of signatures.</p>
+      </div></li>
+      <li><span class="n">02</span><div>
+        <strong>One thin orchestrator owns the order; modules never import each other.</strong>
+        <p>This is the real fix for the “loose files” feeling. <code>ontology.py:29</code> already <em>is</em> that
+          orchestrator — it just also owns the CLI, the reporting wiring, and the budget helper.</p>
+      </div></li>
+      <li><span class="n">03</span><div>
+        <strong>A store adapter is the single new abstraction.</strong>
+        <p>rdflib in memory first, Jena Fuseki over SPARQL later, behind one boring interface. Turtle is
+          demoted from storage to interchange. <code>graph_management.py</code> is 64 lines, so this swap is
+          cheap — that file is almost the adapter already.</p>
+      </div></li>
+      <li><span class="n">04</span><div>
+        <strong>Named graphs replace read-time partitioning.</strong>
+        <p>Schema, shapes, instance, support, and optional per-source graphs. Placement becomes a write-time
+          decision instead of re-classifying a growing dataset on every run, which is what
+          <code>graph_partition.py</code> does today.</p>
+      </div></li>
+      <li><span class="n">05</span><div>
+        <strong>A window is a source text.</strong>
+        <p>Split on paragraph boundaries with ~10% overlap, process in order so window N+1 sees the entities
+          window N created. Nothing downstream changes — which is why all three reach for it: it is the
+          cheapest possible answer to “inputs will be very long”.</p>
+      </div></li>
+      <li><span class="n">06</span><div>
+        <strong>Provenance keys on (source sha256, window index).</strong>
+        <p>The same key buys idempotent re-runs, selective un-merge, and the ability to cite where a triple
+          came from. Backlog items 2, 3 and 6 collapse into one design decision.</p>
+      </div></li>
+      <li><span class="n">07</span><div>
+        <strong>A seed graph is just an input graph.</strong>
+        <p>Repeatable <code>--seed</code> / <code>--shapes</code> flags; the default seed ships as a
+          <code>.ttl</code> file rather than the eight hard-coded triples now in
+          <code>graph_management.py:31</code>. That single change makes the future seed-builder tool
+          decoupled by construction — anything that emits valid Turtle is a seed builder.</p>
+      </div></li>
+      <li><span class="n">08</span><div>
+        <strong>How much skeleton reaches the prompt is a parameter, not a rule.</strong>
+        <p>All three park it in the context module. ox and deepseek propose a
+          <code>skeleton_mode = none | relevant | full</code> enum; openai proposes replaceable
+          <code>select_skeleton()</code> strategies. Same idea, different granularity.</p>
+      </div></li>
+      <li><span class="n">09</span><div>
+        <strong>Planning stays read-only; exactly one writer applies a finished plan.</strong>
+        <p>Your <code>merge_policy</code> → <code>graph_merge</code> split survives all three proposals
+          untouched. It is the strongest thing in the current codebase.</p>
+      </div></li>
+      <li><span class="n">10</span><div>
+        <strong>SHACL becomes an actual check.</strong>
+        <p>Today a shape is seeded and never validated against. All three add a conformance step —
+          though not, as it turns out, in the same place.</p>
+      </div></li>
+      <li><span class="n">11</span><div>
+        <strong>Vanilla vocabularies only.</strong>
+        <p>RDF, RDFS, OWL, SKOS, SHACL, plus prov, dcterms, foaf. Project IRIs are reserved for discovered
+          domain terms — the things being described, never the machinery describing them.</p>
+      </div></li>
+      <li><span class="n">12</span><div>
+        <strong>Migrate in small steps that each keep the CLI working and the tests green.</strong>
+        <p>And all three explicitly rule out the same things: microservices, DAG engines, plugin registries,
+          inference engines, and parallel merge writers.</p>
+      </div></li>
+    </ul>
+  </section>
+
+  <!-- ================= DISAGREEMENT ================= -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">03 — Contested</p>
+      <h2>Ten decisions the proposals do not share</h2>
+      <p>This is the part that needs your judgement. The last column is my recommendation, weighted
+        toward what you actually asked for and what <code>AGENTS.md</code> demands.</p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Question</th><th>Positions</th><th>Call</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="q">Are named graph IRIs fixed or configured?</td>
+            <td>
+              <p class="pos ox"><b>ox / deepseek</b>Five fixed names: <code>urn:app:schema</code>, <code>:shapes</code>, <code>:instance</code>, <code>:support</code>, <code>:source/&lt;sha&gt;</code>.</p>
+              <p class="pos oa"><b>openai</b>Configuration supplies <em>lists</em>: <code>schema_graphs</code>, <code>shape_graphs</code>, <code>data_graphs</code>, plus one explicit <code>target_graph</code>.</p>
+            </td>
+            <td class="call"><b>openai.</b> You said future input will be “many graphs / SHACL shapes”. A single fixed <code>urn:app:shapes</code> contradicts that on day one. Keep the five names as defaults, not as the model.</td>
+          </tr>
+          <tr>
+            <td class="q">Is there a candidate graph before merge?</td>
+            <td>
+              <p class="pos ox"><b>ox / deepseek</b>No. JSON → validate → plan → triples, as today.</p>
+              <p class="pos oa"><b>openai</b>Yes. JSON is converted to a staging RDF graph immediately, and validation, SHACL, and planning all run against RDF.</p>
+            </td>
+            <td class="call"><b>openai — and this is the single biggest difference.</b> Your own note in <code>ox_recommendations.md</code> asks for “extracted subgraph before graph merge”. It is also the only way SHACL can run before anything is written.</td>
+          </tr>
+          <tr>
+            <td class="q">Where does SHACL run?</td>
+            <td>
+              <p class="pos ox"><b>ox / deepseek</b>After the merge — their orchestrator pseudocode literally reads <code>merge.apply(...)</code> then <code>check.report_if_requested(...)</code>.</p>
+              <p class="pos oa"><b>openai</b>Before publication, as a precondition of the transaction.</p>
+            </td>
+            <td class="call"><b>openai.</b> A check that runs after the write is a report, not a gate. Backlog item 8 asks for enforcement.</td>
+          </tr>
+          <tr>
+            <td class="q">Do confidence and merge decisions belong in RDF?</td>
+            <td>
+              <p class="pos ds"><b>deepseek</b>Yes, in the support graph, re-expressed with <code>prov:</code> / <code>dcterms:</code> instead of today's <code>onto:ExtractionEvent</code> and <code>onto:MergeCandidate</code>.</p>
+              <p class="pos oa"><b>openai</b>No. There is no standard property for extraction confidence, so keep it in the run report and let candidate/review graph placement carry the decision.</p>
+            </td>
+            <td class="call"><b>Split them.</b> deepseek is right that the audit trail belongs in the graph — it is what makes review possible, and you already write it. openai is right that no standard property exists — which argues for one narrowly-scoped app property, not for discarding the data.</td>
+          </tr>
+          <tr>
+            <td class="q">How deep should the package tree be?</td>
+            <td>
+              <p class="pos ox"><b>ox</b>Unspecified.</p>
+              <p class="pos ds"><b>deepseek</b>Flat: <code>pipeline.py</code>, <code>store.py</code>, <code>vocab.py</code>, <code>seeds/</code>, and one <code>modules/</code> folder of verb-named files.</p>
+              <p class="pos oa"><b>openai</b>Eight subpackages — <code>source/ context/ extraction/ merge/ store/ adapters/ reporting/ tools/</code>.</p>
+            </td>
+            <td class="call"><b>deepseek.</b> <code>AGENTS.md</code> asks for code self-explanatory to a non-advanced developer. <code>ls modules/</code> printing the pipeline in order beats navigating <code>context/select.py</code> vs <code>context/skeleton.py</code> vs <code>context/patterns.py</code>. Split a module into a folder only when its file actually grows too big — <code>task_context.py</code> at 622 lines already qualifies.</td>
+          </tr>
+          <tr>
+            <td class="q">Does entity identity get its own module?</td>
+            <td>
+              <p class="pos ds"><b>deepseek</b>No — <code>entity_lookup</code> folds into <code>plan</code>.</p>
+              <p class="pos oa"><b>openai</b>Yes — its own read-only module with a five-tier resolution ladder and room for a later text index.</p>
+              <p class="pos ox"><b>ox</b>Doesn't say.</p>
+            </td>
+            <td class="call"><b>openai.</b> Your backlog note asks for a deep dive on entity resolution and deduplication. That needs its own file, its own tests, and somewhere to hang an index tier — not a section inside the planner.</td>
+          </tr>
+          <tr>
+            <td class="q">Is there a callable API, or only a CLI?</td>
+            <td>
+              <p class="pos ox"><b>ox / deepseek</b>An orchestrator <code>run()</code> that also parses arguments.</p>
+              <p class="pos oa"><b>openai</b><code>run_text_to_graph(request, store, extractor, reporter)</code>, with the CLI as a thin translator into one request object.</p>
+            </td>
+            <td class="call"><b>openai.</b> This is literally the “api-like structure” you asked for. It also makes the store, the LLM, and the reporter injectable — which <code>tests/test_pipeline.py</code> already wants, since <code>main()</code> takes a reporter today purely for that reason.</td>
+          </tr>
+          <tr>
+            <td class="q">How is configuration modelled?</td>
+            <td>
+              <p class="pos ox"><b>ox / deepseek</b>An implicit <code>options</code> object passed around.</p>
+              <p class="pos oa"><b>openai</b>Named dataclass records per module; only the composition root reads environment variables.</p>
+            </td>
+            <td class="call"><b>openai, lightly.</b> Named records beat an untyped dict, and “no module reads <code>os.environ</code>” is worth enforcing — <code>llm.py</code> breaks it today. But don't write five config classes before there are five modules.</td>
+          </tr>
+          <tr>
+            <td class="q">What belongs on the store interface?</td>
+            <td>
+              <p class="pos ds"><b>deepseek</b>Adds <code>store.source_already_processed(sha256)</code>.</p>
+              <p class="pos ox"><b>ox / openai</b>SPARQL query/update, graph get/put, ttl load/export, transaction. Nothing else.</p>
+            </td>
+            <td class="call"><b>ox / openai.</b> “Have I seen this source?” is a one-line SPARQL <code>ASK</code> owned by the pipeline. Put it on the store and every backend re-implements application logic.</td>
+          </tr>
+          <tr>
+            <td class="q">How rigorous is windowing?</td>
+            <td>
+              <p class="pos ox"><b>ox / deepseek</b>Paragraph boundaries, ~10% overlap, window index in provenance.</p>
+              <p class="pos oa"><b>openai</b>Plus character offsets, a <code>strategy_version</code> in the window id, a real tokenizer, a sentence-then-hard-character fallback ladder, and an explicit “never discard the tail”.</p>
+            </td>
+            <td class="call"><b>openai.</b> Without offsets you cannot cite a window; without a strategy version, provenance by index alone silently breaks the first time you tune the splitter. Both are cheap to add now and expensive to retrofit.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= AGAINST THE CODE ================= -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">04 — Reality check</p>
+      <h2>How each holds up against the code that exists</h2>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>What's true today</th><th>What it means for the proposals</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="q"><code>ontology.py</code> is 129 lines and already the orchestrator</td>
+            <td class="call">All three describe a pipeline you have. The work is subtraction — lifting the CLI, the budget helper, and the reporter wiring out — not construction.</td>
+          </tr>
+          <tr>
+            <td class="q"><code>graph_management.py</code> is 64 lines: open, bind, atomic save</td>
+            <td class="call">The store adapter is genuinely a small change. Every proposal's step 1 is correct and low-risk, and the atomic-replace behavior transfers to the memory backend unchanged.</td>
+          </tr>
+          <tr>
+            <td class="q"><code>merge_policy.py</code> writes <code>onto:ExtractionEvent</code> and <code>onto:MergeCandidate</code>; <code>graph_merge.py</code> writes <code>onto:kind</code></td>
+            <td class="call">deepseek is the only proposal that read this. Its audit is factually correct — and <code>graph_patterns.py</code> already has to exclude <code>onto:kind</code> from pattern reporting, which is the smell that confirms the property is redundant with <code>rdf:type</code>.</td>
+          </tr>
+          <tr>
+            <td class="q"><code>prompt_budget.py</code> already accepts an injectable <code>count_tokens</code></td>
+            <td class="call">The “real tokenizer” backlog item is a default swap, exactly as all three assume. Nothing to design.</td>
+          </tr>
+          <tr>
+            <td class="q"><code>graph_partition.py</code> classifies triples into schema / instance / support</td>
+            <td class="call">Nobody says so, but this file <em>is</em> the one-time migration tool that moves your existing 318 KB graph into named graphs. It should be kept for that and for the viewer, then retired from the hot path.</td>
+          </tr>
+          <tr>
+            <td class="q"><code>view_html.py</code> is 1,207 lines and produced a 677 KB page from a 318 KB graph</td>
+            <td class="call">The viewer assumes the whole graph fits in memory and on one HTML page. All three file it under “report / views” and say nothing else. It is the component most likely to break the moment Fuseki arrives.</td>
+          </tr>
+          <tr>
+            <td class="q">18 test files, one per module, testing seams directly</td>
+            <td class="call">This is why the flat layout wins. Every test currently imports a top-level module by name; deepseek's <code>modules/</code> move is a one-line import change per file, openai's eight-package tree is a rewrite of all eighteen.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= GAPS ================= -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">05 — Blind spots</p>
+      <h2>What none of the three covers</h2>
+      <p>Six things missing from all three documents. The first one is the most important, because it is
+        the thing you wrote down first.</p>
+    </div>
+
+    <div class="gaps">
+      <div class="gap">
+        <h3>The generalization agenda is missing</h3>
+        <p>Your root <code>next_steps.md</code> lays out a real plan: separate TBox from ABox, extract
+          locality-based OWL modules around a signature, induce an empirical schema from characteristic
+          sets, publish derived SHACL shapes, and build purpose-specific views with SPARQL
+          <code>CONSTRUCT</code> — weighted by an importance score. That is your answer to “how does the
+          skeleton get into the prompt once texts are long”. All three proposals compress it into a
+          <code>skeleton_mode</code> enum or a config block. It needs its own module producing named,
+          rebuildable derived graphs — ontology map, relationship map with counts, domain modules,
+          agent view. <code>graph_patterns.py</code> is already the seed of it.</p>
+      </div>
+      <div class="gap">
+        <h3>The viewer does not survive the move</h3>
+        <p>Three files and 1,665 lines of reporting assume an in-memory graph and a single self-contained
+          page. Against Fuseki, both assumptions fail. Nobody proposes what the viewer becomes: SPARQL-backed
+          pages, a size ceiling, or a per-named-graph view.</p>
+      </div>
+      <div class="gap">
+        <h3>No packaging story</h3>
+        <p>All three propose a package directory. None mentions a <code>pyproject.toml</code>, a console
+          entry point, or how nineteen flat modules and eighteen flat test imports get there without a day
+          of churn. There is no packaging in the repo today at all.</p>
+      </div>
+      <div class="gap">
+        <h3>Windowing has a price nobody quotes</h3>
+        <p>N windows means N LLM calls and N context builds per document. No proposal suggests a per-document
+          ceiling, a cost line in the report, or a resume point after a failed window — even though every one
+          of them promises that a failed window leaves committed work intact.</p>
+      </div>
+      <div class="gap">
+        <h3>Failure semantics stay a sentence</h3>
+        <p>“Per-window commits keep earlier work intact” appears in all three. None says what the process
+          exits with, what the report shows, or whether a partially-processed document is resumable —
+          which matters much more once one file becomes forty windows.</p>
+      </div>
+      <div class="gap">
+        <h3>Migrating the graph you already have</h3>
+        <p>318 KB of Turtle, including support triples, has to land in the right named graphs exactly once.
+          Only openai names the step, and none identifies the tool — which, as above, you already wrote.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= RECOMMENDATION ================= -->
+  <section>
+    <div class="section-head">
+      <p class="eyebrow">06 — Recommendation</p>
+      <h2>Take deepseek's skeleton and openai's contracts</h2>
+      <p>Neither line is complete on its own. ox/deepseek get the shape and the restraint right; openai
+        gets the boundaries right. They are compatible — the split falls neatly along
+        <em>where files live</em> versus <em>what functions promise</em>.</p>
+    </div>
+
+    <div class="verdict">
+      <div class="ds">
+        <h3>from deepseek</h3>
+        <p>The flat layout — <code>pipeline.py</code>, <code>store.py</code>, <code>vocab.py</code>,
+          <code>seeds/default.ttl</code>, and one <code>modules/</code> folder whose file names read as the
+          flow. Plus <code>vocab.py</code> as the enforcement point for “nothing custom”, and its vocabulary
+          cleanup as a real migration step.</p>
+      </div>
+      <div class="oa">
+        <h3>from openai</h3>
+        <p>The callable <code>run_text_to_graph()</code> boundary with an injectable store, extractor, and
+          reporter; per-module config records; the candidate RDF graph; graph roles as configured lists;
+          SHACL before publication; identity as its own module; and windows with offsets and a strategy
+          version.</p>
+      </div>
+      <div class="ox">
+        <h3>from ox</h3>
+        <p>The cadence. Six or seven small steps, each keeping the CLI usable and the tests green, no
+          big-bang rewrite — and the discipline of a proposal short enough to actually be followed.</p>
+      </div>
+    </div>
+
+    <div class="section-head" style="border-top:0; padding-top:.5rem;">
+      <h3>A sequence, reordered from theirs</h3>
+    </div>
+
+    <ol class="steps">
+      <li><span class="n">01</span><div>
+        <strong>Store adapter, memory backend only.</strong>
+        <p>Route every open and save through <code>store.py</code>. No behavior change, all tests green.
+          Every proposal agrees this is first, and it is.</p>
+      </div></li>
+      <li><span class="n">02</span><div>
+        <strong>Split the CLI from <code>run_text_to_graph()</code>, add config records.</strong>
+        <p>Do this second, not late. It is the change that makes everything after it testable without a CLI,
+          and it gets cheaper the sooner it happens — openai puts it in phase 1 for good reason.</p>
+      </div></li>
+      <li><span class="n">03</span><div>
+        <strong>Move files into <code>modules/</code>, add <code>vocab.py</code>.</strong>
+        <p>One import line per test file. Do it while the module count is nineteen rather than thirty.</p>
+      </div></li>
+      <li><span class="n">04</span><div>
+        <strong>Windowing, with offsets and a strategy version.</strong>
+        <p>The loop body runs per window; provenance gains the window key. Add the per-document cost ceiling
+          and the resume point here, while the loop is already being touched.</p>
+      </div></li>
+      <li><span class="n">05</span><div>
+        <strong>Candidate graph, then SHACL as a gate.</strong>
+        <p>Convert validated JSON into a staging RDF graph, validate it against the shapes, and only then
+          plan and publish. This is where your “extracted subgraph before merge” note lands, and it must
+          come before Fuseki, not after.</p>
+      </div></li>
+      <li><span class="n">06</span><div>
+        <strong>Named graphs and configured graph lists.</strong>
+        <p>Write-time placement; <code>--seed</code> / <code>--shapes</code> repeatable; the default seed as
+          a shipped <code>.ttl</code>. Use <code>graph_partition.py</code> once to migrate the existing
+          graph, then keep it only for the viewer.</p>
+      </div></li>
+      <li><span class="n">07</span><div>
+        <strong>Fuseki backend, opt-in.</strong>
+        <p><code>--store fuseki:...</code> for real runs; memory stays the default for tests. Decide here
+          what the viewer becomes.</p>
+      </div></li>
+      <li><span class="n">08</span><div>
+        <strong>The derived-views module.</strong>
+        <p>The gap none of the three covers: skeleton extraction, characteristic-set induction, derived SHACL
+          shapes, and <code>CONSTRUCT</code>-built task views as named, rebuildable graphs. Once this exists,
+          <code>skeleton_mode</code> stops being an enum and becomes a choice of which derived view to feed
+          the prompt — which is what you were actually describing.</p>
+      </div></li>
+    </ol>
+
+    <div class="note">
+      <p class="eyebrow">If you only take one thing</p>
+      <p>Adopt the candidate graph. It is the one structural idea only one proposal has, it is the thing you
+        independently asked for in your own backlog note, and it is what turns validation, SHACL, and review
+        from a report into a gate. Everything else on this page is a matter of taste or timing.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>Sources reviewed: <code>docs/architecture_proposal_ox.md</code>,
+      <code>docs/architecture_proposal_openai.md</code>,
+      <code>docs/architecture_proposal_deepseek.md</code>, against
+      <code>docs/ox_recommendations.md</code>, <code>next_steps.md</code>, <code>README.md</code>,
+      <code>AGENTS.md</code>, and the working tree at commit <code>2f8da8b</code>.</p>
+  </footer>
+
+</div>
