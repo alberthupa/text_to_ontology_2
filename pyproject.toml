@@ -4,13 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "text-to-ontology"
-version = "0.1.0"
+version = "0.2.0"
 description = "Dead simple text to ontology: add knowledge from text files to one Turtle graph."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "rdflib>=7,<8",
 ]
+
+[project.scripts]
+text-to-ontology = "text_to_ontology.cli:main"
 
 # Development/test dependencies: none beyond the standard library today.
 # When one is needed, add a PEP 735 dependency group here, for example:

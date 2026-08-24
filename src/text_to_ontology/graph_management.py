@@ -1,6 +1,8 @@
 """Open, seed, name, and save the one canonical Turtle graph."""
 
 import os
+from pathlib import Path
+from typing import Protocol
 
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
@@ -51,8 +53,9 @@ def save_graph(graph, path):
     A failed serialization leaves the previous graph file untouched and
     usable, and never leaves a stale temporary file behind.
     """
-    path = str(path)
-    temporary = path + ".tmp"
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = str(path) + ".tmp"
     try:
         graph.serialize(temporary, format="turtle")
         os.replace(temporary, path)
@@ -62,3 +65,23 @@ def save_graph(graph, path):
         except OSError:
             pass
         raise
+
+
+class GraphStore(Protocol):
+    """How the pipeline reads one graph in and writes it back out."""
+
+    def load(self, path):
+        """Return the graph stored at path, seeding it when absent."""
+
+    def save(self, graph, path):
+        """Persist the graph to path atomically."""
+
+
+class LocalTurtleStore:
+    """The default store: one Turtle file with an atomic replace on save."""
+
+    def load(self, path):
+        return open_graph(path)
+
+    def save(self, graph, path):
+        save_graph(graph, path)

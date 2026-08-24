@@ -73,3 +73,22 @@ def ask_llm(prompt):
         return json.loads(answer[start:end + 1])
     except json.JSONDecodeError as error:
         raise RuntimeError(f"The model returned invalid JSON:\n{answer}") from error
+
+
+class OpenRouterExtractor:
+    """The real extractor: one OpenRouter chat completion per prompt.
+
+    This adapter is where environment loading lives; the core pipeline never
+    reads environment variables itself.
+    """
+
+    def __init__(self, model=None):
+        self.model_override = model
+
+    def model(self):
+        """The configured model name, or the OpenRouter default."""
+        return self.model_override if self.model_override else model_name()
+
+    def extract(self, prompt):
+        """Send one prompt and return its parsed JSON answer."""
+        return ask_llm(prompt)

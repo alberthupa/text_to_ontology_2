@@ -49,34 +49,37 @@ export OPENROUTER_MODEL="openrouter/pareto-code:nitro"
 
 ## Use
 
-Create a seed graph from one file:
+After installing, use one of three equivalent commands (the console script,
+the module entry point, or the legacy root wrapper):
 
 ```bash
+text-to-ontology notes.txt ontology.ttl
+python3 -m text_to_ontology notes.txt ontology.ttl
 python ontology.py notes.txt ontology.ttl
 ```
 
 Add another file to that same graph:
 
 ```bash
-python ontology.py more_notes.md ontology.ttl
+text-to-ontology more_notes.md ontology.ttl
 ```
 
 Or recursively read all supported text-like files in a directory:
 
 ```bash
-python ontology.py documents/ ontology.ttl
+text-to-ontology documents/ ontology.ttl
 ```
 
 If the second argument is omitted, the output is `ontology.ttl`:
 
 ```bash
-python ontology.py documents/
+text-to-ontology documents/
 ```
 
 Save a detailed report as a timestamped Markdown file under `reports/runs/`:
 
 ```bash
-python ontology.py documents/ ontology.ttl --report
+text-to-ontology documents/ ontology.ttl --report
 ```
 
 `--report` writes to the file only, so a successful run stays silent in the
@@ -86,6 +89,34 @@ they may be large and may contain source-derived information.
 
 That is the whole workflow. Open `ontology.ttl` in a text editor to see or edit
 the RDF/RDFS/OWL/SHACL/SKOS graph directly.
+
+## Call it from Python
+
+The public API is one function. The CLI is a thin adapter over it:
+
+```python
+from pathlib import Path
+
+from text_to_ontology.api import RunRequest, run_text_to_graph
+from text_to_ontology.graph_management import LocalTurtleStore
+from text_to_ontology.llm import OpenRouterExtractor
+from text_to_ontology.run_report import RunReporter
+
+result = run_text_to_graph(
+    RunRequest(source=Path("notes.txt"), graph_path=Path("ontology.ttl")),
+    graph_store=LocalTurtleStore(),
+    extractor=OpenRouterExtractor(),
+    reporter=RunReporter(verbose=False),
+)
+print(result.triples, "triples in", result.graph_path)
+```
+
+`RunRequest` carries the source, the graph path, and the configuration:
+`WindowingConfig`, `ContextConfig`, `ExtractionConfig`, and `MergeConfig`.
+Any adapter can be replaced — pass an object with `model()` and
+`extract(prompt)` as the extractor (a fake in tests), or anything with
+`load(path)` and `save(graph, path)` as the graph store. The core pipeline
+never parses arguments, reads environment variables, or exits the process.
 
 ## Look at the graph
 
@@ -142,7 +173,11 @@ wrappers that call the packaged modules, so both old workflows keep working.
 
 The pipeline that runs when you invoke the program:
 
-- `src/text_to_ontology/ontology.py` — the command line and the run loop
+- `src/text_to_ontology/api.py` — the documented public API and its exports
+- `src/text_to_ontology/pipeline.py` — the run loop, the request/result
+  dataclasses, and the extractor/reporter contracts
+- `src/text_to_ontology/cli.py` — the command line: argument parsing, adapters,
+  exit codes (also reachable as `python3 -m text_to_ontology`)
 - `src/text_to_ontology/run_report.py` — normal and verbose run reporting to
   the terminal, a file, or any supplied text stream
 - `src/text_to_ontology/ingest_sources.py` — finding and reading source files

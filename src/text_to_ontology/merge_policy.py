@@ -75,7 +75,9 @@ def _decimal_confidence(value):
 class _Planner:
     """One planning pass over one graph and one candidate package."""
 
-    def __init__(self, graph, candidates, provenance):
+    def __init__(self, graph, candidates, provenance,
+                 min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE):
+        self.min_new_confidence = min_new_confidence
         self.graph = graph
         self.candidates = {
             section: [dict(record)
@@ -83,7 +85,8 @@ class _Planner:
             for section in ("entities", "relations", "facts")
         }
         self.provenance = dict(provenance)
-        self.identities = resolve_entities(self.candidates, graph)
+        self.identities = resolve_entities(
+            self.candidates, graph, min_new_confidence=min_new_confidence)
         self.catalog = entity_catalog(graph)
         self.planned = self._planned_entries()
         # Virtual state: triples accepted earlier in this same plan.
@@ -269,7 +272,7 @@ class _Planner:
                     "outcome": "review",
                     "reason_codes": ["conflict.existing_description"],
                 }
-            elif record["confidence"] >= AUTO_ACCEPT_MIN_CONFIDENCE:
+            elif record["confidence"] >= self.min_new_confidence:
                 fields["description"] = {"outcome": "accept"}
                 triples.add((uri, RDFS.comment, Literal(description)))
             else:
@@ -289,7 +292,7 @@ class _Planner:
                 "reason_codes": ["alias.claimed_by_other_entity"],
                 "owners": owners,
             }
-        if record["confidence"] >= AUTO_ACCEPT_MIN_CONFIDENCE:
+        if record["confidence"] >= self.min_new_confidence:
             return {
                 **({"alias": alias_name} if alias_name else {}),
                 "outcome": "accept",
@@ -369,7 +372,7 @@ class _Planner:
                     "triple": triple,
                     "conflicts": sorted(conflicts, key=_triple_sort)}
 
-        if record["confidence"] < AUTO_ACCEPT_MIN_CONFIDENCE:
+        if record["confidence"] < self.min_new_confidence:
             return {**base, "outcome": "review",
                     "reason_codes": ["confidence.below_auto_accept"],
                     "triple": triple, "conflicts": []}
@@ -547,7 +550,8 @@ class _Planner:
         }
 
 
-def resolve_entities(candidates, graph):
+def resolve_entities(candidates, graph,
+                     min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE):
     """One identity decision per candidate entity, in normalized order.
 
     Read only. Earlier accepted new entities become visible to later candidates
@@ -576,7 +580,7 @@ def resolve_entities(candidates, graph):
             continue
         decision = identity_decision(
             entity, catalog, planned_catalog=planned,
-            min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE,
+            min_new_confidence=min_new_confidence,
             allocate_uri=allocate, provisional_uri=proposed_entity_uri,
         )
         decisions[str(local_id)] = decision
@@ -590,6 +594,8 @@ def resolve_entities(candidates, graph):
     return decisions
 
 
-def plan_graph_merge(graph, candidates, provenance):
+def plan_graph_merge(graph, candidates, provenance,
+                     min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE):
     """Build the complete read-only merge plan for one valid candidate package."""
-    return _Planner(graph, candidates, provenance).build()
+    return _Planner(graph, candidates, provenance,
+                    min_new_confidence=min_new_confidence).build()

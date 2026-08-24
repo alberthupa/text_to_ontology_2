@@ -1,9 +1,7 @@
-"""Baseline: the end-to-end run, with the LLM boundary patched."""
+"""Baseline: the end-to-end public API, with a fake extractor and local store."""
 
-import contextlib
 import io
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,14 +10,18 @@ from unittest import mock
 from rdflib import Literal
 from rdflib.namespace import RDF, SKOS
 
-from text_to_ontology import ontology
-from text_to_ontology import source_parse
-from text_to_ontology import graph_management
+from text_to_ontology import graph_management, pipeline
+from text_to_ontology.api import (
+    ContextConfig,
+    RunRequest,
+    run_text_to_graph,
+)
 from text_to_ontology.graph_management import ENTITY, ONTO, RELATION
-from text_to_ontology.prompt_budget import estimate_tokens
+from text_to_ontology.prompt_budget import PROMPT_BUDGET, estimate_tokens
+from text_to_ontology.run_report import RunReporter
 
 
-class FakeLLM:
+class FakeExtractor:
     """Answers each prompt from a queue and records what it was asked."""
 
     def __init__(self, *responses):
@@ -27,7 +29,10 @@ class FakeLLM:
         self.prompts = []
         self.observed = []
 
-    def __call__(self, prompt):
+    def model(self):
+        return "test-model"
+
+    def extract(self, prompt):
         self.prompts.append(prompt)
         response = self.responses.pop(0) if self.responses else {}
         if callable(response):
@@ -48,16 +53,26 @@ def entity_response(*names):
     }
 
 
-@contextlib.contextmanager
-def run_main(argv, fake_llm):
-    """Run main() with a patched LLM and captured output."""
+def run_api(source, graph_path, fake_extractor, verbose=False, request=None):
+    """Run the public API with a fake extractor and captured output."""
     output = io.StringIO()
-    with mock.patch.object(source_parse, "ask_llm", fake_llm), \
-            mock.patch.object(ontology, "model_name", lambda: "test-model"), \
-            mock.patch.object(sys, "argv", ["ontology.py", *argv]), \
-            contextlib.redirect_stdout(output):
-        ontology.main()
-    yield output.getvalue()
+    reporter = RunReporter(verbose=verbose, stream=output)
+    if request is None:
+        request = RunRequest(source=Path(source), graph_path=Path(graph_path))
+    result = run_text_to_graph(
+        request,
+        graph_store=graph_management.LocalTurtleStore(),
+        extractor=fake_extractor,
+        reporter=reporter,
+    )
+    return result, output.getvalue()
+
+
+def run_once(root, name, text, graph_path, fake_extractor, **kwargs):
+    """Write one new source file, process it against a graph, report back."""
+    source = root / name
+    source.write_text(text, encoding="utf-8")
+    return run_api(source, graph_path, fake_extractor, **kwargs)
 
 
 class EmptySourceTest(unittest.TestCase):
@@ -71,12 +86,13 @@ class EmptySourceTest(unittest.TestCase):
             (root / "c_real.txt").write_text("Acme Corp exists.", encoding="utf-8")
             graph_path = root / "graph.ttl"
 
-            fake = FakeLLM(entity_response("Acme Corp"))
-            with run_main([str(root), str(graph_path)], fake):
-                pass
+            fake = FakeExtractor(entity_response("Acme Corp"))
+            result, _ = run_api(root, graph_path, fake)
 
         self.assertEqual(len(fake.prompts), 1)
         self.assertIn("Acme Corp exists.", fake.prompts[0])
+        self.assertEqual((result.files_total, result.files_saved,
+                          result.files_blank), (3, 1, 2))
 
 
 class SequentialFilesTest(unittest.TestCase):
@@ -95,10 +111,8 @@ class SequentialFilesTest(unittest.TestCase):
                 saved_between_files["text"] = graph_path.read_text(encoding="utf-8")
                 return entity_response("Ada Lovelace")
 
-            fake = FakeLLM(entity_response("Acme Corp"), second_response)
-            with run_main([str(root), str(graph_path)], fake):
-                pass
-
+            fake = FakeExtractor(entity_response("Acme Corp"), second_response)
+            run_api(root, graph_path, fake)
             graph = graph_management.open_graph(graph_path)
 
         self.assertEqual(len(fake.prompts), 2)
@@ -123,27 +137,30 @@ class SavingTest(unittest.TestCase):
             source.write_text("Acme Corp exists.", encoding="utf-8")
             graph_path = root / "made" / "up" / "graph.ttl"
 
-            fake = FakeLLM(entity_response("Acme Corp"))
-            with run_main([str(source), str(graph_path)], fake):
-                pass
+            run_api(source, graph_path, FakeExtractor(entity_response("Acme Corp")))
 
             self.assertTrue(graph_path.exists())
 
     def test_the_default_graph_path_is_ontology_ttl(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            output = io.StringIO()
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
             previous = Path.cwd()
             os.chdir(root)
             try:
-                fake = FakeLLM(entity_response("Acme Corp"))
-                with run_main([str(source)], fake):
-                    pass
+                result = run_text_to_graph(
+                    RunRequest(source=source),
+                    graph_store=graph_management.LocalTurtleStore(),
+                    extractor=FakeExtractor(entity_response("Acme Corp")),
+                    reporter=RunReporter(stream=output),
+                )
             finally:
                 os.chdir(previous)
 
             self.assertTrue((root / "ontology.ttl").exists())
+            self.assertEqual(result.graph_path, Path("ontology.ttl"))
 
 
 class ReportingTest(unittest.TestCase):
@@ -154,9 +171,8 @@ class ReportingTest(unittest.TestCase):
             source.write_text("Acme Corp exists.", encoding="utf-8")
             graph_path = root / "graph.ttl"
 
-            fake = FakeLLM(entity_response("Acme Corp", "Beta Corp"))
-            with run_main([str(source), str(graph_path)], fake) as printed:
-                pass
+            _, printed = run_api(source, graph_path, FakeExtractor(
+                entity_response("Acme Corp", "Beta Corp")))
 
         self.assertIn(f"Reading {source}", printed)
         self.assertIn("Asking test-model", printed)
@@ -182,9 +198,8 @@ class ReportingTest(unittest.TestCase):
                 }],
             }
 
-            with run_main(["-v", str(source), str(graph_path)],
-                          FakeLLM(response)) as printed:
-                pass
+            _, printed = run_api(source, graph_path, FakeExtractor(response),
+                                 verbose=True)
 
         for section in ("[2-3] Context selection inputs", "[4] Prompt context",
                         "[5] Main LLM call and extraction", "[6] Validation: PASS",
@@ -195,65 +210,19 @@ class ReportingTest(unittest.TestCase):
         self.assertIn("reason: confidence.below_auto_accept", printed)
         self.assertIn(f"Saved atomically to {graph_path}", printed)
 
-    def test_report_is_saved_without_terminal_output(self):
+    def test_a_run_result_reports_final_counts(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
             graph_path = root / "graph.ttl"
-            previous = Path.cwd()
-            os.chdir(root)
-            try:
-                with run_main([str(source), str(graph_path), "--report"],
-                              FakeLLM(entity_response("Acme Corp"))) as printed:
-                    pass
-            finally:
-                os.chdir(previous)
 
-            reports = list((root / "reports" / "runs").glob("*.md"))
-            self.assertEqual(len(reports), 1)
-            saved_report = reports[0].read_text(encoding="utf-8")
+            result, _ = run_api(source, graph_path, FakeExtractor(
+                entity_response("Acme Corp")))
+            graph = graph_management.open_graph(graph_path)
 
-        self.assertIn("# Ontology extraction report", saved_report)
-        self.assertIn("## [5] Main LLM call and extraction", saved_report)
-        self.assertIn("System message:", saved_report)
-        self.assertIn("Extract knowledge. Return only JSON.", saved_report)
-        self.assertIn("Acme Corp exists.", saved_report)
-        self.assertIn("## [6] Validation: PASS", saved_report)
-        self.assertIn("## [7] Merge plan", saved_report)
-        self.assertIn("## [8] Apply and save", saved_report)
-        self.assertIn("Identity e1: NEW", saved_report)
-        self.assertEqual(printed, "")
-
-
-class ErrorTest(unittest.TestCase):
-    def test_a_directory_without_text_files_raises(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            (root / "image.png").write_text("x", encoding="utf-8")
-            with self.assertRaises(RuntimeError) as caught:
-                with run_main([str(root), str(root / "graph.ttl")], FakeLLM()):
-                    pass
-        self.assertIn("No text-like files found", str(caught.exception))
-
-    def test_a_missing_source_raises(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            with self.assertRaises(RuntimeError) as caught:
-                with run_main(
-                    [str(root / "absent.txt"), str(root / "graph.ttl")], FakeLLM()
-                ):
-                    pass
-        self.assertIn("Source does not exist", str(caught.exception))
-
-
-def run_once(root, name, text, graph_path, fake):
-    """Process one new source file against a graph, and return the fake."""
-    source = root / name
-    source.write_text(text, encoding="utf-8")
-    with run_main([str(source), str(graph_path)], fake):
-        pass
-    return fake
+        self.assertEqual(result.triples, len(graph))
+        self.assertEqual(result.files_saved, 1)
 
 
 class SelectedContextTest(unittest.TestCase):
@@ -262,16 +231,17 @@ class SelectedContextTest(unittest.TestCase):
     def build(self, root, graph_path):
         """A graph holding two unrelated entities from two earlier files."""
         run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                 FakeLLM(entity_response("Acme Corp")))
+                 FakeExtractor(entity_response("Acme Corp")))
         run_once(root, "02.txt", "Beta Corp exists.", graph_path,
-                 FakeLLM(entity_response("Beta Corp")))
+                 FakeExtractor(entity_response("Beta Corp")))
 
     def test_a_mentioned_entity_is_sent_and_an_unmentioned_one_is_not(self):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             self.build(root, graph_path)
-            fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
-                            graph_path, FakeLLM(entity_response("Ada Lovelace")))
+            fake = FakeExtractor(entity_response("Ada Lovelace"))
+            run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                     graph_path, fake)
         prompt = fake.prompts[0]
         self.assertIn(str(ENTITY["acme-corp"]), prompt)
         self.assertNotIn(str(ENTITY["beta-corp"]), prompt)
@@ -280,8 +250,9 @@ class SelectedContextTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             self.build(root, graph_path)
-            fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
-                            graph_path, FakeLLM(entity_response("Ada Lovelace")))
+            fake = FakeExtractor(entity_response("Ada Lovelace"))
+            run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                     graph_path, fake)
         self.assertNotIn("EXISTING ENTITIES:", fake.prompts[0])
         self.assertIn("ONTOLOGY CONTEXT", fake.prompts[0])
 
@@ -290,10 +261,9 @@ class SelectedContextTest(unittest.TestCase):
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             (root / "01.txt").write_text("Acme Corp exists.", encoding="utf-8")
             (root / "02.txt").write_text("Acme Corp hires Ada.", encoding="utf-8")
-            fake = FakeLLM(entity_response("Acme Corp"),
-                           entity_response("Ada Lovelace"))
-            with run_main([str(root), str(graph_path)], fake):
-                pass
+            fake = FakeExtractor(entity_response("Acme Corp"),
+                                 entity_response("Ada Lovelace"))
+            run_api(root, graph_path, fake)
         # Nothing existed for the first file; the first file's result is context
         # for the second.
         self.assertNotIn("ONTOLOGY CONTEXT", fake.prompts[0])
@@ -303,9 +273,15 @@ class SelectedContextTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             self.build(root, graph_path)
-            with mock.patch.dict(ontology.PROMPT_BUDGET, {"context_tokens": 0}):
-                fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
-                                graph_path, FakeLLM(entity_response("Ada")))
+            request = RunRequest(
+                source=root / "03.txt",
+                graph_path=graph_path,
+                context=ContextConfig(budget={**PROMPT_BUDGET,
+                                              "context_tokens": 0}),
+            )
+            fake = FakeExtractor(entity_response("Ada"))
+            run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                     graph_path, fake, request=request)
         prompt = fake.prompts[0]
         self.assertNotIn("ONTOLOGY CONTEXT", prompt)
         self.assertIn("Acme Corp hires Ada Lovelace.", prompt)
@@ -316,24 +292,22 @@ class SelectedContextTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             self.build(root, graph_path)
-            source = root / "03.txt"
-            source.write_text("Acme Corp hires Ada Lovelace.", encoding="utf-8")
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM(entity_response("Ada"))) as printed:
-                pass
+            _, printed = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                                  graph_path, FakeExtractor(entity_response("Ada")))
         self.assertIn("Context:", printed)
-        self.assertIn(f"/{ontology.PROMPT_BUDGET['context_tokens']} tokens", printed)
+        self.assertIn(f"/{PROMPT_BUDGET['context_tokens']} tokens", printed)
 
     def test_the_prompt_stays_smaller_than_the_configured_allowance(self):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             self.build(root, graph_path)
-            fake = run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
-                            graph_path, FakeLLM(entity_response("Ada")))
+            fake = FakeExtractor(entity_response("Ada"))
+            run_once(root, "03.txt", "Acme Corp hires Ada Lovelace.",
+                     graph_path, fake)
         context = fake.prompts[0].split("ONTOLOGY CONTEXT")[1].split(
             "Entity resolution is important.")[0]
         self.assertLessEqual(estimate_tokens(context),
-                             ontology.PROMPT_BUDGET["context_tokens"])
+                             PROMPT_BUDGET["context_tokens"])
 
 
 class MergeIdentityTest(unittest.TestCase):
@@ -343,12 +317,11 @@ class MergeIdentityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
-            source = root / "02.txt"
-            source.write_text("Nothing familiar appears here.", encoding="utf-8")
-            fake = FakeLLM(entity_response("Acme Corp"))
-            with run_main([str(source), str(graph_path)], fake) as printed:
-                pass
+                     FakeExtractor(entity_response("Acme Corp")))
+            fake = FakeExtractor(entity_response("Acme Corp"))
+            _, printed = run_once(root, "02.txt",
+                                  "Nothing familiar appears here.",
+                                  graph_path, fake)
             graph = graph_management.open_graph(graph_path)
 
         self.assertNotIn(str(ENTITY["acme-corp"]), fake.prompts[0])
@@ -367,13 +340,12 @@ class FailureTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
             before = graph_path.read_bytes()
             source = root / "02.txt"
             source.write_text("Acme Corp hires Ada.", encoding="utf-8")
             with self.assertRaises(RuntimeError):
-                with run_main([str(source), str(graph_path)], FakeLLM(explode)):
-                    pass
+                run_api(source, graph_path, FakeExtractor(explode))
             self.assertEqual(graph_path.read_bytes(), before)
             graph = graph_management.open_graph(graph_path)
             self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),
@@ -389,7 +361,7 @@ class RepositoryGraphTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
         self.assertEqual(canonical.read_bytes(), before)
 
 
@@ -403,12 +375,9 @@ class ExistingGraphContextTest(unittest.TestCase):
             source.write_text("Acme Corp exists.", encoding="utf-8")
             graph_path = root / "graph.ttl"
 
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM(entity_response("Acme Corp"))):
-                pass
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM(entity_response("acme corp"))) as printed:
-                pass
+            run_api(source, graph_path, FakeExtractor(entity_response("Acme Corp")))
+            _, printed = run_api(source, graph_path, FakeExtractor(
+                entity_response("acme corp")))
 
             graph = graph_management.open_graph(graph_path)
 
@@ -441,19 +410,18 @@ class ValidationGateTest(unittest.TestCase):
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
-            with mock.patch.object(ontology, "apply_merge_plan", fake_apply):
-                with run_main([str(source), str(graph_path)],
-                              FakeLLM({
-                                  "entities": [{
-                                      "id": "e1", "name": "  Acme   Corp  ",
-                                      "kind": "Company", "description": "",
-                                      "aliases": ["ACME", "ACME"],
-                                      "existing_id": None,
-                                      "confidence": 0.9,
-                                  }],
-                                  "relations": [], "facts": [],
-                              })):
-                    pass
+            fake = FakeExtractor({
+                "entities": [{
+                    "id": "e1", "name": "  Acme   Corp  ",
+                    "kind": "Company", "description": "",
+                    "aliases": ["ACME", "ACME"],
+                    "existing_id": None,
+                    "confidence": 0.9,
+                }],
+                "relations": [], "facts": [],
+            })
+            with mock.patch.object(pipeline, "apply_merge_plan", fake_apply):
+                run_api(source, graph_path, fake)
         domain = set(captured["plan"]["domain_triples"])
         self.assertIn((ENTITY["acme-corp"], SKOS.prefLabel,
                        Literal("Acme Corp")), domain)
@@ -465,27 +433,21 @@ class ValidationGateTest(unittest.TestCase):
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM({
-                              "entities": [
-                                  entity_response("Acme Corp")["entities"][0],
-                                  entity_response("Acme Corp")["entities"][0],
-                              ],
-                              "relations": [], "facts": [],
-                          })) as printed:
-                pass
+            one = entity_response("Acme Corp")["entities"][0]
+            _, printed = run_api(source, graph_path, FakeExtractor({
+                "entities": [one, one],
+                "relations": [], "facts": [],
+            }))
         self.assertIn("Validated: 1 entities", printed)
         self.assertIn("1 duplicates removed", printed)
 
     def test_a_non_mapping_response_rejects_the_file(self):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
-            before = graph_path.read_bytes() if graph_path.exists() else b""
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
             with self.assertRaises(RuntimeError) as caught:
-                with run_main([str(source), str(graph_path)], FakeLLM([])):
-                    pass
+                run_api(source, graph_path, FakeExtractor([]))
         self.assertIn("validation error(s)", str(caught.exception))
 
     def test_an_invalid_endpoint_rejects_the_file(self):
@@ -494,13 +456,12 @@ class ValidationGateTest(unittest.TestCase):
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
             with self.assertRaises(RuntimeError):
-                with run_main([str(source), str(graph_path)], FakeLLM({
+                run_api(source, graph_path, FakeExtractor({
                     "entities": [entity_response("Acme Corp")["entities"][0]],
                     "relations": [{"subject": "e1", "predicate": "employs",
                                    "object": "ghost"}],
                     "facts": [],
-                })):
-                    pass
+                }))
         self.assertFalse(graph_path.exists())
 
     def test_a_hallucinated_existing_id_is_rejected(self):
@@ -510,32 +471,30 @@ class ValidationGateTest(unittest.TestCase):
             source.write_text("Acme Corp exists.", encoding="utf-8")
             ghost = str(ENTITY["not-in-the-prompt"])
             with self.assertRaises(RuntimeError) as caught:
-                with run_main([str(source), str(graph_path)], FakeLLM({
+                run_api(source, graph_path, FakeExtractor({
                     "entities": [{
                         "id": "e1", "name": "Acme Corp", "kind": "Company",
                         "existing_id": ghost, "confidence": 0.9,
                     }],
                     "relations": [], "facts": [],
-                })):
-                    pass
+                }))
         self.assertIn("existing_id", str(caught.exception))
 
     def test_a_valid_existing_id_from_the_prompt_resolves(self):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
             source = root / "02.txt"
             source.write_text("Acme Corp is important.", encoding="utf-8")
             existing = str(ENTITY["acme-corp"])
-            with run_main([str(source), str(graph_path)], FakeLLM({
+            _, printed = run_api(source, graph_path, FakeExtractor({
                 "entities": [{
                     "id": "e1", "name": "Acme Corp", "kind": "Company",
                     "existing_id": existing, "confidence": 0.9,
                 }],
                 "relations": [], "facts": [],
-            })) as printed:
-                pass
+            }))
         self.assertIn("0 new, 1 resolved", printed)
 
     def test_no_merge_or_save_after_a_validation_error(self):
@@ -543,12 +502,11 @@ class ValidationGateTest(unittest.TestCase):
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
-            with mock.patch.object(ontology, "plan_graph_merge") as planned, \
-                    mock.patch.object(ontology, "apply_merge_plan") as merged, \
-                    mock.patch.object(ontology, "save_graph") as saved:
+            with mock.patch.object(pipeline, "plan_graph_merge") as planned, \
+                    mock.patch.object(pipeline, "apply_merge_plan") as merged, \
+                    mock.patch.object(pipeline, "save_graph") as saved:
                 with self.assertRaises(RuntimeError):
-                    with run_main([str(source), str(graph_path)], FakeLLM([])):
-                        pass
+                    run_api(source, graph_path, FakeExtractor([]))
             planned.assert_not_called()
             merged.assert_not_called()
             saved.assert_not_called()
@@ -557,13 +515,12 @@ class ValidationGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
             before = graph_path.read_bytes()
             source = root / "02.txt"
             source.write_text("Acme Corp hires Ada.", encoding="utf-8")
             with self.assertRaises(RuntimeError):
-                with run_main([str(source), str(graph_path)], FakeLLM({})):
-                    pass
+                run_api(source, graph_path, FakeExtractor({}))
             self.assertEqual(graph_path.read_bytes(), before)
 
     def test_prior_files_stay_saved_and_later_files_are_not_processed(self):
@@ -572,10 +529,9 @@ class ValidationGateTest(unittest.TestCase):
             (root / "01.txt").write_text("Acme Corp exists.", encoding="utf-8")
             (root / "02.txt").write_text("This is malformed.", encoding="utf-8")
             (root / "03.txt").write_text("Beta Corp exists.", encoding="utf-8")
-            fake = FakeLLM(entity_response("Acme Corp"), {})
+            fake = FakeExtractor(entity_response("Acme Corp"), {})
             with self.assertRaises(RuntimeError):
-                with run_main([str(root), str(graph_path)], fake):
-                    pass
+                run_api(root, graph_path, fake)
             graph = graph_management.open_graph(graph_path)
         self.assertEqual(len(fake.prompts), 2)
         self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),
@@ -587,11 +543,10 @@ class ValidationGateTest(unittest.TestCase):
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
             one = entity_response("Acme Corp")["entities"][0]
-            with run_main([str(source), str(graph_path)], FakeLLM({
+            _, printed = run_api(source, graph_path, FakeExtractor({
                 "entities": [dict(one), dict(one)],
                 "relations": [], "facts": [],
-            })) as printed:
-                pass
+            }))
             graph = graph_management.open_graph(graph_path)
         self.assertIn("1 new, 0 resolved", printed)
         self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),
@@ -602,15 +557,15 @@ class ValidationGateTest(unittest.TestCase):
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             (root / "a_blank.txt").write_text("   \n\t", encoding="utf-8")
             (root / "b_real.txt").write_text("Acme Corp exists.", encoding="utf-8")
-            with mock.patch.object(ontology, "validate_candidates") as validator, \
-                    mock.patch.object(ontology, "apply_merge_plan") as merged, \
-                    mock.patch.object(ontology, "save_graph") as saved:
+            with mock.patch.object(pipeline, "validate_candidates") as validator, \
+                    mock.patch.object(pipeline, "apply_merge_plan") as merged, \
+                    mock.patch.object(pipeline, "save_graph") as saved:
                 validator.return_value = {
                     "valid": True,
                     "candidates": entity_response("Acme Corp"),
                     "issues": [],
                     "counts": {"normalized": {"entities": 1, "relations": 0,
-                                             "facts": 0},
+                                              "facts": 0},
                                "duplicates_removed": {"entities": 0,
                                                       "relations": 0,
                                                       "facts": 0,
@@ -621,9 +576,7 @@ class ValidationGateTest(unittest.TestCase):
                     "relation_triples": 0, "fact_triples": 0,
                     "metadata_triples": 0, "duplicates": 0, "review": 0,
                     "audit_triples": 0})
-                with run_main([str(root), str(graph_path)],
-                              FakeLLM(entity_response("Acme Corp"))):
-                    pass
+                run_api(root, graph_path, FakeExtractor(entity_response("Acme Corp")))
         validator.assert_called_once()
         merged.assert_called_once()
         saved.assert_called_once()
@@ -636,7 +589,7 @@ class MergePolicyPipelineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
             source = root / "02.txt"
             source.write_text("Acme Corp hires Ada Lovelace.", encoding="utf-8")
             acme = str(ENTITY["acme-corp"])
@@ -661,9 +614,7 @@ class MergePolicyPipelineTest(unittest.TestCase):
                 ],
                 "facts": [],
             }
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM(response)) as printed:
-                pass
+            _, printed = run_api(source, graph_path, FakeExtractor(response))
             graph = graph_management.open_graph(graph_path)
 
         self.assertIn("1 accepted, 1 corroborated, 1 for review", printed)
@@ -685,7 +636,7 @@ class MergePolicyPipelineTest(unittest.TestCase):
             ada0["id"] = "e2"
             run_once(root, "01.txt", "Acme Corp hires Ada Lovelace.",
                      graph_path,
-                     FakeLLM({
+                     FakeExtractor({
                          "entities": [acme0, ada0],
                          "relations": [{"subject": "e1", "predicate": "employs",
                                         "object": "e2", "confidence": 0.9}],
@@ -708,9 +659,7 @@ class MergePolicyPipelineTest(unittest.TestCase):
                                "object": "e2", "confidence": 0.9}],
                 "facts": [],
             }
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM(response)) as printed:
-                pass
+            _, printed = run_api(source, graph_path, FakeExtractor(response))
             after = graph_path.read_bytes()
 
         self.assertIn("0 accepted, 3 corroborated", printed)
@@ -729,9 +678,7 @@ class MergePolicyPipelineTest(unittest.TestCase):
                 }],
                 "relations": [], "facts": [],
             }
-            with run_main([str(source), str(graph_path)],
-                          FakeLLM(response)) as printed:
-                pass
+            _, printed = run_api(source, graph_path, FakeExtractor(response))
             self.assertTrue(graph_path.exists())
             graph = graph_management.open_graph(graph_path)
 
@@ -744,32 +691,30 @@ class MergePolicyPipelineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
             before = graph_path.read_bytes()
             source = root / "02.txt"
             source.write_text("Beta Corp exists.", encoding="utf-8")
-            with mock.patch.object(ontology, "plan_graph_merge",
+            with mock.patch.object(pipeline, "plan_graph_merge",
                                    side_effect=RuntimeError("planner broke")):
                 with self.assertRaises(RuntimeError):
-                    with run_main([str(source), str(graph_path)], FakeLLM(
-                            entity_response("Beta Corp"))):
-                        pass
+                    run_api(source, graph_path, FakeExtractor(
+                        entity_response("Beta Corp")))
             self.assertEqual(graph_path.read_bytes(), before)
 
     def test_a_save_failure_leaves_the_old_file_usable(self):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             run_once(root, "01.txt", "Acme Corp exists.", graph_path,
-                     FakeLLM(entity_response("Acme Corp")))
+                     FakeExtractor(entity_response("Acme Corp")))
             before = graph_path.read_bytes()
             source = root / "02.txt"
             source.write_text("Beta Corp exists.", encoding="utf-8")
-            with mock.patch.object(ontology, "save_graph",
+            with mock.patch.object(pipeline, "save_graph",
                                    side_effect=OSError("disk full")):
                 with self.assertRaises(OSError):
-                    with run_main([str(source), str(graph_path)], FakeLLM(
-                            entity_response("Beta Corp"))):
-                        pass
+                    run_api(source, graph_path, FakeExtractor(
+                        entity_response("Beta Corp")))
             self.assertEqual(graph_path.read_bytes(), before)
             graph = graph_management.open_graph(graph_path)
             self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)),
@@ -786,16 +731,12 @@ class MergePolicyPipelineTest(unittest.TestCase):
                                          encoding="utf-8")
             ada = entity_response("Ada Lovelace")["entities"][0]
             shaky = dict(ada, id="e9", name="Shaky Thing", confidence=0.5)
-            with run_main([str(root / "01.txt"), str(graph_path)],
-                          FakeLLM({"entities": [ada, shaky],
-                                   "relations": [], "facts": []})) as first:
-                pass
+            _, first = run_api(root / "01.txt", graph_path, FakeExtractor(
+                {"entities": [ada, shaky], "relations": [], "facts": []}))
             # File 2 repeats both names at full confidence.
             repeated = [dict(ada), dict(ada, id="e9", name="Shaky Thing")]
-            with run_main([str(root / "02.txt"), str(graph_path)],
-                          FakeLLM({"entities": repeated,
-                                   "relations": [], "facts": []})) as second:
-                pass
+            _, second = run_api(root / "02.txt", graph_path, FakeExtractor(
+                {"entities": repeated, "relations": [], "facts": []}))
             graph = graph_management.open_graph(graph_path)
 
         self.assertIn("1 new, 0 resolved", first)
@@ -805,6 +746,34 @@ class MergePolicyPipelineTest(unittest.TestCase):
             {ENTITY["ada-lovelace"], ENTITY["shaky-thing"]},
         )
 
+
+class MergeConfigTest(unittest.TestCase):
+    """The merge configuration reaches the planner without changing defaults."""
+
+    def test_a_lower_threshold_accepts_a_shaky_entity(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root, graph_path = Path(folder), Path(folder) / "graph.ttl"
+            source = root / "notes.txt"
+            source.write_text("A dubious claim appears here.", encoding="utf-8")
+            request = RunRequest(
+                source=source,
+                graph_path=graph_path,
+                merge=pipeline.MergeConfig(min_auto_accept_confidence=0.4),
+            )
+            response = {
+                "entities": [{
+                    "id": "e1", "name": "Dubious Thing", "kind": "Concept",
+                    "description": "", "aliases": [],
+                    "existing_id": None, "confidence": 0.5,
+                }],
+                "relations": [], "facts": [],
+            }
+            _, printed = run_api(source, graph_path, FakeExtractor(response),
+                                 request=request)
+            graph = graph_management.open_graph(graph_path)
+
+        self.assertIn("1 new, 0 resolved", printed)
+        self.assertIn((ENTITY["dubious-thing"], RDF.type, ONTO.Entity), set(graph))
 
 
 if __name__ == "__main__":

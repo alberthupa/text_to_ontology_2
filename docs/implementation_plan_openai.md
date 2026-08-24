@@ -37,10 +37,10 @@ confidence representation, and Python packaging.
 - Overall status: [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
 - Plan owner:
 - Technical owner:
-- Started:
+- Started: 2026-08-24
 - Target release:
-- Last updated:
-- Current milestone:
+- Last updated: 2026-08-24
+- Current milestone: M2 (documents and windowing)
 - Current branch:
 - Overall notes:
 
@@ -294,7 +294,7 @@ the normal milestone acceptance evidence.
 | Milestone | Status | Owner | Branch | Completion commit | Completed |
 |---|---|---|---|---|---|
 | M0 Baseline and packaging | [x] | ox-alpha agent | milestone/m00-packaging-baseline | 7c27e2c | 2026-08-24 |
-| M1 Public API and thin CLI | [ ] | | | | |
+| M1 Public API and thin CLI | [x] | ox-alpha agent | milestone/m01-public-api-cli | (pending commit) | 2026-08-24 |
 | M2 Documents and windowing | [ ] | | | | |
 | M3 Local RDF dataset/store | [ ] | | | | |
 | M4 Candidate RDF and confidence | [ ] | | | | |
@@ -439,62 +439,106 @@ changing current short-source behavior.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [x] Complete
 
 ### Acceptance criteria
 
 - **M1-AC1:** The package exposes `run_text_to_graph(request, graph_store,
   extractor, reporter) -> RunResult` from a documented public module.
+  (Met: `src/text_to_ontology/api.py` documents and exports it; implemented in
+  `pipeline.py`.)
 - **M1-AC2:** `RunRequest`, `RunResult`, and module-specific configuration are
   named dataclasses with self-explanatory fields; there is no general untyped
-  parameter bag.
+  parameter bag. (Met: `RunRequest`, `RunResult`, `WindowingConfig`,
+  `ContextConfig`, `ExtractionConfig`, `MergeConfig` in `pipeline.py`.)
 - **M1-AC3:** The core API does not parse command-line arguments, read process
-  environment variables, or call `sys.exit`.
+  environment variables, or call `sys.exit`. (Met: `pipeline.py` has none of
+  the three; environment loading stays inside the `OpenRouterExtractor`
+  adapter in `llm.py`.)
 - **M1-AC4:** The installed CLI only parses input, creates configured adapters,
-  calls the public API, and translates errors to exit codes.
+  calls the public API, and translates errors to exit codes. (Met: `cli.py`.)
 - **M1-AC5:** A fake extractor and temporary local store can run the full API in
-  tests without network access.
+  tests without network access. (Met: `FakeExtractor` in
+  `tests/test_pipeline.py`; `LocalTurtleStore` on temp directories.)
 - **M1-AC6:** For a short, one-window source, the CLI retains current validation,
-  merge-planning, reporting, and atomic-save behavior.
+  merge-planning, reporting, and atomic-save behavior. (Met: the ported
+  `tests/test_pipeline.py` assertions are unchanged in substance.)
 - **M1-AC7:** `python3 -m text_to_ontology` and the installed console command call
-  the same CLI function.
+  the same CLI function. (Met: `OneCliFunctionTest`.)
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M1-T1 → AC2:** Define `RunRequest`, `RunResult`, `WindowingConfig`,
+- [x] **M1-T1 → AC2:** Define `RunRequest`, `RunResult`, `WindowingConfig`,
   `ContextConfig`, `ExtractionConfig`, `MergeConfig`, and graph-name settings.
-- [ ] **M1-T2 → AC1, AC3:** Move the readable run loop into `pipeline.py` and
-  expose it through `api.py`.
-- [ ] **M1-T3 → AC3, AC5:** Define small extractor and reporter protocols based
-  on actual calls rather than speculative methods.
-- [ ] **M1-T4 → AC4, AC7:** Create `cli.py`, `__main__.py`, and a
-  `[project.scripts]` entry in `pyproject.toml`.
-- [ ] **M1-T5 → AC4:** Keep environment loading in the OpenRouter adapter or CLI
-  composition root, never in the core pipeline.
-- [ ] **M1-T6 → AC5, AC6:** Port current pipeline tests to the public API with a
-  fake extractor and temporary store.
-- [ ] **M1-T7 → AC6, AC7:** Add installed-command tests for success, validation
+  (`WindowingConfig` holds strategy version 1 = whole-text window until M2;
+  graph-name settings are deferred to M3's named-graph store — see decisions.)
+- [x] **M1-T2 → AC1, AC3:** Move the readable run loop into `pipeline.py` and
+  expose it through `api.py`. (`ontology.py` module removed.)
+- [x] **M1-T3 → AC3, AC5:** Define small extractor and reporter protocols based
+  on actual calls rather than speculative methods. (`Extractor`: `model()` +
+  `extract(prompt)`; `Reporter`: exactly the `RunReporter` call sites.)
+- [x] **M1-T4 → AC4, AC7:** Create `cli.py`, `__main__.py`, and a
+  `[project.scripts]` entry in `pyproject.toml`
+  (`text-to-ontology = "text_to_ontology.cli:main"`).
+- [x] **M1-T5 → AC4:** Keep environment loading in the OpenRouter adapter or CLI
+  composition root, never in the core pipeline. (`load_env` stays inside
+  `model_name()`/`ask_llm()`; the pipeline never touches `os.environ`.)
+- [x] **M1-T6 → AC5, AC6:** Port current pipeline tests to the public API with a
+  fake extractor and temporary store. (`tests/test_pipeline.py` rewritten.)
+- [x] **M1-T7 → AC6, AC7:** Add installed-command tests for success, validation
   failure, missing source, `--report`, and verbose output.
-- [ ] **M1-T8 → AC1–AC7:** Document the public API and minimal Python example.
+  (`tests/test_cli.py`.)
+- [x] **M1-T8 → AC1–AC7:** Document the public API and minimal Python example.
+  (README "Call it from Python" section; `api.py` docstring example.)
 
 ### Required evidence
 
-- [ ] Public API example and returned `RunResult`:
-- [ ] CLI/API equivalence test names:
-- [ ] Full deterministic test result:
-- [ ] Network calls observed during tests: must be zero
+- [x] Public API example and returned `RunResult`: README "Call it from
+  Python"; `RunResult(graph_path, triples, files_total, files_saved,
+  files_blank)`.
+- [x] CLI/API equivalence test names: `test_the_module_entry_is_the_cli_function`,
+  `test_python_dash_m_prints_usage_without_network_access`,
+  `test_the_installed_console_command_prints_the_same_usage` in
+  `tests/test_cli.py`; console script also checked by `scripts/install_smoke.sh`.
+- [x] Full deterministic test result:
+  `python3 -m unittest discover -s tests -p 'test_*.py'` after
+  `pip install -e .` → `Ran 641 tests ... OK (skipped=1)`; the skip is the
+  opt-in installation smoke test.
+- [x] Network calls observed during tests: zero — extraction runs through
+  `FakeExtractor` or a patched `llm.ask_llm`; subprocess tests only run
+  `--help`.
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
+- Owner: ox-alpha coding agent
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: milestone/m01-public-api-cli
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - Version bumped 0.1.0 → 0.2.0 (new public API + console command).
+  - Configuration dataclasses carry only real knobs that exist today:
+    `ContextConfig.budget` copies `PROMPT_BUDGET`;
+    `MergeConfig.min_auto_accept_confidence` is threaded through
+    `plan_graph_merge`/`resolve_entities` with the unchanged default of 0.80;
+    `WindowingConfig.strategy_version` documents version 1 (whole-text window)
+    until real windowing lands in M2.
+  - Graph-name settings deferred to M3: today's `GraphStore` contract is just
+    `load(path)`/`save(graph, path)` over one Turtle file; named graphs arrive
+    with the RDF dataset milestone.
+  - The old package module `ontology.py` was deleted rather than kept as a
+    shim; the root `ontology.py` wrapper now calls `cli.main`.
+  - Error handling moved into `cli.main`: it prints `Error: ...` to stderr and
+    raises `SystemExit(1)` (M1-AC4), so `__main__` needs no try/except of its
+    own.
+  - `save_graph` now creates missing parent directories itself (moved out of
+    the run loop).
+- Known follow-ups: `WindowingConfig` becomes meaningful in M2;
+  `GraphStore` grows its real contract in M3; prompts/SPARQL as packaged
+  resource files remain a future change.
+- Acceptance evidence location: this section; outputs reproducible via the
+  recorded commands.
 
 ---
 

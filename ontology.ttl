@@ -49,17 +49,6 @@ entity:emerging-military-technologies a onto:Entity,
     rdfs:comment "Military technologies whose faster adoption NATO was considering." ;
     skos:prefLabel "Emerging military technologies" .
 
-entity:energy-transition a onto:Entity,
-        class:entity,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Energy transition" ;
-    fact:depends-on "batteries, magnets, and grid components" ;
-    onto:kind "Entity" ;
-    relation:depends-on entity:rare-earths ;
-    rdfs:comment "Shift that depends on batteries, magnets, and grid components" ;
-    skos:prefLabel "Energy transition" .
-
 entity:kirill-dmitriev a onto:Entity,
         class:person,
         owl:NamedIndividual,
@@ -135,16 +124,6 @@ entity:paris-preparatory-talks a onto:Entity,
     relation:prepares entity:trump-xi-summit ;
     rdfs:comment "Diplomatic talks held in Paris aimed at preparing a future Trump-Xi summit" ;
     skos:prefLabel "Paris preparatory talks" .
-
-entity:regional-conflicts a onto:Entity,
-        class:event,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Regional conflicts" ;
-    onto:kind "Event" ;
-    relation:disrupted entity:energy-markets ;
-    rdfs:comment "Wider regional conflicts that disrupted energy markets and put shipping routes and fuel supplies under stress" ;
-    skos:prefLabel "Regional conflicts" .
 
 entity:renewable-energy-systems a onto:Entity,
         class:entity,
@@ -634,6 +613,1269 @@ fact:top-near-term-risk a owl:DatatypeProperty ;
     rdf:object entity:advanced-chips ;
     rdf:predicate relation:can-disrupt ;
     rdf:subject entity:restrictions-on-rare-earths .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-0-057f4188cfd9e876dc2cc95a098bf8f53828ff2f3f34e8571851bec0e583dc7f> a onto:MergeCandidate ;
+    onto:candidateIndex 0 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.97 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.97,\"description\":\"International system that was largely unipolar after the Cold War and is now fragmenting toward multipolarity.\",\"existing_id\":null,\"id\":\"e1\",\"kind\":\"Entity\",\"name\":\"Global order\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:global-order ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-1-e40335654f2237e3f043d5f7c839756a7df049d6191c41e15177ced9e56de6ec> a onto:MergeCandidate ;
+    onto:candidateIndex 1 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.96 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.96,\"description\":\"Historical period after which the global order was largely led by the United States.\",\"existing_id\":null,\"id\":\"e2\",\"kind\":\"Event\",\"name\":\"Cold War\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:cold-war ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-10-f67aa0afbaa0966786508776c37da8fa2c5ff4077e575f55b3d48a533f96ec81> a onto:MergeCandidate ;
+    onto:candidateIndex 10 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country described as an increasingly independent middle-power swing state.\",\"existing_id\":null,\"id\":\"e11\",\"kind\":\"Location\",\"name\":\"Brazil\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:brazil ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-11-31f960af731b0d99fcd4dac59d60b59b3faf9fdcf266d2f98d0acbab5ae7343b> a onto:MergeCandidate ;
+    onto:candidateIndex 11 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"swing states\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"swing states\"],\"confidence\":0.98,\"description\":\"Countries acting as swing states rather than aligning strictly with Washington or Beijing.\",\"existing_id\":null,\"id\":\"e12\",\"kind\":\"Entity\",\"name\":\"Middle powers\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:middle-powers ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-12-7ee93fe9f164816d4fd5eeba3d89a8391d9c2d84b8a34f836deb544875b9e2ad> a onto:MergeCandidate ;
+    onto:candidateIndex 12 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"UN Security Council\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"UN Security Council\"],\"confidence\":0.99,\"description\":\"Post-World War II institution described as frequently deadlocked and struggling to manage modern crises.\",\"existing_id\":null,\"id\":\"e13\",\"kind\":\"Organization\",\"name\":\"United Nations Security Council\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:united-nations-security-council ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-13-9dfa2f4a021da13ad1f0e6fe3a114929d3125b277aa833851aa745681a055f6a> a onto:MergeCandidate ;
+    onto:candidateIndex 13 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"WTO\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"WTO\"],\"confidence\":0.99,\"description\":\"Post-World War II institution described as frequently deadlocked and struggling to manage modern crises.\",\"existing_id\":null,\"id\":\"e14\",\"kind\":\"Organization\",\"name\":\"World Trade Organization\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:world-trade-organization ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-14-9ba55b104841129fa726c8c8c88f3968d784378fa420f554f4ee19b0dc926462> a onto:MergeCandidate ;
+    onto:candidateIndex 14 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Minilateral alliance cited as an alternative formed while major powers bypass established institutions.\",\"existing_id\":null,\"id\":\"e15\",\"kind\":\"Organization\",\"name\":\"AUKUS\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:aukus ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-15-185c38cebfbd826338fa9137dbf0ace460383a7ab018d59ee767fd9cbcdc9130> a onto:MergeCandidate ;
+    onto:candidateIndex 15 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"expanded BRICS\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"expanded BRICS\"],\"confidence\":0.98,\"description\":\"Expanded grouping cited as a minilateral alliance.\",\"existing_id\":null,\"id\":\"e16\",\"kind\":\"Organization\",\"name\":\"BRICS\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:brics ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-16-da17a394be2702c796dc0d773c844716ee393f85e79308cb60c61fd70d73d543> a onto:MergeCandidate ;
+    onto:candidateIndex 16 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.94 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.94,\"description\":\"Powerful states that routinely bypass deadlocked postwar institutions to form minilateral alliances.\",\"existing_id\":null,\"id\":\"e17\",\"kind\":\"Entity\",\"name\":\"Major powers\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:major-powers ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-17-c6677b5c067a6a3ef0631a2bba8840a33bf3514df204e5f28b60254a927561e2> a onto:MergeCandidate ;
+    onto:candidateIndex 17 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Island where the vast majority of high-end chips are manufactured, making it a critical global economic vulnerability.\",\"existing_id\":\"http://example.org/text-ontology/entity/taiwan\",\"id\":\"e18\",\"kind\":\"Location\",\"name\":\"Taiwan\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:taiwan ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-18-10106a7d253c42f2dd3d6ddb91f49693f5339c5b4835e3b910fd05934b5f9ce1> a onto:MergeCandidate ;
+    onto:candidateIndex 18 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"high-end chips\",\"outcome\":\"accept\"},{\"alias\":\"semiconductors\",\"outcome\":\"duplicate\"}],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[\"high-end chips\",\"semiconductors\"],\"confidence\":0.99,\"description\":\"High-end semiconductors characterized as the oil of the 21st century.\",\"existing_id\":null,\"id\":\"e19\",\"kind\":\"Entity\",\"name\":\"Advanced microchips\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:advanced-chips ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-19-36edf3d6429461f22e956cb3cb5081dfae494ea830feb6b4a6630281a56c6c70> a onto:MergeCandidate ;
+    onto:candidateIndex 19 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.96 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.96,\"description\":\"Economic system for which Taiwan's chip concentration is described as a critical strategic vulnerability.\",\"existing_id\":null,\"id\":\"e20\",\"kind\":\"Entity\",\"name\":\"Global economy\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:global-economy ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-2-a0f1b02a48b4426c43dfeea99c61055fb5a3511008385325dada8017870b68c7> a onto:MergeCandidate ;
+    onto:candidateIndex 2 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"US\",\"outcome\":\"duplicate\"},{\"alias\":\"Washington\",\"outcome\":\"duplicate\"}],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[\"US\",\"Washington\"],\"confidence\":0.99,\"description\":\"Country that led the largely unipolar post-Cold War order and is strategically competing with China.\",\"existing_id\":null,\"id\":\"e3\",\"kind\":\"Location\",\"name\":\"United States\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:united-states ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-20-11714618dc5134eb8be0ca2cc132e0fbaf6d300dce74320ec8581c0c28b4386b> a onto:MergeCandidate ;
+    onto:candidateIndex 20 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Movement away from fossil fuels that reduces reliance on the Middle East while creating mineral dependencies.\",\"existing_id\":\"http://example.org/text-ontology/entity/energy-transition\",\"id\":\"e21\",\"kind\":\"Entity\",\"name\":\"Energy transition\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:energy-transition ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-21-5783a4feef890cdbf490366d5c18437494d3ae88855c1d849f59d29e5bbfcee9> a onto:MergeCandidate ;
+    onto:candidateIndex 21 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Energy sources from which the energy transition is moving away.\",\"existing_id\":null,\"id\":\"e22\",\"kind\":\"Entity\",\"name\":\"Fossil fuels\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:fossil-fuels ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-22-47d2a31ce998fae5ce2f128ec6373826d53283a61f81aa31980142f4006e9db4> a onto:MergeCandidate ;
+    onto:candidateIndex 22 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Volatile region associated with fossil-fuel reliance and tested normalization efforts.\",\"existing_id\":\"http://example.org/text-ontology/entity/middle-east\",\"id\":\"e23\",\"kind\":\"Location\",\"name\":\"Middle East\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:middle-east ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-23-9aaa1501bd743cdea0f80389c7d4b95f4ed36320a81019c4b7adc3fccf5ce5d8> a onto:MergeCandidate ;
+    onto:candidateIndex 23 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"critical minerals\",\"outcome\":\"duplicate\"},{\"alias\":\"rare earth elements\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[\"critical minerals\",\"rare earth elements\"],\"confidence\":0.99,\"description\":\"Critical minerals whose refining capacity is heavily dominated by China and which are essential for batteries and green technology.\",\"existing_id\":\"http://example.org/text-ontology/entity/rare-earths\",\"id\":\"e24\",\"kind\":\"Entity\",\"name\":\"Rare earths\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:rare-earths ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-24-92dfc27832c1cacf34276163aff2b7221c218a7eeca5dd12e4daf524e7e0b4f1> a onto:MergeCandidate ;
+    onto:candidateIndex 24 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Critical mineral essential for batteries and green technology whose refining capacity is heavily dominated by China.\",\"existing_id\":null,\"id\":\"e25\",\"kind\":\"Entity\",\"name\":\"Lithium\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:lithium ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-25-72a5367deba4537f423fc5face2de21aa0814eb441d2787eca526d09d3b8b605> a onto:MergeCandidate ;
+    onto:candidateIndex 25 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Critical mineral essential for batteries and green technology whose refining capacity is heavily dominated by China.\",\"existing_id\":null,\"id\":\"e26\",\"kind\":\"Entity\",\"name\":\"Cobalt\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:cobalt ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-26-89446126b4e8836e2c3948e5c0c47e30886e126a6e54ef1d3b0e43798f09e4b9> a onto:MergeCandidate ;
+    onto:candidateIndex 26 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.97 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.97,\"description\":\"Technology dependent on rare earth elements, lithium, and cobalt.\",\"existing_id\":null,\"id\":\"e27\",\"kind\":\"Entity\",\"name\":\"Batteries\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:batteries ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-27-b14c89a3e18fe218ed635fcbbf59d06249c5765bfad4aceb2d74a6a0f8a3470a> a onto:MergeCandidate ;
+    onto:candidateIndex 27 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.97 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"green tech\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"green tech\"],\"confidence\":0.97,\"description\":\"Technology dependent on rare earth elements, lithium, and cobalt.\",\"existing_id\":null,\"id\":\"e28\",\"kind\":\"Entity\",\"name\":\"Green technology\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:green-technology ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-28-d655bf50c22c35aa77990d637e534f340dbfbc38aff14a4edc7be5451d75f91d> a onto:MergeCandidate ;
+    onto:candidateIndex 28 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.97 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.97,\"description\":\"Instrument of geoeconomic pressure associated with financial warfare and Western leverage.\",\"existing_id\":\"http://example.org/text-ontology/entity/sanctions\",\"id\":\"e29\",\"kind\":\"Policy\",\"name\":\"Sanctions\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:sanctions ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-29-ccc74f55b20026ab6820016d02a3a95e117296488824c1b1460055e82a0d76d9> a onto:MergeCandidate ;
+    onto:candidateIndex 29 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Use of financial measures such as SWIFT exclusion and sovereign-asset freezes against rival nations.\",\"existing_id\":null,\"id\":\"e30\",\"kind\":\"Policy\",\"name\":\"Financial warfare\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:financial-warfare ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-3-831230abd9899572c37e1d790fdbe31a01cdf3d1e0322d68726b8f54e4ebadbb> a onto:MergeCandidate ;
+    onto:candidateIndex 3 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"multipolarity\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"multipolarity\"],\"confidence\":0.98,\"description\":\"Emerging international system characterized by competing spheres of influence.\",\"existing_id\":null,\"id\":\"e4\",\"kind\":\"Entity\",\"name\":\"Multipolar world\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:multipolar-world ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-30-4cfcfec85437e28a9e50dedb46cbc106428830537423b570d00b8d29ed73cd16> a onto:MergeCandidate ;
+    onto:candidateIndex 30 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"SWIFT\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"SWIFT\"],\"confidence\":0.99,\"description\":\"International banking system from which rival nations may be excluded as a form of financial pressure.\",\"existing_id\":null,\"id\":\"e31\",\"kind\":\"Organization\",\"name\":\"SWIFT banking system\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:swift-banking-system ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-31-19a43b7f928adc81984677566dc54ec087a78740b3439e2b11978a8ae316c75a> a onto:MergeCandidate ;
+    onto:candidateIndex 31 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"State-owned assets that may be frozen as a form of financial warfare.\",\"existing_id\":null,\"id\":\"e32\",\"kind\":\"Entity\",\"name\":\"Sovereign assets\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:sovereign-assets ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-32-d6b8342e82d3af87be5102d0a58e4163997979ee521e5e692868e0e2032eb613> a onto:MergeCandidate ;
+    onto:candidateIndex 32 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Effort by adversaries to trade in local currencies and shield themselves from Western leverage.\",\"existing_id\":null,\"id\":\"e33\",\"kind\":\"Policy\",\"name\":\"De-dollarization\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:de-dollarization ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-33-08b0b32057947a27f9e0e4cd68e3c05ae6119fcf16ccaf79a7201e38e305395f> a onto:MergeCandidate ;
+    onto:candidateIndex 33 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Currencies adversaries seek to use in trade as part of de-dollarization.\",\"existing_id\":null,\"id\":\"e34\",\"kind\":\"Entity\",\"name\":\"Local currencies\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:local-currencies ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-34-9b99aeb1ef631b612c513290c63594b6296eacec4cfaa3b33f00c0f49e7fcd9a> a onto:MergeCandidate ;
+    onto:candidateIndex 34 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Primary theater of geopolitical competition.\",\"existing_id\":null,\"id\":\"e35\",\"kind\":\"Location\",\"name\":\"Indo-Pacific\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:indo-pacific ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-35-96ef7b48290eb49be825272d75d2c000d2c410806b827bb73537396eb4731f2a> a onto:MergeCandidate ;
+    onto:candidateIndex 35 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Maritime region whose control affects roughly one-third of global maritime trade.\",\"existing_id\":\"http://example.org/text-ontology/entity/south-china-sea\",\"id\":\"e36\",\"kind\":\"Location\",\"name\":\"South China Sea\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:south-china-sea ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-36-148f2224321dc8364477186ee0ba5ebbac30832d5bef2a523be36f73e82bc3d5> a onto:MergeCandidate ;
+    onto:candidateIndex 36 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"International seaborne trade, roughly one-third of which is affected by control over the South China Sea.\",\"existing_id\":null,\"id\":\"e37\",\"kind\":\"Entity\",\"name\":\"Global maritime trade\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:global-maritime-trade ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-37-4215d0b84222394d2e704003b099d433e74037cb8c7177c279e11c46f797b66e> a onto:MergeCandidate ;
+    onto:candidateIndex 37 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Region containing the ongoing conflict in Ukraine.\",\"existing_id\":null,\"id\":\"e38\",\"kind\":\"Location\",\"name\":\"Eastern Europe\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:eastern-europe ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-38-934fe6b0a33da2911976c812d1d610ba49fe9a42cf6a2744e7588afbf7fa0d0a> a onto:MergeCandidate ;
+    onto:candidateIndex 38 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country where an ongoing conflict has revitalized NATO and altered Europe's energy architecture.\",\"existing_id\":\"http://example.org/text-ontology/entity/ukraine\",\"id\":\"e39\",\"kind\":\"Location\",\"name\":\"Ukraine\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:ukraine ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-39-131d4c61c45948a22446adfda7b929e329824a5dcbcd8286a7e226e830aeba03> a onto:MergeCandidate ;
+    onto:candidateIndex 39 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"Ukraine conflict\",\"outcome\":\"accept\"}],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[\"Ukraine conflict\"],\"confidence\":0.99,\"description\":\"Ongoing conflict that revitalized NATO, expanded its borders, and altered Europe's energy architecture.\",\"existing_id\":null,\"id\":\"e40\",\"kind\":\"Event\",\"name\":\"Conflict in Ukraine\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:conflict-in-ukraine ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-4-bcd0e6733aa5f364e3dcb8659d480e7e7380a57dda7316af05ea219aace6a2c0> a onto:MergeCandidate ;
+    onto:candidateIndex 4 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"Beijing\",\"outcome\":\"duplicate\"}],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[\"Beijing\"],\"confidence\":0.99,\"description\":\"Country competing strategically with the United States and dominating important mineral refining capacity.\",\"existing_id\":\"http://example.org/text-ontology/entity/china\",\"id\":\"e5\",\"kind\":\"Location\",\"name\":\"China\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:china ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-40-6796d36f0adb1adfbbe052eee89ae5f18a4ea9b37764f5d722355a9361208971> a onto:MergeCandidate ;
+    onto:candidateIndex 40 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Alliance revitalized and territorially expanded by the ongoing conflict in Ukraine.\",\"existing_id\":\"http://example.org/text-ontology/entity/nato\",\"id\":\"e41\",\"kind\":\"Organization\",\"name\":\"NATO\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:nato ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-41-76d257060f426f7cef8aec50a98ad273dd026c1d24a18e04b3fc70f32377b8be> a onto:MergeCandidate ;
+    onto:candidateIndex 41 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Region whose energy architecture was altered by severing reliance on Russian gas.\",\"existing_id\":\"http://example.org/text-ontology/entity/europe\",\"id\":\"e42\",\"kind\":\"Location\",\"name\":\"Europe\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:europe ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-42-2e734cb894df2e5b4a01797532bcf0c129ff24b62f20e95549cc7674f39fbcfe> a onto:MergeCandidate ;
+    onto:candidateIndex 42 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[{\"alias\":\"Russian\",\"outcome\":\"duplicate\"}],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[\"Russian\"],\"confidence\":0.98,\"description\":\"Country that was the source of gas on which Europe had relied.\",\"existing_id\":\"http://example.org/text-ontology/entity/russia\",\"id\":\"e43\",\"kind\":\"Location\",\"name\":\"Russia\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:russia ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-43-3a6c202743c466fbca899d1fe4297abfa69af5e33ba8aacf389576cab3e99791> a onto:MergeCandidate ;
+    onto:candidateIndex 43 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Natural gas from Russia on which Europe had relied before that reliance was severed.\",\"existing_id\":null,\"id\":\"e44\",\"kind\":\"Entity\",\"name\":\"Russian gas\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:russian-gas ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-44-a15923ce12b3e982a49f954621feecb424e71792812df71b77ade95ef3f1ed38> a onto:MergeCandidate ;
+    onto:candidateIndex 44 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"European energy system permanently altered by the Ukraine conflict and the severing of reliance on Russian gas.\",\"existing_id\":null,\"id\":\"e45\",\"kind\":\"Entity\",\"name\":\"Europe's energy architecture\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:europe-s-energy-architecture ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-45-fcb90ce6d4c6301b31274229a4ea35f3b08e21eb75b1ed72a02717c16563f27a> a onto:MergeCandidate ;
+    onto:candidateIndex 45 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Region toward which the United States is attempting to pivot.\",\"existing_id\":\"http://example.org/text-ontology/entity/asia\",\"id\":\"e46\",\"kind\":\"Location\",\"name\":\"Asia\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:asia ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-46-af234a7420347568602aff01ad05830de67639d14906379cc5ef2b4f5e2de967> a onto:MergeCandidate ;
+    onto:candidateIndex 46 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country involved in normalization efforts with Arab states under the Abraham Accords.\",\"existing_id\":\"http://example.org/text-ontology/entity/israel\",\"id\":\"e47\",\"kind\":\"Location\",\"name\":\"Israel\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:israel ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-47-27c32ecd614185a43869a739ce69f8e4470b98530adabfbb1ee8e399e802580f> a onto:MergeCandidate ;
+    onto:candidateIndex 47 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.97 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.97,\"description\":\"States pursuing normalization efforts with Israel.\",\"existing_id\":null,\"id\":\"e48\",\"kind\":\"Entity\",\"name\":\"Arab states\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:arab-states ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-48-3c4b6e4158878f5f706a6a61f650bd172ad8b75f0878a14a0873ca534a7fb0a1> a onto:MergeCandidate ;
+    onto:candidateIndex 48 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Normalization framework between Arab states and Israel that is continually tested by regional conflicts and Iran's proxy network.\",\"existing_id\":null,\"id\":\"e49\",\"kind\":\"Policy\",\"name\":\"Abraham Accords\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:abraham-accords ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-49-452dfc221edb6964da267d38dc6fb6c287863ed4f695f1a5f4291d0549a32484> a onto:MergeCandidate ;
+    onto:candidateIndex 49 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Conflicts that continually test normalization efforts between Arab states and Israel.\",\"existing_id\":\"http://example.org/text-ontology/entity/regional-conflicts\",\"id\":\"e50\",\"kind\":\"Event\",\"name\":\"Regional conflicts\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:regional-conflicts ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-5-e39e918d8f506985656802eafa729862e2589f1a967cece71b499b84200ad992> a onto:MergeCandidate ;
+    onto:candidateIndex 5 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Defining geopolitical competition involving military, technological, economic, and ideological dimensions.\",\"existing_id\":null,\"id\":\"e6\",\"kind\":\"Event\",\"name\":\"US-China strategic rivalry\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:us-china-strategic-rivalry ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-50-9b5da0dab5ed6527e4199643d113ec9c4071b2d542df703199ab3c7a6d84205d> a onto:MergeCandidate ;
+    onto:candidateIndex 50 ;
+    onto:candidateSection "entities" ;
+    onto:decisionReason "conflict.existing_description" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"review\",\"reason_codes\":[\"conflict.existing_description\"]},\"kind\":{\"outcome\":\"duplicate\"},\"name\":{\"outcome\":\"duplicate\"}}"^^rdf:JSON ;
+    onto:mergeDecision "partial_review" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country associated with a proxy network that tests Middle Eastern normalization efforts.\",\"existing_id\":\"http://example.org/text-ontology/entity/iran\",\"id\":\"e51\",\"kind\":\"Location\",\"name\":\"Iran\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:iran ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-51-d6bc2772356f347f35a3dfac1d6093c79d496a68e8584c4aa8152c1b4930832f> a onto:MergeCandidate ;
+    onto:candidateIndex 51 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.98 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.98,\"description\":\"Iran-linked network that continually tests normalization efforts between Arab states and Israel.\",\"existing_id\":null,\"id\":\"e52\",\"kind\":\"Organization\",\"name\":\"Iran's proxy network\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:iran-s-proxy-network ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-6-46288ef1bef46c61cd461855066c5c1c538ca19b912886e42de3cdd6f1232747> a onto:MergeCandidate ;
+    onto:candidateIndex 6 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.96 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.96,\"description\":\"Region in which the United States and China compete for ideological influence.\",\"existing_id\":null,\"id\":\"e7\",\"kind\":\"Location\",\"name\":\"Global South\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:global-south ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-7-c2451b7445eb3be572c1003ca7f3d5e0f49377914209d32b4b6a45eacd7ce373> a onto:MergeCandidate ;
+    onto:candidateIndex 7 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country described as an increasingly independent middle-power swing state.\",\"existing_id\":null,\"id\":\"e8\",\"kind\":\"Location\",\"name\":\"India\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:india ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-8-43defd367bb6f25763c13422c03af4e3a35a21294452e5b4b8870ec4a98c7cb2> a onto:MergeCandidate ;
+    onto:candidateIndex 8 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country described as an increasingly independent middle-power swing state.\",\"existing_id\":null,\"id\":\"e9\",\"kind\":\"Location\",\"name\":\"Turkey\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:turkey ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/entities-9-91ad850d9c58c727ae94212755bf53d2c2fc75bfc651e2ffbf1f70e1ba50bd8a> a onto:MergeCandidate ;
+    onto:candidateIndex 9 ;
+    onto:candidateSection "entities" ;
+    onto:extractionConfidence 0.99 ;
+    onto:fieldDecisions "{\"aliases\":[],\"description\":{\"outcome\":\"accept\"},\"kind\":{\"outcome\":\"accept\"},\"name\":{\"outcome\":\"accept\"}}"^^rdf:JSON ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"aliases\":[],\"confidence\":0.99,\"description\":\"Country described as an increasingly independent middle-power swing state.\",\"existing_id\":null,\"id\":\"e10\",\"kind\":\"Location\",\"name\":\"Saudi Arabia\"}"^^rdf:JSON ;
+    onto:resolvedEntity entity:saudi-arabia ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-0-c4014a98c7e1937a6f093fb5338ba2a9b9d4b50681118d08e7b4739ee3518cb5> a onto:MergeCandidate ;
+    onto:candidateIndex 0 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"predicate\":\"post-Cold War polarity\",\"subject\":\"e1\",\"value\":\"largely unipolar\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "largely unipolar" ;
+    rdf:predicate fact:post-cold-war-polarity ;
+    rdf:subject entity:global-order .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-1-42330b46fc769e2833bd61b80d50cb4e8ec6fd40288c67fee78b7fdef8cd646b> a onto:MergeCandidate ;
+    onto:candidateIndex 1 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"characteristic\",\"subject\":\"e4\",\"value\":\"competing spheres of influence\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "competing spheres of influence" ;
+    rdf:predicate fact:characteristic ;
+    rdf:subject entity:multipolar-world .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-10-6eeeebc34e15fae0bbf013e0583bdec7b131ad4c486e06f668a6f2c5901c241a> a onto:MergeCandidate ;
+    onto:candidateIndex 10 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"predicate\":\"degree of change\",\"subject\":\"e45\",\"value\":\"permanently altered\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "permanently altered" ;
+    rdf:predicate fact:degree-of-change ;
+    rdf:subject entity:europe-s-energy-architecture .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-11-c48ae5d28ee02ddae4550c3117b1a8d1c8847d08166989a007bd78a7e3354e76> a onto:MergeCandidate ;
+    onto:candidateIndex 11 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"status\",\"subject\":\"e23\",\"value\":\"remains volatile\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "remains volatile" ;
+    rdf:predicate fact:status ;
+    rdf:subject entity:middle-east .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-2-3e91c653e2e05b09bbf2463a6efdc57710ab6a79967bce677562ebc30243c665> a onto:MergeCandidate ;
+    onto:candidateIndex 2 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"geopolitical significance\",\"subject\":\"e6\",\"value\":\"defining geopolitical dynamic of the 21st century\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "defining geopolitical dynamic of the 21st century" ;
+    rdf:predicate fact:geopolitical-significance ;
+    rdf:subject entity:us-china-strategic-rivalry .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-3-ab90bee252e5c9bd5b27835094447727ae1ec046e712ea13cf953b45464c9bf9> a onto:MergeCandidate ;
+    onto:candidateIndex 3 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"dimensions\",\"subject\":\"e6\",\"value\":\"military standoff, technological supremacy, economic dominance, and ideological influence\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "military standoff, technological supremacy, economic dominance, and ideological influence" ;
+    rdf:predicate fact:dimensions ;
+    rdf:subject entity:us-china-strategic-rivalry .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-4-bdacaae9dd0873fb54743cf3cf5c6555e03054fbdf13c392f34fd41de0f1ddee> a onto:MergeCandidate ;
+    onto:candidateIndex 4 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"status\",\"subject\":\"e13\",\"value\":\"frequently deadlocked and struggling to manage modern crises\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "frequently deadlocked and struggling to manage modern crises" ;
+    rdf:predicate fact:status ;
+    rdf:subject entity:united-nations-security-council .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-5-4f0da68b9327f5cb3af903d00686b4440290f11d0bef2a0e4e1d5b461c02336d> a onto:MergeCandidate ;
+    onto:candidateIndex 5 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"status\",\"subject\":\"e14\",\"value\":\"frequently deadlocked and struggling to manage modern crises\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "frequently deadlocked and struggling to manage modern crises" ;
+    rdf:predicate fact:status ;
+    rdf:subject entity:world-trade-organization .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-6-33bff9df230ed4ec1b64503c51e9b6594b48a0cf89c02bfde1ee4c79a52a9c7f> a onto:MergeCandidate ;
+    onto:candidateIndex 6 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"characterization\",\"subject\":\"e19\",\"value\":\"the oil of the 21st century\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "the oil of the 21st century" ;
+    rdf:predicate fact:characterization ;
+    rdf:subject entity:advanced-chips .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-7-3ae28602d48eedcbaa08ce4593eab4a2e2426679582504af5834535380158156> a onto:MergeCandidate ;
+    onto:candidateIndex 7 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"predicate\":\"purpose\",\"subject\":\"e33\",\"value\":\"shield adversaries from Western leverage\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "shield adversaries from Western leverage" ;
+    rdf:predicate fact:purpose ;
+    rdf:subject entity:de-dollarization .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-8-bfb4d969efc5e1d47d5068f16b46e50c3c3ee5aecbbbcb04fb8cf4460a45776e> a onto:MergeCandidate ;
+    onto:candidateIndex 8 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"strategic role\",\"subject\":\"e35\",\"value\":\"primary theater of competition\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "primary theater of competition" ;
+    rdf:predicate fact:strategic-role ;
+    rdf:subject entity:indo-pacific .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/facts-9-cc7b766f0c9b9729a0558ec9cbdf6fffd634623cbe0f60ee28762f30046a9496> a onto:MergeCandidate ;
+    onto:candidateIndex 9 ;
+    onto:candidateSection "facts" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"predicate\":\"share of global maritime trade affected by control\",\"subject\":\"e36\",\"value\":\"roughly one third\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object "roughly one third" ;
+    rdf:predicate fact:share-of-global-maritime-trade-affected-by-control ;
+    rdf:subject entity:south-china-sea .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-0-22b78d82275265110348029f1b5c2684d27e633ebe3d2794d30acdbc912b67da> a onto:MergeCandidate ;
+    onto:candidateIndex 0 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.95 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.95,\"object\":\"e2\",\"predicate\":\"followed\",\"subject\":\"e1\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:cold-war ;
+    rdf:predicate relation:followed ;
+    rdf:subject entity:global-order .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-1-ac2261f0729e33457e1b58c6fad994f4f0c7947a56c6903ca7da35ddb9eea048> a onto:MergeCandidate ;
+    onto:candidateIndex 1 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e1\",\"predicate\":\"led\",\"subject\":\"e3\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:global-order ;
+    rdf:predicate relation:led ;
+    rdf:subject entity:united-states .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-10-f197822bb6dd3aeeb2ec388ad3ddbad1f327db8a9fccb3b5e5b77b7c257975fa> a onto:MergeCandidate ;
+    onto:candidateIndex 10 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e3\",\"predicate\":\"does not align strictly with\",\"subject\":\"e12\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:united-states ;
+    rdf:predicate relation:does-not-align-strictly-with ;
+    rdf:subject entity:middle-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-11-4239c09bf29bbcf0d275f333e5cce40cb991a64c193e8d7596b7ea4a26779fdc> a onto:MergeCandidate ;
+    onto:candidateIndex 11 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e5\",\"predicate\":\"does not align strictly with\",\"subject\":\"e12\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:china ;
+    rdf:predicate relation:does-not-align-strictly-with ;
+    rdf:subject entity:middle-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-12-45ebb03afb3d8c5daecc9e2f05a8a1d8dd693b5a5c2795cae1917c8d31acfc84> a onto:MergeCandidate ;
+    onto:candidateIndex 12 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.96 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.96,\"object\":\"e3\",\"predicate\":\"extracts concessions from\",\"subject\":\"e12\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:united-states ;
+    rdf:predicate relation:extracts-concessions-from ;
+    rdf:subject entity:middle-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-13-1a6a8b95fc08a8eededf94d735023c2bf1e3ee0fc897348d9f5f30266c5fb026> a onto:MergeCandidate ;
+    onto:candidateIndex 13 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.96 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.96,\"object\":\"e5\",\"predicate\":\"extracts concessions from\",\"subject\":\"e12\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:china ;
+    rdf:predicate relation:extracts-concessions-from ;
+    rdf:subject entity:middle-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-14-07e31719492a33cb2c4a11d500655c67f92c380d0e8259b09422d3108ea330f0> a onto:MergeCandidate ;
+    onto:candidateIndex 14 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.96 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.96,\"object\":\"e13\",\"predicate\":\"bypasses\",\"subject\":\"e17\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:united-nations-security-council ;
+    rdf:predicate relation:bypasses ;
+    rdf:subject entity:major-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-15-244029f9aff1775bd35b13f0b75377f032862d97c9a1cce8097036ab618bf929> a onto:MergeCandidate ;
+    onto:candidateIndex 15 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.96 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.96,\"object\":\"e14\",\"predicate\":\"bypasses\",\"subject\":\"e17\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:world-trade-organization ;
+    rdf:predicate relation:bypasses ;
+    rdf:subject entity:major-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-16-aa9eced78ed5bb2485cf9f36f9e442649cc4a7dc162925321b467f5dd46c1a1d> a onto:MergeCandidate ;
+    onto:candidateIndex 16 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.93 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.93,\"object\":\"e15\",\"predicate\":\"forms\",\"subject\":\"e17\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:aukus ;
+    rdf:predicate relation:forms ;
+    rdf:subject entity:major-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-17-4bcb920e715a8379c6425e28d6e68281bf46af2b05236f4df5cd2901c12d4e25> a onto:MergeCandidate ;
+    onto:candidateIndex 17 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.93 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.93,\"object\":\"e16\",\"predicate\":\"forms\",\"subject\":\"e17\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:brics ;
+    rdf:predicate relation:forms ;
+    rdf:subject entity:major-powers .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-18-6dc0460c274a6eb2f8983fd3b207aec2098c34dfc3561392ccc5d147bcdee519> a onto:MergeCandidate ;
+    onto:candidateIndex 18 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e19\",\"predicate\":\"manufactures the vast majority of\",\"subject\":\"e18\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:advanced-chips ;
+    rdf:predicate relation:manufactures-the-vast-majority-of ;
+    rdf:subject entity:taiwan .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-19-005593c7d793756aa1e2055f5899acf23b31616c244d02d210cf42774d7816d2> a onto:MergeCandidate ;
+    onto:candidateIndex 19 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e20\",\"predicate\":\"is a critical strategic vulnerability in\",\"subject\":\"e18\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:global-economy ;
+    rdf:predicate relation:is-a-critical-strategic-vulnerability-in ;
+    rdf:subject entity:taiwan .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-2-b914e39dff287172991291b3f42f7190efbb7cc5092d7518f9c9e54ac8eba58c> a onto:MergeCandidate ;
+    onto:candidateIndex 2 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e4\",\"predicate\":\"is transitioning toward\",\"subject\":\"e1\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:multipolar-world ;
+    rdf:predicate relation:is-transitioning-toward ;
+    rdf:subject entity:global-order .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-20-dd2aaa7d55ddeb953cde16a9146dfa439775bc33f30943bf87ea393b4863409f> a onto:MergeCandidate ;
+    onto:candidateIndex 20 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e22\",\"predicate\":\"moves away from\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:fossil-fuels ;
+    rdf:predicate relation:moves-away-from ;
+    rdf:subject entity:energy-transition .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-21-a65320249df6a31fd6f1bd86f52034870a0dbd8d02baa0fd14de57c501bf4040> a onto:MergeCandidate ;
+    onto:candidateIndex 21 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e23\",\"predicate\":\"reduces reliance on\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:middle-east ;
+    rdf:predicate relation:reduces-reliance-on ;
+    rdf:subject entity:energy-transition .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-22-055f8f5a92e81558001b073f2bc29664558dd3896a8486401fbc6be93ae9de9b> a onto:MergeCandidate ;
+    onto:candidateIndex 22 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e24\",\"predicate\":\"creates dependency on\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:rare-earths ;
+    rdf:predicate relation:creates-dependency-on ;
+    rdf:subject entity:energy-transition .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-23-a198341d395e4c28ff1126c45d4e513a3d392eaf47b3078e9b3479cda1ea6cfa> a onto:MergeCandidate ;
+    onto:candidateIndex 23 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e25\",\"predicate\":\"creates dependency on\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:lithium ;
+    rdf:predicate relation:creates-dependency-on ;
+    rdf:subject entity:energy-transition .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-24-c2f9cf5121de827019ad42a07c3c20015501237679656187bfaea64c3b76aed0> a onto:MergeCandidate ;
+    onto:candidateIndex 24 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e26\",\"predicate\":\"creates dependency on\",\"subject\":\"e21\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:cobalt ;
+    rdf:predicate relation:creates-dependency-on ;
+    rdf:subject entity:energy-transition .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-25-1dc7194493fd6d479d5438ef1b2db2ea86b2899d0a3c39dbda3e99c7f26b445b> a onto:MergeCandidate ;
+    onto:candidateIndex 25 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e27\",\"predicate\":\"is essential for\",\"subject\":\"e24\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:batteries ;
+    rdf:predicate relation:is-essential-for ;
+    rdf:subject entity:rare-earths .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-26-a5747aa59627994f870aa290b527935660fcce3a458c07ab7322c8c3174ff4de> a onto:MergeCandidate ;
+    onto:candidateIndex 26 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e27\",\"predicate\":\"is essential for\",\"subject\":\"e25\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:batteries ;
+    rdf:predicate relation:is-essential-for ;
+    rdf:subject entity:lithium .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-27-64775bdc0229cca8a4d9461869bb129b38e07403a33673600253c04435015fc9> a onto:MergeCandidate ;
+    onto:candidateIndex 27 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e27\",\"predicate\":\"is essential for\",\"subject\":\"e26\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:batteries ;
+    rdf:predicate relation:is-essential-for ;
+    rdf:subject entity:cobalt .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-28-5e00cf41a68118334a399384f6aee5ac5605860ba3f0a7f41514ce11a9f08bd5> a onto:MergeCandidate ;
+    onto:candidateIndex 28 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e28\",\"predicate\":\"is essential for\",\"subject\":\"e24\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:green-technology ;
+    rdf:predicate relation:is-essential-for ;
+    rdf:subject entity:rare-earths .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-29-66a62a37e165cc00d937b941bce027fb6f89d1bcdb9a5387dd3057bcd2f17d75> a onto:MergeCandidate ;
+    onto:candidateIndex 29 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e28\",\"predicate\":\"is essential for\",\"subject\":\"e25\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:green-technology ;
+    rdf:predicate relation:is-essential-for ;
+    rdf:subject entity:lithium .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-3-8abba35bc6dc8ce9cc8b52da82b1cd970795ece050db401f4f4d7b7ba98e893b> a onto:MergeCandidate ;
+    onto:candidateIndex 3 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e3\",\"predicate\":\"involves\",\"subject\":\"e6\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:united-states ;
+    rdf:predicate relation:involves ;
+    rdf:subject entity:us-china-strategic-rivalry .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-30-38548aab193115da05675e1671fa164bab418c88739a24861bcbeedb1185c9ae> a onto:MergeCandidate ;
+    onto:candidateIndex 30 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e28\",\"predicate\":\"is essential for\",\"subject\":\"e26\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:green-technology ;
+    rdf:predicate relation:is-essential-for ;
+    rdf:subject entity:cobalt .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-31-7ea4a77069becaed114f2bdb78c9d79fc0aa6721b745fdf36d939bc12456e543> a onto:MergeCandidate ;
+    onto:candidateIndex 31 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e24\",\"predicate\":\"dominates refining capacity for\",\"subject\":\"e5\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:rare-earths ;
+    rdf:predicate relation:dominates-refining-capacity-for ;
+    rdf:subject entity:china .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-32-726a783548f47171c72c41835a0506c2d42bac26bb5e41ade76426c041a588b4> a onto:MergeCandidate ;
+    onto:candidateIndex 32 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e25\",\"predicate\":\"dominates refining capacity for\",\"subject\":\"e5\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:lithium ;
+    rdf:predicate relation:dominates-refining-capacity-for ;
+    rdf:subject entity:china .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-33-34b078bfea1a0c76fe109b62dbcbd74ff50093251ea1a29e714611a8753eddbb> a onto:MergeCandidate ;
+    onto:candidateIndex 33 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e26\",\"predicate\":\"dominates refining capacity for\",\"subject\":\"e5\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:cobalt ;
+    rdf:predicate relation:dominates-refining-capacity-for ;
+    rdf:subject entity:china .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-34-bbece2e8590f99673faf95d11a1614da1c2894667c6c9c4b28880eeefb1745e9> a onto:MergeCandidate ;
+    onto:candidateIndex 34 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e31\",\"predicate\":\"uses exclusion from\",\"subject\":\"e30\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:swift-banking-system ;
+    rdf:predicate relation:uses-exclusion-from ;
+    rdf:subject entity:financial-warfare .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-35-08d28851eb845e1aa98738cfe562b7253f7e1d02b8f671963cf1f181b69b0a00> a onto:MergeCandidate ;
+    onto:candidateIndex 35 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e32\",\"predicate\":\"uses freezing of\",\"subject\":\"e30\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:sovereign-assets ;
+    rdf:predicate relation:uses-freezing-of ;
+    rdf:subject entity:financial-warfare .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-36-12dd2dfaf969c9e1370170774668d81e16abd27d81123d02451ea69e374a9312> a onto:MergeCandidate ;
+    onto:candidateIndex 36 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.94 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.94,\"object\":\"e33\",\"predicate\":\"pushes adversaries toward\",\"subject\":\"e29\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:de-dollarization ;
+    rdf:predicate relation:pushes-adversaries-toward ;
+    rdf:subject entity:sanctions .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-37-e6212c03fb7c63db4d6969a82fa928774743044fbed975473c25b73b41a32c3c> a onto:MergeCandidate ;
+    onto:candidateIndex 37 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e33\",\"predicate\":\"pushes adversaries toward\",\"subject\":\"e30\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:de-dollarization ;
+    rdf:predicate relation:pushes-adversaries-toward ;
+    rdf:subject entity:financial-warfare .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-38-6ecd9c93eb9c6fa4f1c5e82641f776a38b987a3ca1390a2a302728706e2679d8> a onto:MergeCandidate ;
+    onto:candidateIndex 38 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e34\",\"predicate\":\"uses trade in\",\"subject\":\"e33\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:local-currencies ;
+    rdf:predicate relation:uses-trade-in ;
+    rdf:subject entity:de-dollarization .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-39-96d294259dd1de399ad98cbff885f19ab79d74428dad14c663ceb6989d989886> a onto:MergeCandidate ;
+    onto:candidateIndex 39 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e37\",\"predicate\":\"affects\",\"subject\":\"e36\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:global-maritime-trade ;
+    rdf:predicate relation:affects ;
+    rdf:subject entity:south-china-sea .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-4-9124491559d21302c040df456d56d1fdcbbfba4264e229f227e0b4bed4fe5242> a onto:MergeCandidate ;
+    onto:candidateIndex 4 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e5\",\"predicate\":\"involves\",\"subject\":\"e6\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:china ;
+    rdf:predicate relation:involves ;
+    rdf:subject entity:us-china-strategic-rivalry .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-40-0da89acaf9315aeb18b36cf3a7c5b458fb559a05bd5b7bc23b95889149fc3c69> a onto:MergeCandidate ;
+    onto:candidateIndex 40 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e39\",\"predicate\":\"is located in\",\"subject\":\"e40\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:ukraine ;
+    rdf:predicate relation:is-located-in ;
+    rdf:subject entity:conflict-in-ukraine .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-41-7339671fa5c80c1064ac14102df1f7a077dcb100c5e872f870a541f78e7f4b20> a onto:MergeCandidate ;
+    onto:candidateIndex 41 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.97 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.97,\"object\":\"e38\",\"predicate\":\"is located in\",\"subject\":\"e40\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:eastern-europe ;
+    rdf:predicate relation:is-located-in ;
+    rdf:subject entity:conflict-in-ukraine .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-42-9e8b6b5781bf77e5535ab14200b2321c2e29450fb8fb42748118e05d19854df6> a onto:MergeCandidate ;
+    onto:candidateIndex 42 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e41\",\"predicate\":\"revitalized\",\"subject\":\"e40\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:nato ;
+    rdf:predicate relation:revitalized ;
+    rdf:subject entity:conflict-in-ukraine .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-43-f639aa202fd1406a7bfc73af47829217a1b86ea76622d1bfb36f7e7451010d66> a onto:MergeCandidate ;
+    onto:candidateIndex 43 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e41\",\"predicate\":\"expanded borders of\",\"subject\":\"e40\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:nato ;
+    rdf:predicate relation:expanded-borders-of ;
+    rdf:subject entity:conflict-in-ukraine .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-44-7528fee94dab209088914c371a9d035066b731b49f3b24702315c39ef9b2303b> a onto:MergeCandidate ;
+    onto:candidateIndex 44 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e45\",\"predicate\":\"altered\",\"subject\":\"e40\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:europe-s-energy-architecture ;
+    rdf:predicate relation:altered ;
+    rdf:subject entity:conflict-in-ukraine .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-45-23d0ee1710bec7c5a60bc4fbc6e7bdb68acb8f2d59deb7bc53d74cef463ad68e> a onto:MergeCandidate ;
+    onto:candidateIndex 45 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e44\",\"predicate\":\"relied on\",\"subject\":\"e42\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:russian-gas ;
+    rdf:predicate relation:relied-on ;
+    rdf:subject entity:europe .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-46-9a8aecdec3285be33dffb18d80d7cd9345849ecf4f44f0334daf154d0b27729d> a onto:MergeCandidate ;
+    onto:candidateIndex 46 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e43\",\"predicate\":\"originates from\",\"subject\":\"e44\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:russia ;
+    rdf:predicate relation:originates-from ;
+    rdf:subject entity:russian-gas .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-47-c34b2df5808bbd39d6cece9e32349b5a01f18b4de2c99d838506837b032cafa5> a onto:MergeCandidate ;
+    onto:candidateIndex 47 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.96 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.96,\"object\":\"e44\",\"predicate\":\"severed reliance on\",\"subject\":\"e40\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:russian-gas ;
+    rdf:predicate relation:severed-reliance-on ;
+    rdf:subject entity:conflict-in-ukraine .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-48-b358be9d6ff0db82c8815a339a6218b2e8e19afbe8c6716c3c17a95dd3546a74> a onto:MergeCandidate ;
+    onto:candidateIndex 48 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e46\",\"predicate\":\"attempts to pivot to\",\"subject\":\"e3\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:asia ;
+    rdf:predicate relation:attempts-to-pivot-to ;
+    rdf:subject entity:united-states .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-49-cc7fd3130f242ab4c2093fabc8c63f9ca6aae6820d94c06b92037f4834cca62a> a onto:MergeCandidate ;
+    onto:candidateIndex 49 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e47\",\"predicate\":\"normalizes relations between\",\"subject\":\"e49\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:israel ;
+    rdf:predicate relation:normalizes-relations-between ;
+    rdf:subject entity:abraham-accords .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-5-78809ad9ee7f8f9a8f0e34292b7d752718ad25302ac83a44fe23d59fdf7e244f> a onto:MergeCandidate ;
+    onto:candidateIndex 5 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.97 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.97,\"object\":\"e7\",\"predicate\":\"seeks ideological influence in\",\"subject\":\"e6\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:global-south ;
+    rdf:predicate relation:seeks-ideological-influence-in ;
+    rdf:subject entity:us-china-strategic-rivalry .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-50-d710f7b0b9611b75372b5cab6d4b932ae35ab26c84a2c00b40ba4a292221159d> a onto:MergeCandidate ;
+    onto:candidateIndex 50 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e48\",\"predicate\":\"normalizes relations between\",\"subject\":\"e49\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:arab-states ;
+    rdf:predicate relation:normalizes-relations-between ;
+    rdf:subject entity:abraham-accords .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-51-a19cfb99f1a4945a6e9118d4c8e124207f79ea0b977c5c5a0b070d734f3b8dc7> a onto:MergeCandidate ;
+    onto:candidateIndex 51 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e49\",\"predicate\":\"tests\",\"subject\":\"e50\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:abraham-accords ;
+    rdf:predicate relation:tests ;
+    rdf:subject entity:regional-conflicts .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-52-6f12c86da5342f2296081b844e59ab50cddaece0f5b1510cb0eb40df4ed8e559> a onto:MergeCandidate ;
+    onto:candidateIndex 52 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e49\",\"predicate\":\"tests\",\"subject\":\"e52\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:abraham-accords ;
+    rdf:predicate relation:tests ;
+    rdf:subject entity:iran-s-proxy-network .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-53-37c1a4dba4bbc600002bb21734ec809e64f7f09fa64ebb9046a7a12934620a84> a onto:MergeCandidate ;
+    onto:candidateIndex 53 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.99 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.99,\"object\":\"e51\",\"predicate\":\"is linked to\",\"subject\":\"e52\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:iran ;
+    rdf:predicate relation:is-linked-to ;
+    rdf:subject entity:iran-s-proxy-network .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-6-a0c672a191b9bc83aade64314bd318d0843de77ae28cf43a67bc247d607c9c47> a onto:MergeCandidate ;
+    onto:candidateIndex 6 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e12\",\"predicate\":\"is a member of\",\"subject\":\"e8\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:middle-powers ;
+    rdf:predicate relation:is-a-member-of ;
+    rdf:subject entity:india .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-7-663288d27517f9007b1d2ba4678ea24dd19f3ec500b38269e879e88c71bd3ba2> a onto:MergeCandidate ;
+    onto:candidateIndex 7 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e12\",\"predicate\":\"is a member of\",\"subject\":\"e9\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:middle-powers ;
+    rdf:predicate relation:is-a-member-of ;
+    rdf:subject entity:turkey .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-8-07bfb330fc96a5ccd8bc0c3a09c780a7aa32e136b6a47e40c9fcce9e606350b5> a onto:MergeCandidate ;
+    onto:candidateIndex 8 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e12\",\"predicate\":\"is a member of\",\"subject\":\"e10\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:middle-powers ;
+    rdf:predicate relation:is-a-member-of ;
+    rdf:subject entity:saudi-arabia .
+
+<http://example.org/text-ontology/merge-candidate/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302/relations-9-36b1d7599cc6504f529033acf9a74aa3008c719262f688c4a4310f2239c9525d> a onto:MergeCandidate ;
+    onto:candidateIndex 9 ;
+    onto:candidateSection "relations" ;
+    onto:extractionConfidence 0.98 ;
+    onto:mergeDecision "accept" ;
+    onto:normalizedCandidate "{\"confidence\":0.98,\"object\":\"e12\",\"predicate\":\"is a member of\",\"subject\":\"e11\"}"^^rdf:JSON ;
+    onto:wasExtractedIn <http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> ;
+    rdf:object entity:middle-powers ;
+    rdf:predicate relation:is-a-member-of ;
+    rdf:subject entity:brazil .
 
 <http://example.org/text-ontology/merge-candidate/ab3a32cf7e1d88d9456f84f8a7912f45f969ccae32549279564d7576a085dcb3/entities-0-5094b0104fa15cf57c0405c8f3302d818038d9f683d7c58a3411aa1971bd27a3> a onto:MergeCandidate ;
     onto:candidateIndex 0 ;
@@ -3370,17 +4612,23 @@ entity:xi-jinping a onto:Entity,
 fact:accusation a owl:DatatypeProperty ;
     rdfs:label "accusation" .
 
+fact:characteristic a owl:DatatypeProperty ;
+    rdfs:label "characteristic" .
+
 fact:characteristics a owl:DatatypeProperty ;
     rdfs:label "characteristics" .
-
-fact:characterization a owl:DatatypeProperty ;
-    rdfs:label "characterization" .
 
 fact:date a owl:DatatypeProperty ;
     rdfs:label "date" .
 
+fact:degree-of-change a owl:DatatypeProperty ;
+    rdfs:label "degree of change" .
+
 fact:dependency-characteristic a owl:DatatypeProperty ;
     rdfs:label "dependency characteristic" .
+
+fact:dimensions a owl:DatatypeProperty ;
+    rdfs:label "dimensions" .
 
 fact:disruption-speed a owl:DatatypeProperty ;
     rdfs:label "disruption speed" .
@@ -3391,6 +4639,9 @@ fact:funding-delivery a owl:DatatypeProperty ;
 fact:geographic-extent a owl:DatatypeProperty ;
     rdfs:label "geographic extent" .
 
+fact:geopolitical-significance a owl:DatatypeProperty ;
+    rdfs:label "geopolitical significance" .
+
 fact:omits a owl:DatatypeProperty ;
     rdfs:label "omits" .
 
@@ -3400,8 +4651,17 @@ fact:outcome a owl:DatatypeProperty ;
 fact:position-on-frozen-iranian-assets a owl:DatatypeProperty ;
     rdfs:label "position on frozen Iranian assets" .
 
+fact:post-cold-war-polarity a owl:DatatypeProperty ;
+    rdfs:label "post Cold War polarity" .
+
+fact:purpose a owl:DatatypeProperty ;
+    rdfs:label "purpose" .
+
 fact:replacement-difficulty a owl:DatatypeProperty ;
     rdfs:label "replacement difficulty" .
+
+fact:share-of-global-maritime-trade-affected-by-control a owl:DatatypeProperty ;
+    rdfs:label "share of global maritime trade affected by control" .
 
 fact:storage-recommendation a owl:DatatypeProperty ;
     rdfs:label "storage recommendation" .
@@ -3412,9 +4672,6 @@ fact:strategic-effect-of-dependence a owl:DatatypeProperty ;
 fact:strategic-emphasis a owl:DatatypeProperty ;
     rdfs:label "strategic emphasis" .
 
-fact:strategic-role a owl:DatatypeProperty ;
-    rdfs:label "strategic role" .
-
 relation:accommodates a owl:ObjectProperty ;
     rdfs:label "accommodates" .
 
@@ -3424,11 +4681,17 @@ relation:accuses a owl:ObjectProperty ;
 relation:administers a owl:ObjectProperty ;
     rdfs:label "administers" .
 
+relation:altered a owl:ObjectProperty ;
+    rdfs:label "altered" .
+
 relation:applies-to a owl:ObjectProperty ;
     rdfs:label "applies to" .
 
 relation:associated-with a owl:ObjectProperty ;
     rdfs:label "associated with" .
+
+relation:attempts-to-pivot-to a owl:ObjectProperty ;
+    rdfs:label "attempts to pivot to" .
 
 relation:backs a owl:ObjectProperty ;
     rdfs:label "backs" .
@@ -3466,8 +4729,14 @@ relation:disrupted a owl:ObjectProperty ;
 relation:exerts-gray-zone-pressure-on a owl:ObjectProperty ;
     rdfs:label "exerts gray zone pressure on" .
 
+relation:expanded-borders-of a owl:ObjectProperty ;
+    rdfs:label "expanded borders of" .
+
 relation:faces a owl:ObjectProperty ;
     rdfs:label "faces" .
+
+relation:followed a owl:ObjectProperty ;
+    rdfs:label "followed" .
 
 relation:has-funding-gap a owl:ObjectProperty ;
     rdfs:label "has funding gap" .
@@ -3484,8 +4753,20 @@ relation:includes a owl:ObjectProperty ;
 relation:includes-suspected-tactic a owl:ObjectProperty ;
     rdfs:label "includes suspected tactic" .
 
+relation:is-a-critical-strategic-vulnerability-in a owl:ObjectProperty ;
+    rdfs:label "is a critical strategic vulnerability in" .
+
 relation:is-an-example-of a owl:ObjectProperty ;
     rdfs:label "is an example of" .
+
+relation:is-linked-to a owl:ObjectProperty ;
+    rdfs:label "is linked to" .
+
+relation:is-transitioning-toward a owl:ObjectProperty ;
+    rdfs:label "is transitioning toward" .
+
+relation:led a owl:ObjectProperty ;
+    rdfs:label "led" .
 
 relation:likely-performs-worse-on a owl:ObjectProperty ;
     rdfs:label "likely performs worse on" .
@@ -3502,17 +4783,26 @@ relation:made a owl:ObjectProperty ;
 relation:makes-choices-about-harder a owl:ObjectProperty ;
     rdfs:label "makes choices about harder" .
 
+relation:manufactures-the-vast-majority-of a owl:ObjectProperty ;
+    rdfs:label "manufactures the vast majority of" .
+
 relation:may-explore a owl:ObjectProperty ;
     rdfs:label "may explore" .
 
 relation:may-motivate a owl:ObjectProperty ;
     rdfs:label "may motivate" .
 
+relation:moves-away-from a owl:ObjectProperty ;
+    rdfs:label "moves away from" .
+
 relation:occurred-at a owl:ObjectProperty ;
     rdfs:label "occurred at" .
 
 relation:occurs-in a owl:ObjectProperty ;
     rdfs:label "occurs in" .
+
+relation:originates-from a owl:ObjectProperty ;
+    rdfs:label "originates from" .
 
 relation:pledged-reconstruction-funds-for a owl:ObjectProperty ;
     rdfs:label "pledged reconstruction funds for" .
@@ -3532,17 +4822,51 @@ relation:raises a owl:ObjectProperty ;
 relation:reduces-exposure-to a owl:ObjectProperty ;
     rdfs:label "reduces exposure to" .
 
+relation:reduces-reliance-on a owl:ObjectProperty ;
+    rdfs:label "reduces reliance on" .
+
+relation:relied-on a owl:ObjectProperty ;
+    rdfs:label "relied on" .
+
 relation:responsible-for-enforcing a owl:ObjectProperty ;
     rdfs:label "responsible for enforcing" .
 
 relation:revises a owl:ObjectProperty ;
     rdfs:label "revises" .
 
+relation:revitalized a owl:ObjectProperty ;
+    rdfs:label "revitalized" .
+
+relation:seeks-ideological-influence-in a owl:ObjectProperty ;
+    rdfs:label "seeks ideological influence in" .
+
 relation:seeks-to-reduce-dependence-on a owl:ObjectProperty ;
     rdfs:label "seeks to reduce dependence on" .
 
+relation:severed-reliance-on a owl:ObjectProperty ;
+    rdfs:label "severed reliance on" .
+
 relation:undercuts-plans-for a owl:ObjectProperty ;
     rdfs:label "undercuts plans for" .
+
+relation:uses-exclusion-from a owl:ObjectProperty ;
+    rdfs:label "uses exclusion from" .
+
+relation:uses-freezing-of a owl:ObjectProperty ;
+    rdfs:label "uses freezing of" .
+
+relation:uses-trade-in a owl:ObjectProperty ;
+    rdfs:label "uses trade in" .
+
+entity:brazil a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Brazil" ;
+    onto:kind "Location" ;
+    relation:is-a-member-of entity:middle-powers ;
+    rdfs:comment "Country described as an increasingly independent middle-power swing state." ;
+    skos:prefLabel "Brazil" .
 
 entity:coordinated-mineral-strategy a onto:Entity,
         class:policy,
@@ -3563,6 +4887,26 @@ entity:energy-vulnerability a onto:Entity,
     relation:may-motivate entity:limited-economic-accommodation-with-china ;
     rdfs:comment "Severe exposure to energy disruption that can motivate economic accommodation and foreign-policy revision." ;
     skos:prefLabel "Energy vulnerability" .
+
+entity:india a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "India" ;
+    onto:kind "Location" ;
+    relation:is-a-member-of entity:middle-powers ;
+    rdfs:comment "Country described as an increasingly independent middle-power swing state." ;
+    skos:prefLabel "India" .
+
+entity:indo-pacific a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Indo-Pacific" ;
+    fact:strategic-role "primary theater of competition" ;
+    onto:kind "Location" ;
+    rdfs:comment "Primary theater of geopolitical competition." ;
+    skos:prefLabel "Indo-Pacific" .
 
 entity:industrial-dependencies a onto:Entity,
         class:entity,
@@ -3585,6 +4929,17 @@ entity:orthodox-easter-ceasefire a onto:Entity,
     rdfs:comment "Short ceasefire announced during the war that both Russia and Ukraine quickly accused the other of violating." ;
     skos:prefLabel "Orthodox Easter ceasefire" .
 
+entity:regional-conflicts a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Regional conflicts" ;
+    onto:kind "Event" ;
+    relation:disrupted entity:energy-markets ;
+    relation:tests entity:abraham-accords ;
+    rdfs:comment "Wider regional conflicts that disrupted energy markets and put shipping routes and fuel supplies under stress" ;
+    skos:prefLabel "Regional conflicts" .
+
 entity:russian-refining-capacity a onto:Entity,
         class:infrastructure,
         owl:NamedIndividual,
@@ -3596,6 +4951,16 @@ entity:russian-refining-capacity a onto:Entity,
         "Russian refining capacity" ;
     skos:prefLabel "Russian refining capacity" .
 
+entity:saudi-arabia a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Saudi Arabia" ;
+    onto:kind "Location" ;
+    relation:is-a-member-of entity:middle-powers ;
+    rdfs:comment "Country described as an increasingly independent middle-power swing state." ;
+    skos:prefLabel "Saudi Arabia" .
+
 entity:south-china-sea-tensions-and-the-philippines-energy-security-dilemma a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -3605,6 +4970,16 @@ entity:south-china-sea-tensions-and-the-philippines-energy-security-dilemma a on
     onto:kind "Entity" ;
     rdfs:comment "Benchmark brief dated 2026-04-12 about Middle East oil disruption, Philippine energy policy, and South China Sea security tensions." ;
     skos:prefLabel "South China Sea tensions and the Philippines energy-security dilemma" .
+
+entity:turkey a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Turkey" ;
+    onto:kind "Location" ;
+    relation:is-a-member-of entity:middle-powers ;
+    rdfs:comment "Country described as an increasingly independent middle-power swing state." ;
+    skos:prefLabel "Turkey" .
 
 entity:western-coordination-on-minerals a onto:Entity,
         class:entity,
@@ -3616,8 +4991,14 @@ entity:western-coordination-on-minerals a onto:Entity,
     rdfs:comment "Coordination intended partly to reduce vulnerability arising from dependence on Chinese-controlled processing." ;
     skos:prefLabel "Western coordination on minerals" .
 
+fact:characterization a owl:DatatypeProperty ;
+    rdfs:label "characterization" .
+
 fact:document-type a owl:DatatypeProperty ;
     rdfs:label "document type" .
+
+fact:strategic-role a owl:DatatypeProperty ;
+    rdfs:label "strategic role" .
 
 fact:theme a owl:DatatypeProperty ;
     rdfs:label "theme" .
@@ -3625,11 +5006,23 @@ fact:theme a owl:DatatypeProperty ;
 fact:time a owl:DatatypeProperty ;
     rdfs:label "time" .
 
+relation:bypasses a owl:ObjectProperty ;
+    rdfs:label "bypasses" .
+
 relation:controls-supply-in a owl:ObjectProperty ;
     rdfs:label "controls supply in" .
 
+relation:does-not-align-strictly-with a owl:ObjectProperty ;
+    rdfs:label "does not align strictly with" .
+
+relation:extracts-concessions-from a owl:ObjectProperty ;
+    rdfs:label "extracts concessions from" .
+
 relation:favors a owl:ObjectProperty ;
     rdfs:label "favors" .
+
+relation:forms a owl:ObjectProperty ;
+    rdfs:label "forms" .
 
 relation:includes-approved-purchase a owl:ObjectProperty ;
     rdfs:label "includes approved purchase" .
@@ -3637,14 +5030,26 @@ relation:includes-approved-purchase a owl:ObjectProperty ;
 relation:includes-tactic a owl:ObjectProperty ;
     rdfs:label "includes tactic" .
 
+relation:is-located-in a owl:ObjectProperty ;
+    rdfs:label "is located in" .
+
 relation:is-strategically-connected-to a owl:ObjectProperty ;
     rdfs:label "is strategically connected to" .
+
+relation:normalizes-relations-between a owl:ObjectProperty ;
+    rdfs:label "normalizes relations between" .
 
 relation:pulls-nato-attention-toward a owl:ObjectProperty ;
     rdfs:label "pulls NATO attention toward" .
 
+relation:pushes-adversaries-toward a owl:ObjectProperty ;
+    rdfs:label "pushes adversaries toward" .
+
 relation:remains-focused-on a owl:ObjectProperty ;
     rdfs:label "remains focused on" .
+
+relation:tests a owl:ObjectProperty ;
+    rdfs:label "tests" .
 
 class:infrastructure a owl:Class ;
     rdfs:label "Infrastructure" ;
@@ -3686,14 +5091,14 @@ entity:anti-ship-missiles a onto:Entity,
     rdfs:comment "Defensive missile systems favored by Taiwan's porcupine strategy." ;
     skos:prefLabel "anti-ship missiles" .
 
-entity:asia a onto:Entity,
-        class:location,
+entity:arab-states a onto:Entity,
+        class:entity,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Asia" ;
-    onto:kind "Location" ;
-    rdfs:comment "Region connected to the Middle East through energy chokepoints." ;
-    skos:prefLabel "Asia" .
+    rdfs:label "Arab states" ;
+    onto:kind "Entity" ;
+    rdfs:comment "States pursuing normalization efforts with Israel." ;
+    skos:prefLabel "Arab states" .
 
 entity:asian-countries-hedging-against-china a onto:Entity,
         class:entity,
@@ -3706,6 +5111,15 @@ entity:asian-countries-hedging-against-china a onto:Entity,
     rdfs:comment "Countries in Asia that may combine strategic hedging against China with limited economic accommodation." ;
     skos:prefLabel "Asian countries hedging against China" .
 
+entity:aukus a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "AUKUS" ;
+    onto:kind "Organization" ;
+    rdfs:comment "Minilateral alliance cited as an alternative formed while major powers bypass established institutions." ;
+    skos:prefLabel "AUKUS" .
+
 entity:beit-lahia a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -3714,6 +5128,16 @@ entity:beit-lahia a onto:Entity,
     onto:kind "Location" ;
     rdfs:comment "Place in Gaza affected by Israeli strikes." ;
     skos:prefLabel "Beit Lahia" .
+
+entity:brics a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "BRICS" ;
+    onto:kind "Organization" ;
+    rdfs:comment "Expanded grouping cited as a minilateral alliance." ;
+    skos:altLabel "expanded BRICS" ;
+    skos:prefLabel "BRICS" .
 
 entity:bureij a onto:Entity,
         class:location,
@@ -3744,6 +5168,15 @@ entity:clean-tech-supply-chains a onto:Entity,
     rdfs:comment "Supply chains that a memory system should connect to rare-earth leverage." ;
     skos:prefLabel "Clean-tech supply chains" .
 
+entity:cold-war a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Cold War" ;
+    onto:kind "Event" ;
+    rdfs:comment "Historical period after which the global order was largely led by the United States." ;
+    skos:prefLabel "Cold War" .
+
 entity:defense-readiness a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -3773,6 +5206,15 @@ entity:drones a onto:Entity,
     rdfs:comment "Mobile defensive systems favored by Taiwan's porcupine strategy." ;
     skos:prefLabel "drones" .
 
+entity:eastern-europe a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Eastern Europe" ;
+    onto:kind "Location" ;
+    rdfs:comment "Region containing the ongoing conflict in Ukraine." ;
+    skos:prefLabel "Eastern Europe" .
+
 entity:energy-security a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -3781,6 +5223,15 @@ entity:energy-security a onto:Entity,
     onto:kind "Entity" ;
     rdfs:comment "Durable cross-document concept that a memory system should preserve explicitly." ;
     skos:prefLabel "Energy security" .
+
+entity:fossil-fuels a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Fossil fuels" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Energy sources from which the energy transition is moving away." ;
+    skos:prefLabel "Fossil fuels" .
 
 entity:france a onto:Entity,
         class:location,
@@ -3820,6 +5271,15 @@ entity:gaza-ceasefire-terms a onto:Entity,
     skos:altLabel "agreed terms" ;
     skos:prefLabel "Gaza ceasefire terms" .
 
+entity:global-economy a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Global economy" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Economic system for which Taiwan's chip concentration is described as a critical strategic vulnerability." ;
+    skos:prefLabel "Global economy" .
+
 entity:global-energy-system a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -3828,6 +5288,24 @@ entity:global-energy-system a onto:Entity,
     onto:kind "Entity" ;
     rdfs:comment "Worldwide energy system connected to the regional crisis through the Strait of Hormuz." ;
     skos:prefLabel "Global energy system" .
+
+entity:global-maritime-trade a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Global maritime trade" ;
+    onto:kind "Entity" ;
+    rdfs:comment "International seaborne trade, roughly one-third of which is affected by control over the South China Sea." ;
+    skos:prefLabel "Global maritime trade" .
+
+entity:global-south a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Global South" ;
+    onto:kind "Location" ;
+    rdfs:comment "Region in which the United States and China compete for ideological influence." ;
+    skos:prefLabel "Global South" .
 
 entity:gulf a onto:Entity,
         class:location,
@@ -3858,6 +5336,17 @@ entity:harder-questions a onto:Entity,
     rdfs:comment "Questions on which a document-summary-only ingest strategy is expected to perform worse." ;
     skos:prefLabel "Harder questions" .
 
+entity:iran-s-proxy-network a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Iran's proxy network" ;
+    onto:kind "Organization" ;
+    relation:is-linked-to entity:iran ;
+    relation:tests entity:abraham-accords ;
+    rdfs:comment "Iran-linked network that continually tests normalization efforts between Arab states and Israel." ;
+    skos:prefLabel "Iran's proxy network" .
+
 entity:japan a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -3875,6 +5364,15 @@ entity:kuomintang a onto:Entity,
     onto:kind "Organization" ;
     rdfs:comment "Taiwanese political party chaired by Cheng Li-wun." ;
     skos:prefLabel "Kuomintang" .
+
+entity:local-currencies a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Local currencies" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Currencies adversaries seek to use in trade as part of de-dollarization." ;
+    skos:prefLabel "Local currencies" .
 
 entity:maritime-protection a onto:Entity,
         class:policy,
@@ -3934,6 +5432,15 @@ entity:semiconductor-restrictions a onto:Entity,
     rdfs:comment "Restrictions relevant to AI and computing that reinforce efforts to reduce Western supply-chain exposure." ;
     skos:prefLabel "Semiconductor restrictions" .
 
+entity:sovereign-assets a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Sovereign assets" ;
+    onto:kind "Entity" ;
+    rdfs:comment "State-owned assets that may be frozen as a form of financial warfare." ;
+    skos:prefLabel "Sovereign assets" .
+
 entity:strait-of-hormuz-disruption a onto:Entity,
         class:event,
         owl:NamedIndividual,
@@ -3945,6 +5452,16 @@ entity:strait-of-hormuz-disruption a onto:Entity,
     rdfs:comment "Disruption at the energy chokepoint that pushed fuel prices higher beyond the Middle East." ;
     skos:altLabel "disruption" ;
     skos:prefLabel "Strait of Hormuz disruption" .
+
+entity:swift-banking-system a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "SWIFT banking system" ;
+    onto:kind "Organization" ;
+    rdfs:comment "International banking system from which rival nations may be excluded as a form of financial pressure." ;
+    skos:altLabel "SWIFT" ;
+    skos:prefLabel "SWIFT banking system" .
 
 entity:taiwan-under-gray-zone-pressure a onto:Entity,
         class:entity,
@@ -4003,6 +5520,9 @@ fact:significance a owl:DatatypeProperty ;
 fact:snapshot-date a owl:DatatypeProperty ;
     rdfs:label "snapshot date" .
 
+fact:status a owl:DatatypeProperty ;
+    rdfs:label "status" .
+
 relation:can-disrupt a owl:ObjectProperty ;
     rdfs:label "can disrupt" .
 
@@ -4011,6 +5531,12 @@ relation:concerned a owl:ObjectProperty ;
 
 relation:covers-region a owl:ObjectProperty ;
     rdfs:label "covers region" .
+
+relation:creates-dependency-on a owl:ObjectProperty ;
+    rdfs:label "creates dependency on" .
+
+relation:dominates-refining-capacity-for a owl:ObjectProperty ;
+    rdfs:label "dominates refining capacity for" .
 
 relation:feeds a owl:ObjectProperty ;
     rdfs:label "feeds" .
@@ -4036,6 +5562,28 @@ entity:cross-region-interactions-across-trade-war-energy-and-alliances a onto:En
     onto:kind "Entity" ;
     rdfs:comment "Benchmark brief synthesizing cross-region links among energy, industrial dependencies, war, and alliance politics." ;
     skos:prefLabel "Cross-region interactions across trade, war, energy, and alliances" .
+
+entity:europe-s-energy-architecture a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Europe's energy architecture" ;
+    fact:degree-of-change "permanently altered" ;
+    onto:kind "Entity" ;
+    rdfs:comment "European energy system permanently altered by the Ukraine conflict and the severing of reliance on Russian gas." ;
+    skos:prefLabel "Europe's energy architecture" .
+
+entity:financial-warfare a onto:Entity,
+        class:policy,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Financial warfare" ;
+    onto:kind "Policy" ;
+    relation:pushes-adversaries-toward entity:de-dollarization ;
+    relation:uses-exclusion-from entity:swift-banking-system ;
+    relation:uses-freezing-of entity:sovereign-assets ;
+    rdfs:comment "Use of financial measures such as SWIFT exclusion and sovereign-asset freezes against rival nations." ;
+    skos:prefLabel "Financial warfare" .
 
 entity:gaza-ceasefire-mediators-and-guarantors a onto:Entity,
         class:entity,
@@ -4090,16 +5638,6 @@ entity:islamabad a onto:Entity,
     rdfs:comment "City where the United States and Iran held direct talks." ;
     skos:prefLabel "Islamabad" .
 
-entity:israel a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Israel" ;
-    onto:kind "Location" ;
-    relation:conducted entity:israeli-strikes-in-gaza ;
-    rdfs:comment "Country involved in the regional war environment and strikes in Gaza." ;
-    skos:prefLabel "Israel" .
-
 entity:javelin-anti-tank-missiles a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -4111,6 +5649,17 @@ entity:javelin-anti-tank-missiles a onto:Entity,
     skos:altLabel "Javelin" ;
     skos:prefLabel "Javelin anti-tank missiles" .
 
+entity:multipolar-world a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Multipolar world" ;
+    fact:characteristic "competing spheres of influence" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Emerging international system characterized by competing spheres of influence." ;
+    skos:altLabel "multipolarity" ;
+    skos:prefLabel "Multipolar world" .
+
 entity:national-committee-for-the-administration-of-gaza a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -4120,23 +5669,6 @@ entity:national-committee-for-the-administration-of-gaza a onto:Entity,
     relation:administers entity:gaza ;
     rdfs:comment "Planned body whose ability to operate effectively was undermined by the funding shortage." ;
     skos:prefLabel "National Committee for the Administration of Gaza" .
-
-entity:nato a onto:Entity,
-        class:organization,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "NATO" ;
-    fact:defense-spending-baseline-in-2026 "stronger than in previous years" ;
-    fact:european-and-canadian-member-defense-outlays "significantly increased" ;
-    fact:policy-emphasis "Stronger conventional deterrence, faster technology adoption, and sustained allied defense spending" ;
-    fact:support "Ukraine against Russia" ;
-    onto:kind "Organization" ;
-    relation:emphasizes entity:russian-refining-capacity ;
-    relation:remains-focused-on entity:russia,
-        entity:ukraine ;
-    rdfs:comment "Alliance that Russia reportedly wanted to pledge to stop expanding eastward and that emphasized stronger deterrence and defense spending." ;
-    skos:altLabel "alliance" ;
-    skos:prefLabel "NATO" .
 
 entity:philippine-external-security-support a onto:Entity,
         class:entity,
@@ -4209,6 +5741,17 @@ entity:taiwan-s-critical-infrastructure a onto:Entity,
     skos:altLabel "critical infrastructure" ;
     skos:prefLabel "Taiwan's critical infrastructure" .
 
+entity:united-nations-security-council a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "United Nations Security Council" ;
+    fact:status "frequently deadlocked and struggling to manage modern crises" ;
+    onto:kind "Organization" ;
+    rdfs:comment "Post-World War II institution described as frequently deadlocked and struggling to manage modern crises." ;
+    skos:altLabel "UN Security Council" ;
+    skos:prefLabel "United Nations Security Council" .
+
 entity:western-supply-chain-exposure-reduction-effort a onto:Entity,
         class:policy,
         owl:NamedIndividual,
@@ -4220,12 +5763,19 @@ entity:western-supply-chain-exposure-reduction-effort a onto:Entity,
     skos:altLabel "broader Western effort" ;
     skos:prefLabel "Western supply-chain exposure reduction effort" .
 
-relation:affects a owl:ObjectProperty ;
-    rdfs:label "affects" .
+entity:world-trade-organization a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "World Trade Organization" ;
+    fact:status "frequently deadlocked and struggling to manage modern crises" ;
+    onto:kind "Organization" ;
+    rdfs:comment "Post-World War II institution described as frequently deadlocked and struggling to manage modern crises." ;
+    skos:altLabel "WTO" ;
+    skos:prefLabel "World Trade Organization" .
 
-class:organization a owl:Class ;
-    rdfs:label "Organization" ;
-    rdfs:subClassOf onto:Entity .
+relation:is-a-member-of a owl:ObjectProperty ;
+    rdfs:label "is a member of" .
 
 entity:burden-sharing a onto:Entity,
         class:policy,
@@ -4337,6 +5887,19 @@ entity:israeli-strikes-in-gaza a onto:Entity,
     skos:altLabel "Israeli strikes" ;
     skos:prefLabel "Israeli strikes in Gaza" .
 
+entity:major-powers a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Major powers" ;
+    onto:kind "Entity" ;
+    relation:bypasses entity:united-nations-security-council,
+        entity:world-trade-organization ;
+    relation:forms entity:aukus,
+        entity:brics ;
+    rdfs:comment "Powerful states that routinely bypass deadlocked postwar institutions to form minilateral alliances." ;
+    skos:prefLabel "Major powers" .
+
 entity:proposed-philippines-china-joint-oil-exploration a onto:Entity,
         class:policy,
         owl:NamedIndividual,
@@ -4365,26 +5928,6 @@ entity:restrictions-on-rare-earths a onto:Entity,
     rdfs:comment "Restrictions capable of quickly disrupting downstream sectors." ;
     skos:prefLabel "Restrictions on rare earths" .
 
-entity:sanctions a onto:Entity,
-        class:policy,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Sanctions" ;
-    onto:kind "Policy" ;
-    rdfs:comment "Policy instrument whose associated choices become harder during Hormuz insecurity." ;
-    skos:altLabel "sanctions choices" ;
-    skos:prefLabel "Sanctions" .
-
-entity:south-china-sea a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "South China Sea" ;
-    onto:kind "Location" ;
-    rdfs:comment "Disputed maritime region where the Philippines and China discussed possible joint oil exploration." ;
-    skos:altLabel "disputed waters" ;
-    skos:prefLabel "South China Sea" .
-
 entity:suspected-sabotage-or-interference a onto:Entity,
         class:event,
         owl:NamedIndividual,
@@ -4410,20 +5953,6 @@ entity:taiwan-us-defense-procurement a onto:Entity,
     skos:altLabel "defense procurement links" ;
     skos:prefLabel "Taiwan-US defense procurement" .
 
-entity:ukraine a onto:Entity,
-        class:location,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Ukraine" ;
-    fact:preferred-settlement-approach "freeze the conflict roughly along current lines" ;
-    fact:settlement-preference "Freeze the conflict roughly along current lines" ;
-    onto:kind "Location" ;
-    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
-    relation:damaged entity:russian-refining-capacity ;
-    rdfs:comment "Country at war with Russia that favored freezing the conflict roughly along current lines." ;
-    skos:altLabel "Ukrainian" ;
-    skos:prefLabel "Ukraine" .
-
 entity:undersea-communications-links a onto:Entity,
         class:infrastructure,
         owl:NamedIndividual,
@@ -4433,11 +5962,23 @@ entity:undersea-communications-links a onto:Entity,
     rdfs:comment "Undersea communications links identified as an example of critical infrastructure vulnerable to sabotage or interference." ;
     skos:prefLabel "undersea communications links" .
 
+relation:affects a owl:ObjectProperty ;
+    rdfs:label "affects" .
+
 relation:connects a owl:ObjectProperty ;
     rdfs:label "connects" .
 
 relation:should-preserve-explicit-links-about a owl:ObjectProperty ;
     rdfs:label "should preserve explicit links about" .
+
+entity:asia a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Asia" ;
+    onto:kind "Location" ;
+    rdfs:comment "Region connected to the Middle East through energy chokepoints." ;
+    skos:prefLabel "Asia" .
 
 entity:balikatan-exercises a onto:Entity,
         class:event,
@@ -4450,6 +5991,22 @@ entity:balikatan-exercises a onto:Entity,
         entity:united-states ;
     rdfs:comment "Military exercises involving the Philippines, the United States, and, in a historically significant way, Japan." ;
     skos:prefLabel "Balikatan exercises" .
+
+entity:energy-transition a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Energy transition" ;
+    fact:depends-on "batteries, magnets, and grid components" ;
+    onto:kind "Entity" ;
+    relation:creates-dependency-on entity:cobalt,
+        entity:lithium,
+        entity:rare-earths ;
+    relation:depends-on entity:rare-earths ;
+    relation:moves-away-from entity:fossil-fuels ;
+    relation:reduces-reliance-on entity:middle-east ;
+    rdfs:comment "Shift that depends on batteries, magnets, and grid components" ;
+    skos:prefLabel "Energy transition" .
 
 entity:european-union a onto:Entity,
         class:organization,
@@ -4466,6 +6023,18 @@ entity:european-union a onto:Entity,
         "European" ;
     skos:prefLabel "European Union" .
 
+entity:global-order a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Global order" ;
+    fact:post-cold-war-polarity "largely unipolar" ;
+    onto:kind "Entity" ;
+    relation:followed entity:cold-war ;
+    relation:is-transitioning-toward entity:multipolar-world ;
+    rdfs:comment "International system that was largely unipolar after the Cold War and is now fragmenting toward multipolarity." ;
+    skos:prefLabel "Global order" .
+
 entity:limited-economic-accommodation-with-china a onto:Entity,
         class:policy,
         owl:NamedIndividual,
@@ -4477,32 +6046,79 @@ entity:limited-economic-accommodation-with-china a onto:Entity,
     skos:altLabel "limited economic accommodation" ;
     skos:prefLabel "Limited economic accommodation with China" .
 
-entity:middle-east a onto:Entity,
-        class:location,
+entity:russian-gas a onto:Entity,
+        class:entity,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Middle East" ;
-    onto:kind "Location" ;
-    rdfs:comment "Region whose crises can draw NATO attention away from Europe while affecting European security and energy interests." ;
-    skos:prefLabel "Middle East" .
+    rdfs:label "Russian gas" ;
+    onto:kind "Entity" ;
+    relation:originates-from entity:russia ;
+    rdfs:comment "Natural gas from Russia on which Europe had relied before that reliance was severed." ;
+    skos:prefLabel "Russian gas" .
 
-entity:russia a onto:Entity,
-        class:location,
+entity:us-china-strategic-rivalry a onto:Entity,
+        class:event,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Russia" ;
-    fact:preferred-settlement-approach "broader territorial concessions, written NATO non-expansion pledge, and easing of several sanctions" ;
-    fact:reported-settlement-condition "A written pledge that NATO would stop expanding eastward",
-        "Easing of several sanctions" ;
-    fact:settlement-position "Rejected freezing the conflict along current lines and sought broader territorial concessions" ;
-    onto:kind "Location" ;
-    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
-    relation:fights entity:ukraine ;
-    relation:sought-pledge-from entity:nato ;
-    rdfs:comment "Country fighting Ukraine and seeking territorial concessions and sanctions easing in settlement talks." ;
-    skos:altLabel "Moscow",
-        "Russian" ;
-    skos:prefLabel "Russia" .
+    rdfs:label "US-China strategic rivalry" ;
+    fact:dimensions "military standoff, technological supremacy, economic dominance, and ideological influence" ;
+    fact:geopolitical-significance "defining geopolitical dynamic of the 21st century" ;
+    onto:kind "Event" ;
+    relation:involves entity:china,
+        entity:united-states ;
+    relation:seeks-ideological-influence-in entity:global-south ;
+    rdfs:comment "Defining geopolitical competition involving military, technological, economic, and ideological dimensions." ;
+    skos:prefLabel "US-China strategic rivalry" .
+
+relation:is-essential-for a owl:ObjectProperty ;
+    rdfs:label "is essential for" .
+
+entity:abraham-accords a onto:Entity,
+        class:policy,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Abraham Accords" ;
+    onto:kind "Policy" ;
+    relation:normalizes-relations-between entity:arab-states,
+        entity:israel ;
+    rdfs:comment "Normalization framework between Arab states and Israel that is continually tested by regional conflicts and Iran's proxy network." ;
+    skos:prefLabel "Abraham Accords" .
+
+entity:batteries a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Batteries" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Technology dependent on rare earth elements, lithium, and cobalt." ;
+    skos:prefLabel "Batteries" .
+
+entity:cobalt a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Cobalt" ;
+    onto:kind "Entity" ;
+    relation:is-essential-for entity:batteries,
+        entity:green-technology ;
+    rdfs:comment "Critical mineral essential for batteries and green technology whose refining capacity is heavily dominated by China." ;
+    skos:prefLabel "Cobalt" .
+
+entity:conflict-in-ukraine a onto:Entity,
+        class:event,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Conflict in Ukraine" ;
+    onto:kind "Event" ;
+    relation:altered entity:europe-s-energy-architecture ;
+    relation:expanded-borders-of entity:nato ;
+    relation:is-located-in entity:eastern-europe,
+        entity:ukraine ;
+    relation:revitalized entity:nato ;
+    relation:severed-reliance-on entity:russian-gas ;
+    rdfs:comment "Ongoing conflict that revitalized NATO, expanded its borders, and altered Europe's energy architecture." ;
+    skos:altLabel "Ukraine conflict" ;
+    skos:prefLabel "Conflict in Ukraine" .
 
 entity:cross-region-memory-system a onto:Entity,
         class:entity,
@@ -4520,17 +6136,26 @@ entity:cross-region-memory-system a onto:Entity,
     skos:altLabel "good memory system" ;
     skos:prefLabel "Cross-region memory system" .
 
-entity:europe a onto:Entity,
-        class:location,
+entity:de-dollarization a onto:Entity,
+        class:policy,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Europe" ;
-    fact:policy-framing "Chinese industrial overcapacity treated as economic security, not only competition" ;
-    onto:kind "Location" ;
-    relation:faces-industrial-overcapacity-from entity:china ;
-    rdfs:comment "Region affected by competition with China" ;
-    skos:altLabel "European" ;
-    skos:prefLabel "Europe" .
+    rdfs:label "De-dollarization" ;
+    fact:purpose "shield adversaries from Western leverage" ;
+    onto:kind "Policy" ;
+    relation:uses-trade-in entity:local-currencies ;
+    rdfs:comment "Effort by adversaries to trade in local currencies and shield themselves from Western leverage." ;
+    skos:prefLabel "De-dollarization" .
+
+entity:green-technology a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Green technology" ;
+    onto:kind "Entity" ;
+    rdfs:comment "Technology dependent on rare earth elements, lithium, and cobalt." ;
+    skos:altLabel "green tech" ;
+    skos:prefLabel "Green technology" .
 
 entity:hormuz-related-insecurity a onto:Entity,
         class:event,
@@ -4548,6 +6173,27 @@ entity:hormuz-related-insecurity a onto:Entity,
     skos:altLabel "Strait of Hormuz insecurity" ;
     skos:prefLabel "Hormuz-related insecurity" .
 
+entity:israel a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Israel" ;
+    onto:kind "Location" ;
+    relation:conducted entity:israeli-strikes-in-gaza ;
+    rdfs:comment "Country involved in the regional war environment and strikes in Gaza." ;
+    skos:prefLabel "Israel" .
+
+entity:lithium a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Lithium" ;
+    onto:kind "Entity" ;
+    relation:is-essential-for entity:batteries,
+        entity:green-technology ;
+    rdfs:comment "Critical mineral essential for batteries and green technology whose refining capacity is heavily dominated by China." ;
+    skos:prefLabel "Lithium" .
+
 entity:rare-earth-leverage-in-2026 a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -4563,6 +6209,17 @@ entity:rare-earth-leverage-in-2026 a onto:Entity,
     rdfs:comment "Benchmark brief about rare earths as a strategic pressure point in 2026." ;
     skos:prefLabel "Rare-earth leverage in 2026" .
 
+entity:sanctions a onto:Entity,
+        class:policy,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Sanctions" ;
+    onto:kind "Policy" ;
+    relation:pushes-adversaries-toward entity:de-dollarization ;
+    rdfs:comment "Policy instrument whose associated choices become harder during Hormuz insecurity." ;
+    skos:altLabel "sanctions choices" ;
+    skos:prefLabel "Sanctions" .
+
 entity:us-backed-gaza-governance-and-reconstruction-initiative a onto:Entity,
         class:policy,
         owl:NamedIndividual,
@@ -4574,21 +6231,6 @@ entity:us-backed-gaza-governance-and-reconstruction-initiative a onto:Entity,
     rdfs:comment "Initiative for governance and reconstruction in Gaza that struggled with a severe funding gap." ;
     skos:altLabel "governance and reconstruction initiative" ;
     skos:prefLabel "US-backed Gaza governance and reconstruction initiative" .
-
-entity:advanced-chips a onto:Entity,
-        class:entity,
-        owl:NamedIndividual,
-        skos:Concept ;
-    rdfs:label "Advanced chips" ;
-    fact:depends-on "manufacturing inputs and specialized equipment" ;
-    fact:shapes "AI capacity and high-end computing" ;
-    onto:kind "Entity" ;
-    relation:depends-on entity:rare-earths ;
-    rdfs:comment "High-end semiconductors that shape AI capacity and high-end computing" ;
-    skos:altLabel "high-end processors",
-        "semiconductor access",
-        "semiconductors" ;
-    skos:prefLabel "Advanced chips" .
 
 entity:chinese-gray-zone-pressure-on-taiwan a onto:Entity,
         class:event,
@@ -4645,17 +6287,44 @@ entity:rare-earth-processing a onto:Entity,
         "processing capacity" ;
     skos:prefLabel "Rare-earth processing" .
 
-entity:taiwan a onto:Entity,
+entity:south-china-sea a onto:Entity,
         class:location,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Taiwan" ;
+    rdfs:label "South China Sea" ;
+    fact:share-of-global-maritime-trade-affected-by-control "roughly one third" ;
     onto:kind "Location" ;
-    relation:deepens-defense-procurement-links-with entity:united-states ;
-    relation:faces entity:chinese-gray-zone-pressure-on-taiwan ;
-    relation:pursues entity:porcupine-strategy ;
-    rdfs:comment "Island facing mounting Chinese gray-zone pressure and pursuing asymmetric defenses in early 2026." ;
-    skos:prefLabel "Taiwan" .
+    relation:affects entity:global-maritime-trade ;
+    rdfs:comment "Disputed maritime region where the Philippines and China discussed possible joint oil exploration." ;
+    skos:altLabel "disputed waters" ;
+    skos:prefLabel "South China Sea" .
+
+entity:ukraine a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Ukraine" ;
+    fact:preferred-settlement-approach "freeze the conflict roughly along current lines" ;
+    fact:settlement-preference "Freeze the conflict roughly along current lines" ;
+    onto:kind "Location" ;
+    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
+    relation:damaged entity:russian-refining-capacity ;
+    rdfs:comment "Country at war with Russia that favored freezing the conflict roughly along current lines." ;
+    skos:altLabel "Ukrainian" ;
+    skos:prefLabel "Ukraine" .
+
+entity:europe a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Europe" ;
+    fact:policy-framing "Chinese industrial overcapacity treated as economic security, not only competition" ;
+    onto:kind "Location" ;
+    relation:faces-industrial-overcapacity-from entity:china ;
+    relation:relied-on entity:russian-gas ;
+    rdfs:comment "Region affected by competition with China" ;
+    skos:altLabel "European" ;
+    skos:prefLabel "Europe" .
 
 entity:gaza a onto:Entity,
         class:location,
@@ -4665,6 +6334,41 @@ entity:gaza a onto:Entity,
     onto:kind "Location" ;
     rdfs:comment "Territory where governance and reconstruction efforts were stalled and ceasefire politics remained fragile." ;
     skos:prefLabel "Gaza" .
+
+entity:nato a onto:Entity,
+        class:organization,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "NATO" ;
+    fact:defense-spending-baseline-in-2026 "stronger than in previous years" ;
+    fact:european-and-canadian-member-defense-outlays "significantly increased" ;
+    fact:policy-emphasis "Stronger conventional deterrence, faster technology adoption, and sustained allied defense spending" ;
+    fact:support "Ukraine against Russia" ;
+    onto:kind "Organization" ;
+    relation:emphasizes entity:russian-refining-capacity ;
+    relation:remains-focused-on entity:russia,
+        entity:ukraine ;
+    rdfs:comment "Alliance that Russia reportedly wanted to pledge to stop expanding eastward and that emphasized stronger deterrence and defense spending." ;
+    skos:altLabel "alliance" ;
+    skos:prefLabel "NATO" .
+
+entity:russia a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Russia" ;
+    fact:preferred-settlement-approach "broader territorial concessions, written NATO non-expansion pledge, and easing of several sanctions" ;
+    fact:reported-settlement-condition "A written pledge that NATO would stop expanding eastward",
+        "Easing of several sanctions" ;
+    fact:settlement-position "Rejected freezing the conflict along current lines and sought broader territorial concessions" ;
+    onto:kind "Location" ;
+    relation:accused-of-violating entity:orthodox-easter-ceasefire ;
+    relation:fights entity:ukraine ;
+    relation:sought-pledge-from entity:nato ;
+    rdfs:comment "Country fighting Ukraine and seeking territorial concessions and sanctions easing in settlement talks." ;
+    skos:altLabel "Moscow",
+        "Russian" ;
+    skos:prefLabel "Russia" .
 
 entity:us-iran-talks-in-islamabad a onto:Entity,
         class:event,
@@ -4684,19 +6388,19 @@ entity:us-iran-talks-in-islamabad a onto:Entity,
     skos:altLabel "US-Iran talks" ;
     skos:prefLabel "US-Iran talks in Islamabad" .
 
-relation:involves a owl:ObjectProperty ;
-    rdfs:label "involves" .
-
-entity:iran a onto:Entity,
+entity:middle-east a onto:Entity,
         class:location,
         owl:NamedIndividual,
         skos:Concept ;
-    rdfs:label "Iran" ;
-    fact:affects "global fuel prices" ;
+    rdfs:label "Middle East" ;
+    fact:status "remains volatile" ;
     onto:kind "Location" ;
-    relation:demands entity:shipping-access-through-the-strait-of-hormuz ;
-    rdfs:comment "Country involved in conflict affecting global fuel prices" ;
-    skos:prefLabel "Iran" .
+    rdfs:comment "Region whose crises can draw NATO attention away from Europe while affecting European security and energy interests." ;
+    skos:prefLabel "Middle East" .
+
+class:organization a owl:Class ;
+    rdfs:label "Organization" ;
+    rdfs:subClassOf onto:Entity .
 
 entity:middle-east-crisis-of-april-2026 a onto:Entity,
         class:event,
@@ -4729,6 +6433,66 @@ entity:porcupine-strategy a onto:Entity,
     rdfs:comment "Taiwan's strategy of building resilient, asymmetric defenses that are cheaper, more mobile, and harder to neutralize than a conventional prestige force." ;
     skos:prefLabel "porcupine strategy" .
 
+entity:taiwan a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Taiwan" ;
+    onto:kind "Location" ;
+    relation:deepens-defense-procurement-links-with entity:united-states ;
+    relation:faces entity:chinese-gray-zone-pressure-on-taiwan ;
+    relation:is-a-critical-strategic-vulnerability-in entity:global-economy ;
+    relation:manufactures-the-vast-majority-of entity:advanced-chips ;
+    relation:pursues entity:porcupine-strategy ;
+    rdfs:comment "Island facing mounting Chinese gray-zone pressure and pursuing asymmetric defenses in early 2026." ;
+    skos:prefLabel "Taiwan" .
+
+relation:involves a owl:ObjectProperty ;
+    rdfs:label "involves" .
+
+entity:advanced-chips a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Advanced chips" ;
+    fact:characterization "the oil of the 21st century" ;
+    fact:depends-on "manufacturing inputs and specialized equipment" ;
+    fact:shapes "AI capacity and high-end computing" ;
+    onto:kind "Entity" ;
+    relation:depends-on entity:rare-earths ;
+    rdfs:comment "High-end semiconductors that shape AI capacity and high-end computing" ;
+    skos:altLabel "Advanced microchips",
+        "high-end chips",
+        "high-end processors",
+        "semiconductor access",
+        "semiconductors" ;
+    skos:prefLabel "Advanced chips" .
+
+entity:middle-powers a onto:Entity,
+        class:entity,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Middle powers" ;
+    onto:kind "Entity" ;
+    relation:does-not-align-strictly-with entity:china,
+        entity:united-states ;
+    relation:extracts-concessions-from entity:china,
+        entity:united-states ;
+    rdfs:comment "Countries acting as swing states rather than aligning strictly with Washington or Beijing." ;
+    skos:altLabel "swing states" ;
+    skos:prefLabel "Middle powers" .
+
+entity:iran a onto:Entity,
+        class:location,
+        owl:NamedIndividual,
+        skos:Concept ;
+    rdfs:label "Iran" ;
+    fact:affects "global fuel prices" ;
+    onto:kind "Location" ;
+    relation:demands entity:shipping-access-through-the-strait-of-hormuz ;
+    rdfs:comment "Country involved in conflict affecting global fuel prices" ;
+    skos:prefLabel "Iran" .
+
 entity:strait-of-hormuz a onto:Entity,
         class:location,
         owl:NamedIndividual,
@@ -4754,6 +6518,13 @@ entity:philippines a onto:Entity,
     skos:altLabel "Manila" ;
     skos:prefLabel "Philippines" .
 
+relation:linked-to a owl:ObjectProperty ;
+    rdfs:label "linked to" .
+
+class:policy a owl:Class ;
+    rdfs:label "Policy" ;
+    rdfs:subClassOf onto:Entity .
+
 entity:rare-earths a onto:Entity,
         class:entity,
         owl:NamedIndividual,
@@ -4766,13 +6537,20 @@ entity:rare-earths a onto:Entity,
     relation:feeds entity:advanced-chips,
         entity:defense-manufacturing,
         entity:electric-vehicles ;
+    relation:is-essential-for entity:batteries,
+        entity:green-technology ;
     relation:is-strategically-connected-to entity:clean-tech-supply-chains,
         entity:defense-readiness ;
     rdfs:comment "Critical materials that shape industrial production and defense manufacturing" ;
     skos:altLabel "Critical minerals",
         "critical minerals",
+        "rare earth elements",
         "rare-earth supply" ;
     skos:prefLabel "Rare earths" .
+
+class:event a owl:Class ;
+    rdfs:label "Event" ;
+    rdfs:subClassOf onto:Entity .
 
 entity:united-states a onto:Entity,
         class:location,
@@ -4782,12 +6560,14 @@ entity:united-states a onto:Entity,
     fact:export-control-effect "limits China's access to advanced chips but redirects supply more than it eliminates demand" ;
     fact:position-on-frozen-iranian-assets "Publicly denied agreeing to release the assets." ;
     onto:kind "Location" ;
+    relation:attempts-to-pivot-to entity:asia ;
     relation:backs entity:us-backed-gaza-governance-and-reconstruction-initiative ;
     relation:competes-with entity:china ;
     relation:coordinates-on-critical-minerals-with entity:european-union ;
     relation:coordinates-with entity:european-union ;
     relation:imposes entity:us-export-restrictions ;
     relation:introduced entity:temporary-us-sanctions-waiver-on-russian-oil ;
+    relation:led entity:global-order ;
     relation:pursues entity:coordinated-mineral-strategy ;
     relation:restricts-chip-exports-to entity:china ;
     rdfs:comment "Country affected by competition with China" ;
@@ -4795,20 +6575,16 @@ entity:united-states a onto:Entity,
         "Washington" ;
     skos:prefLabel "United States" .
 
-class:policy a owl:Class ;
-    rdfs:label "Policy" ;
-    rdfs:subClassOf onto:Entity .
-
-relation:linked-to a owl:ObjectProperty ;
-    rdfs:label "linked to" .
-
-class:event a owl:Class ;
-    rdfs:label "Event" ;
-    rdfs:subClassOf onto:Entity .
-
 class:location a owl:Class ;
     rdfs:label "Location" ;
     rdfs:subClassOf onto:Entity .
+
+<http://example.org/text-ontology/merge-event/00ebebfdfe3dd3ee55d35fa520831860db47c3abf5725b9c532ea73392feeae1> a onto:ExtractionEvent ;
+    onto:candidatePackageSha256 "eeb68a55d4e0070222cd11af666f38791a54ed48bb7d9c5cebf99e9f553a857d" ;
+    onto:mergePolicyVersion 1 ;
+    onto:modelName "openrouter/pareto-code:nitro" ;
+    onto:sourcePath "sources/10_rare_earth_leverage.md" ;
+    onto:sourceSha256 "53d6aa358df183d482d5eeebbe3be2c2eb94fff58e629f671b8b91200376a56e" .
 
 entity:china a onto:Entity,
         class:location,
@@ -4828,6 +6604,9 @@ entity:china a onto:Entity,
         entity:european-union,
         entity:united-states ;
     relation:demands entity:advanced-chips ;
+    relation:dominates-refining-capacity-for entity:cobalt,
+        entity:lithium,
+        entity:rare-earths ;
     relation:exerts-gray-zone-pressure-on entity:taiwan ;
     relation:holds-a-strategic-position-in entity:rare-earth-processing ;
     relation:imposes entity:chinese-export-controls ;
@@ -4836,13 +6615,6 @@ entity:china a onto:Entity,
         "mainland China" ;
     skos:prefLabel "China" .
 
-<http://example.org/text-ontology/merge-event/00ebebfdfe3dd3ee55d35fa520831860db47c3abf5725b9c532ea73392feeae1> a onto:ExtractionEvent ;
-    onto:candidatePackageSha256 "eeb68a55d4e0070222cd11af666f38791a54ed48bb7d9c5cebf99e9f553a857d" ;
-    onto:mergePolicyVersion 1 ;
-    onto:modelName "openrouter/pareto-code:nitro" ;
-    onto:sourcePath "sources/10_rare_earth_leverage.md" ;
-    onto:sourceSha256 "53d6aa358df183d482d5eeebbe3be2c2eb94fff58e629f671b8b91200376a56e" .
-
 <http://example.org/text-ontology/merge-event/ab3a32cf7e1d88d9456f84f8a7912f45f969ccae32549279564d7576a085dcb3> a onto:ExtractionEvent ;
     onto:candidatePackageSha256 "066cc968b5fdb33bf280a3f62b98ccae835d9339ea8bd838881eff02c581c2ff" ;
     onto:mergePolicyVersion 1 ;
@@ -4850,16 +6622,16 @@ entity:china a onto:Entity,
     onto:sourcePath "sources/08_south_china_sea_and_philippines_energy_security.md" ;
     onto:sourceSha256 "19bb6ce528a1a1d0e60861dafc90e3e84e9c6cf0542f52bfae233f70daa154b1" .
 
-class:entity a owl:Class ;
-    rdfs:label "Entity" ;
-    rdfs:subClassOf onto:Entity .
-
 <http://example.org/text-ontology/merge-event/dd16bc3342c29d04686ebdc2099c7889bc1e1c8ed7dc8f06be1742111cd1b102> a onto:ExtractionEvent ;
     onto:candidatePackageSha256 "87c394d3e2853099cf875759d8349c64738b2c77d38d449aa3300cb2e2ec0854" ;
     onto:mergePolicyVersion 1 ;
     onto:modelName "openrouter/pareto-code:nitro" ;
     onto:sourcePath "sources/07_taiwan_gray_zone_pressure.md" ;
     onto:sourceSha256 "f3b1eb31a03524ed4df99812f1e9b28de924fd9628b1410daab8290a354f6b39" .
+
+class:entity a owl:Class ;
+    rdfs:label "Entity" ;
+    rdfs:subClassOf onto:Entity .
 
 <http://example.org/text-ontology/merge-event/f6c6ed221ae47e224ba998a5f730cc6a225ed6646be76f5e94754b0267863247> a onto:ExtractionEvent ;
     onto:candidatePackageSha256 "32986b0e7de4aef6a2c1bb092bf4b5dd3fea83386a8ca08132ad0e20545f6acb" ;
@@ -4874,6 +6646,13 @@ class:entity a owl:Class ;
     onto:modelName "openrouter/pareto-code:nitro" ;
     onto:sourcePath "sources/09_cross_region_interactions.md" ;
     onto:sourceSha256 "6baa2a420bb73fb96783fb3edf976717855037042528908fcb8b1fdc54c13ae3" .
+
+<http://example.org/text-ontology/merge-event/a12b6276ff0e0b3faf552dfa25923984083cd29b0e6a6167d9b3de0648550302> a onto:ExtractionEvent ;
+    onto:candidatePackageSha256 "997c066ba1610228e4e6df1a117ea9583ac07c64ba392a0ab6edaf6ae0f5d1aa" ;
+    onto:mergePolicyVersion 1 ;
+    onto:modelName "openrouter/pareto-code:nitro" ;
+    onto:sourcePath "sources/notes.txt" ;
+    onto:sourceSha256 "f85eeb9773d42e4d4af57cb3ec42be2430af65475720385642deab3a1cac967e" .
 
 onto:Entity a owl:Class ;
     rdfs:label "Entity" .
