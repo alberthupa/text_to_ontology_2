@@ -11,7 +11,7 @@ Only `view_report.build_report` output is read here. Nothing touches the graph.
 import html
 import json
 
-from view_report import build_report
+from .view_report import build_report
 
 
 PAGE_STYLE = """

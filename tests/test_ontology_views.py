@@ -6,12 +6,12 @@ from pathlib import Path
 from rdflib import Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS, XSD
 
-from entity_lookup import entity_catalog
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from graph_partition import partition_graph
-from graph_patterns import observed_relationships
-from graph_skeleton import create_graph_skeleton
-from ontology_views import build_ontology_views
+from text_to_ontology.entity_lookup import entity_catalog
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.graph_partition import partition_graph
+from text_to_ontology.graph_patterns import observed_relationships
+from text_to_ontology.graph_skeleton import create_graph_skeleton
+from text_to_ontology.ontology_views import build_ontology_views
 
 
 REPOSITORY = Path(__file__).resolve().parent.parent

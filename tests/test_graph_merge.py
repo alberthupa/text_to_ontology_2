@@ -5,11 +5,11 @@ import unittest
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
-from graph_merge import (
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
+from text_to_ontology.graph_merge import (
     apply_merge_plan, label, merge_into_graph, new_entity_uri, slug,
 )
-from graph_management import bind, open_graph, save_graph
+from text_to_ontology.graph_management import bind, open_graph, save_graph
 
 
 def new_graph():
@@ -328,9 +328,9 @@ class CountOrderTest(unittest.TestCase):
 import tempfile
 from pathlib import Path
 
-import merge_policy
-from graph_management import ONTO as _ONTO
-from merge_policy import build_provenance, plan_graph_merge
+from text_to_ontology import merge_policy
+from text_to_ontology.graph_management import ONTO as _ONTO
+from text_to_ontology.merge_policy import build_provenance, plan_graph_merge
 
 
 def plan_apply(graph, entities=(), relations=(), facts=()):

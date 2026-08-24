@@ -18,9 +18,9 @@ from decimal import Decimal
 from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from entity_lookup import entity_catalog, identity_decision, identity_key
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
-from graph_merge import label, slug
+from .entity_lookup import entity_catalog, identity_decision, identity_key
+from .graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
+from .graph_merge import label, slug
 
 
 MERGE_POLICY_VERSION = 1

@@ -7,7 +7,7 @@ contract - the JSON shape and the conservative entity-resolution rule - is
 unchanged.
 """
 
-from llm import ask_llm
+from .llm import ask_llm
 
 
 CONTEXT_RULES = """

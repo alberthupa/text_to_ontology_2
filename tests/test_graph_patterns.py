@@ -6,13 +6,14 @@ from pathlib import Path
 from rdflib import Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SKOS, XSD
 
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from graph_partition import partition_graph
-from graph_patterns import observed_relationships
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.graph_partition import partition_graph
+from text_to_ontology.graph_patterns import observed_relationships
 
 
 REPOSITORY = Path(__file__).resolve().parent.parent
 GRAPH_PATH = REPOSITORY / "ontology.ttl"
+FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "miniature_repository.ttl"
 EX = Namespace("http://example.com/other/")
 
 
@@ -296,21 +297,21 @@ class ImmutabilityTest(unittest.TestCase):
         self.assertEqual((set(schema), set(instance)), before)
 
 
-class RepositoryGraphTest(unittest.TestCase):
-    """The current graph, read only."""
+class MiniatureRepositoryTest(unittest.TestCase):
+    """The frozen miniature graph, read only."""
 
     def records(self):
         graph = Graph()
-        graph.parse(GRAPH_PATH, format="turtle")
+        graph.parse(FIXTURE_PATH, format="turtle")
         schema, instance, _ = partition_graph(graph)
         return observed_relationships(schema, instance)
 
-    def test_the_eighteen_assertions_aggregate_into_seventeen_patterns(self):
+    def test_the_eight_assertions_aggregate_into_four_patterns(self):
         records = self.records()
-        self.assertEqual(len(records), 17)
-        self.assertEqual(sum(r["occurrences"] for r in records), 18)
+        self.assertEqual(len(records), 4)
+        self.assertEqual(sum(r["occurrences"] for r in records), 8)
 
-    def test_every_current_subject_and_object_class_is_specific(self):
+    def test_every_subject_and_object_class_is_specific(self):
         specific = {CLASS.person, CLASS.location, CLASS.organization}
         for record in self.records():
             self.assertIn(record["subject_class"], specific)
@@ -326,8 +327,8 @@ class RepositoryGraphTest(unittest.TestCase):
         self.assertEqual(record["range"], XSD.string)
         self.assertEqual(record["occurrences"], 2)
         self.assertEqual(record["distinct_subjects"], 2)
-        self.assertEqual(record["class_population"], 7)
-        self.assertAlmostEqual(record["coverage"], 2 / 7)
+        self.assertEqual(record["class_population"], 2)
+        self.assertAlmostEqual(record["coverage"], 1.0)
         self.assertEqual(record["cardinality_max"], 1)
 
     def test_the_repository_file_is_not_written(self):

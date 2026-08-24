@@ -5,13 +5,13 @@ import unittest
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SKOS, XSD
 
-from context_render import (
+from text_to_ontology.context_render import (
     HEADINGS, MAX_FIELD_CHARACTERS, SECTIONS, TRUNCATION_MARKER,
     assemble_context, prepare_prompt_context, render_context_items,
 )
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from prompt_budget import estimate_tokens
-from task_context import build_task_context
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.prompt_budget import estimate_tokens
+from text_to_ontology.task_context import build_task_context
 
 EX = Namespace("http://example.com/other/")
 WAIVES = RELATION["waives-sanctions-on"]

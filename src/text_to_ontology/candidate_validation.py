@@ -18,9 +18,9 @@ import unicodedata
 
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from entity_lookup import entity_catalog, identity_key
-from graph_management import CLASS, FACT, ONTO, RELATION
-from graph_merge import label, slug
+from .entity_lookup import entity_catalog, identity_key
+from .graph_management import CLASS, FACT, ONTO, RELATION
+from .graph_merge import label, slug
 
 
 LOCAL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")

@@ -26,10 +26,10 @@ from urllib.parse import unquote
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS, XSD
 
-from entity_lookup import entity_catalog
-from graph_patterns import STRUCTURAL, eligible
-from ontology_views import build_ontology_views
-from source_concepts import extract_source_concepts, normalize, text_phrases
+from .entity_lookup import entity_catalog
+from .graph_patterns import STRUCTURAL, eligible
+from .ontology_views import build_ontology_views
+from .source_concepts import extract_source_concepts, normalize, text_phrases
 
 
 NAME_PREDICATES = (RDFS.label, SKOS.prefLabel, SKOS.altLabel)

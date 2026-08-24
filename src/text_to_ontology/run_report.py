@@ -9,9 +9,9 @@ from pathlib import Path
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from graph_partition import partition_graph
-from graph_skeleton import create_graph_skeleton
-from task_context import local_name
+from .graph_partition import partition_graph
+from .graph_skeleton import create_graph_skeleton
+from .task_context import local_name
 
 
 REPORT_DIRECTORY = Path("reports/runs")

@@ -6,8 +6,8 @@ import unicodedata
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from entity_lookup import entity_catalog, identify_entity
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
+from .entity_lookup import entity_catalog, identify_entity
+from .graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
 
 
 def slug(text):

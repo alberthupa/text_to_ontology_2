@@ -3,9 +3,9 @@
 import unittest
 from unittest import mock
 
-import source_parse
-from graph_management import ENTITY
-from source_parse import make_prompt, parse_prompt, parse_source
+from text_to_ontology import source_parse
+from text_to_ontology.graph_management import ENTITY
+from text_to_ontology.source_parse import make_prompt, parse_prompt, parse_source
 
 
 CONTEXT = """RELEVANT DECLARED ONTOLOGY

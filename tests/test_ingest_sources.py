@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ingest_sources import TEXT_FILES, find_text_files, read_source
+from text_to_ontology.ingest_sources import TEXT_FILES, find_text_files, read_source
 
 
 class DirectFileTest(unittest.TestCase):

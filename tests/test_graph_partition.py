@@ -7,12 +7,13 @@ from pathlib import Path
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS, XSD
 
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from graph_partition import partition_graph
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.graph_partition import partition_graph
 
 
 REPOSITORY = Path(__file__).resolve().parent.parent
 GRAPH_PATH = REPOSITORY / "ontology.ttl"
+FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "miniature_repository.ttl"
 EX = Namespace("http://example.com/other/")
 
 
@@ -337,19 +338,23 @@ class RepositoryGraphTest(unittest.TestCase):
         )
         self.assertEqual(diff.stdout, "")
 
-    def test_the_repository_graph_splits_into_the_expected_sizes(self):
-        graph = Graph()
-        graph.parse(GRAPH_PATH, format="turtle")
-        schema, instance, support = partition_graph(graph)
-        self.assertEqual(len(graph), 169)
-        self.assertEqual(len(schema), 43)
-        self.assertEqual(len(instance), 120)
-        self.assertEqual(len(support), 6)
 
-    def test_the_repository_remainder_is_only_the_ontology_and_the_shape(self):
+class MiniatureRepositoryTest(unittest.TestCase):
+    """A frozen miniature of the repository graph has the expected partition."""
+
+    def miniature(self):
         graph = Graph()
-        graph.parse(GRAPH_PATH, format="turtle")
-        _, _, support = partition_graph(graph)
+        graph.parse(FIXTURE_PATH, format="turtle")
+        return graph
+
+    def test_the_miniature_graph_splits_into_the_expected_sizes(self):
+        schema, instance, support = partition_graph(self.miniature())
+        self.assertEqual(len(schema), 20)
+        self.assertEqual(len(instance), 33)
+        self.assertEqual(len(support), 7)
+
+    def test_the_miniature_remainder_is_only_the_ontology_and_the_shape(self):
+        _, _, support = partition_graph(self.miniature())
         subjects = {s for s, _, _ in support if isinstance(s, URIRef)}
         self.assertEqual(subjects, {ONTO.ontology, ONTO.EntityShape})
 

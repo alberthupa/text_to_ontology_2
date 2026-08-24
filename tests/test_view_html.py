@@ -9,10 +9,10 @@ from pathlib import Path
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS, XSD
 
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from ontology_views import build_ontology_views
-from view_html import render_page, write_report
-from view_report import build_report, shorten
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.ontology_views import build_ontology_views
+from text_to_ontology.view_html import render_page, write_report
+from text_to_ontology.view_report import build_report, shorten
 
 
 def sample_graph():

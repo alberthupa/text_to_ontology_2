@@ -6,12 +6,12 @@ import unittest
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-import candidate_validation
-from candidate_validation import (
+from text_to_ontology import candidate_validation
+from text_to_ontology.candidate_validation import (
     format_validation_failure, normalize_oneline, normalize_text,
     validate_candidates,
 )
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
 
 
 RESULT_FIELDS = {"valid", "candidates", "issues", "counts"}

@@ -7,8 +7,8 @@ from pathlib import Path
 
 from rdflib import Graph, URIRef
 
-from graph_management import ENTITY, RELATION, bind
-from run_report import RunReporter, default_report_path
+from text_to_ontology.graph_management import ENTITY, RELATION, bind
+from text_to_ontology.run_report import RunReporter, default_report_path
 
 
 class RunReporterTest(unittest.TestCase):

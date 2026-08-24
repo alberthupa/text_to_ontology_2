@@ -2,7 +2,7 @@
 
 import unittest
 
-from prompt_budget import (
+from text_to_ontology.prompt_budget import (
     DEFAULT_CHARS_PER_TOKEN, context_allowance, estimate_tokens,
     fit_context_items,
 )

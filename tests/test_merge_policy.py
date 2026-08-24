@@ -5,9 +5,9 @@ import unittest
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from entity_lookup import identity_decision, identity_key
-from graph_management import ENTITY, ONTO
-from merge_policy import (
+from text_to_ontology.entity_lookup import identity_decision, identity_key
+from text_to_ontology.graph_management import ENTITY, ONTO
+from text_to_ontology.merge_policy import (
     AUTO_ACCEPT_MIN_CONFIDENCE, canonical_json, proposed_entity_uri,
     record_digest, resolve_entities,
 )
@@ -202,7 +202,7 @@ class NewEntityTest(unittest.TestCase):
         issued = []
 
         def allocate(name):
-            from graph_merge import slug
+            from text_to_ontology.graph_merge import slug
             stem, number = slug(name), 1
             while True:
                 suffix = "" if number == 1 else f"-{number}"
@@ -403,12 +403,12 @@ from pathlib import Path
 
 from rdflib import BNode
 
-from graph_management import CLASS, FACT, RELATION
-from entity_lookup import entity_catalog
-from merge_policy import build_provenance, plan_graph_merge
-import graph_partition
-import graph_skeleton
-import graph_patterns
+from text_to_ontology.graph_management import CLASS, FACT, RELATION
+from text_to_ontology.entity_lookup import entity_catalog
+from text_to_ontology.merge_policy import build_provenance, plan_graph_merge
+from text_to_ontology import graph_partition
+from text_to_ontology import graph_skeleton
+from text_to_ontology import graph_patterns
 
 
 def provenance(**overrides):

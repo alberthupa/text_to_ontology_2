@@ -2,8 +2,8 @@
 
 import unittest
 
-import source_concepts
-from source_concepts import (
+from text_to_ontology import source_concepts
+from text_to_ontology.source_concepts import (
     MAX_CONCEPTS, extract_source_concepts, normalize, text_phrases,
 )
 

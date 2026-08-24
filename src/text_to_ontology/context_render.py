@@ -23,8 +23,8 @@ assembled context is never sliced.
 from rdflib import BNode, Literal
 from rdflib.namespace import OWL, RDF, RDFS
 
-from prompt_budget import context_allowance, estimate_tokens, fit_context_items
-from task_context import TEXT_PREDICATES, datatype_term
+from .prompt_budget import context_allowance, estimate_tokens, fit_context_items
+from .task_context import TEXT_PREDICATES, datatype_term
 
 
 SECTIONS = ("declared", "observed", "resources", "examples")

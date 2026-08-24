@@ -1,0 +1,78 @@
+# A frozen miniature of the repository graph: the same roles and shapes
+# (ontology header, one SHACL shape, declared classes and properties, typed
+# individuals with relations and literal facts) but small enough to assert
+# exact partition, skeleton, and pattern numbers about it.
+
+@prefix onto:     <http://example.org/text-ontology/> .
+@prefix entity:   <http://example.org/text-ontology/entity/> .
+@prefix class:    <http://example.org/text-ontology/class/> .
+@prefix relation: <http://example.org/text-ontology/relation/> .
+@prefix fact:     <http://example.org/text-ontology/fact/> .
+@prefix owl:      <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:       <http://www.w3.org/ns/shacl#> .
+@prefix skos:     <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+
+# --- support: ontology header and shape -------------------------------------
+
+onto:ontology a owl:Ontology ;
+    rdfs:label "Fixture ontology" .
+
+onto:EntityShape a sh:NodeShape ;
+    sh:targetClass onto:Entity ;
+    sh:property [ sh:path skos:prefLabel ; sh:minCount 1 ] .
+
+# --- schema: classes and properties ------------------------------------------
+
+onto:Entity a owl:Class ;
+    rdfs:label "Entity" .
+
+class:person a owl:Class ;
+    rdfs:subClassOf onto:Entity ;
+    rdfs:label "Person" .
+
+class:location a owl:Class ;
+    rdfs:subClassOf onto:Entity ;
+    rdfs:label "Location" .
+
+class:organization a owl:Class ;
+    rdfs:subClassOf onto:Entity ;
+    rdfs:label "Organization" .
+
+relation:knows a owl:ObjectProperty ;
+    rdfs:domain class:person ;
+    rdfs:label "knows" .
+
+fact:born a owl:DatatypeProperty ;
+    rdfs:domain class:person ;
+    rdfs:label "born" .
+
+fact:affects a owl:DatatypeProperty ;
+    rdfs:domain class:location ;
+    rdfs:label "affects" .
+
+# --- instance: individuals, relations, and facts ------------------------------
+
+entity:ada a onto:Entity , owl:NamedIndividual , skos:Concept , class:person ;
+    skos:prefLabel "Ada" ;
+    fact:born "1815" , "1816" .
+
+entity:grace a onto:Entity , owl:NamedIndividual , skos:Concept , class:person ;
+    skos:prefLabel "Grace" ;
+    fact:born "1906" .
+
+entity:acme a onto:Entity , owl:NamedIndividual , skos:Concept , class:organization ;
+    skos:prefLabel "Acme" .
+
+entity:paris a onto:Entity , owl:NamedIndividual , skos:Concept , class:location ;
+    skos:prefLabel "Paris" ;
+    fact:affects "trade" .
+
+entity:london a onto:Entity , owl:NamedIndividual , skos:Concept , class:location ;
+    skos:prefLabel "London" ;
+    fact:affects "shipping" .
+
+entity:ada relation:knows entity:acme , entity:paris .
+entity:grace relation:knows entity:acme .

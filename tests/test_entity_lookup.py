@@ -5,8 +5,8 @@ import unittest
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, SKOS
 
-from entity_lookup import entity_catalog, identify_entity, identity_key
-from graph_management import ENTITY, ONTO
+from text_to_ontology.entity_lookup import entity_catalog, identify_entity, identity_key
+from text_to_ontology.graph_management import ENTITY, ONTO
 
 
 def add_entity(graph, local, name, kind, aliases=(), description=""):

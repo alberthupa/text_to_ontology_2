@@ -11,9 +11,9 @@ Nothing here reinterprets what the existing modules return, and the source
 graph is only ever read.
 """
 
-from graph_partition import partition_graph
-from graph_patterns import observed_relationships
-from graph_skeleton import create_graph_skeleton
+from .graph_partition import partition_graph
+from .graph_patterns import observed_relationships
+from .graph_skeleton import create_graph_skeleton
 
 
 def build_ontology_views(source_graph):

@@ -5,11 +5,11 @@ import unittest
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SKOS, XSD
 
-from entity_lookup import entity_catalog
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from ontology_views import build_ontology_views
-from source_concepts import extract_source_concepts
-from task_context import (
+from text_to_ontology.entity_lookup import entity_catalog
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.ontology_views import build_ontology_views
+from text_to_ontology.source_concepts import extract_source_concepts
+from text_to_ontology.task_context import (
     DEFAULT_LIMITS, build_task_context, select_task_context,
 )
 

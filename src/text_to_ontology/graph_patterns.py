@@ -12,7 +12,7 @@ from statistics import median
 from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS, XSD
 
-from graph_management import ONTO
+from .graph_management import ONTO
 
 
 # Types that say a resource exists rather than what it is.

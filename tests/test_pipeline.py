@@ -12,11 +12,11 @@ from unittest import mock
 from rdflib import Literal
 from rdflib.namespace import RDF, SKOS
 
-import ontology
-import source_parse
-import graph_management
-from graph_management import ENTITY, ONTO, RELATION
-from prompt_budget import estimate_tokens
+from text_to_ontology import ontology
+from text_to_ontology import source_parse
+from text_to_ontology import graph_management
+from text_to_ontology.graph_management import ENTITY, ONTO, RELATION
+from text_to_ontology.prompt_budget import estimate_tokens
 
 
 class FakeLLM:

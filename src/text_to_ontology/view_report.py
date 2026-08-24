@@ -11,10 +11,10 @@ from datetime import datetime
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
-from graph_management import ONTO
-from graph_patterns import eligible, usable_classes
-from run_report import skeleton_label, skeleton_restriction
-from task_context import local_name
+from .graph_management import ONTO
+from .graph_patterns import eligible, usable_classes
+from .run_report import skeleton_label, skeleton_restriction
+from .task_context import local_name
 
 
 # Types that say a resource exists rather than what it is. Shown apart from

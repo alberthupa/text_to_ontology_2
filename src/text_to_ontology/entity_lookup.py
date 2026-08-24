@@ -7,7 +7,7 @@ from difflib import SequenceMatcher
 from rdflib import URIRef
 from rdflib.namespace import RDF, RDFS, SKOS
 
-from graph_management import ONTO
+from .graph_management import ONTO
 
 
 CLOSE_SPELLING_THRESHOLD = 0.96

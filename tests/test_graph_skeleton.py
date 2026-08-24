@@ -6,13 +6,14 @@ from pathlib import Path
 from rdflib import BNode, Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS, XSD
 
-from graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
-from graph_partition import partition_graph
-from graph_skeleton import create_graph_skeleton
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, bind
+from text_to_ontology.graph_partition import partition_graph
+from text_to_ontology.graph_skeleton import create_graph_skeleton
 
 
 REPOSITORY = Path(__file__).resolve().parent.parent
 GRAPH_PATH = REPOSITORY / "ontology.ttl"
+FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "miniature_repository.ttl"
 EX = Namespace("http://example.com/other/")
 
 
@@ -291,15 +292,15 @@ class ImmutabilityTest(unittest.TestCase):
         self.assertEqual(GRAPH_PATH.read_bytes(), original)
 
 
-class RepositoryGraphTest(unittest.TestCase):
-    """The current graph has no restrictions, so its skeleton is its schema."""
+class MiniatureRepositoryTest(unittest.TestCase):
+    """The miniature graph has no restrictions, so its skeleton is its schema."""
 
-    def test_the_current_skeleton_equals_the_current_schema_view(self):
+    def test_the_miniature_skeleton_equals_the_schema_view(self):
         graph = Graph()
-        graph.parse(GRAPH_PATH, format="turtle")
+        graph.parse(FIXTURE_PATH, format="turtle")
         schema, _, _ = partition_graph(graph)
         skeleton = create_graph_skeleton(schema)
-        self.assertEqual(len(skeleton), 43)
+        self.assertEqual(len(skeleton), 20)
         self.assertEqual(set(skeleton), set(schema))
 
 

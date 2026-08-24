@@ -12,8 +12,8 @@ SYSTEM_PROMPT = "Extract knowledge. Return only JSON."
 
 
 def load_env(path=None):
-    """Load simple KEY=value lines from the .env beside this file."""
-    path = Path(path) if path else Path(__file__).with_name(".env")
+    """Load simple KEY=value lines from a .env in the working directory."""
+    path = Path(path) if path else Path(".env")
     if not path.exists():
         return
     for line in path.read_text(encoding="utf-8").splitlines():
