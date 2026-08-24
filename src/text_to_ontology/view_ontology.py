@@ -15,14 +15,34 @@ import argparse
 import sys
 from pathlib import Path
 
-from rdflib import BNode, RDF, RDFS, OWL, URIRef
+from rdflib import BNode, Graph, RDF, RDFS, OWL, URIRef
 from rdflib.namespace import SKOS
 
 from .graph_management import open_graph
+from .graph_store import ReadOnlyGraphStore, RdflibGraphStore
 from .ontology_views import build_ontology_views
 from .run_report import skeleton_label, skeleton_restriction
 from .task_context import local_name
 from .view_html import write_report
+
+
+def load_view_graph(path, name=None):
+    """One read-only graph to look at: a Turtle file or a TriG dataset.
+
+    With a .trig dataset the views cover the union of all named graphs, or
+    exactly the one named graph when `name` is given. The store is wrapped
+    read-only, so viewing can never change what is stored.
+    """
+    if path.suffix.lower() != ".trig":
+        return open_graph(path)
+    store = ReadOnlyGraphStore(RdflibGraphStore(path=path))
+    if name is not None:
+        return store.get(URIRef(name))
+    combined = Graph()
+    for graph_name in store.graph_names():
+        for triple in store.get(graph_name):
+            combined.add(triple)
+    return combined
 
 
 def label(term):
@@ -144,13 +164,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("graph", type=Path, nargs="?",
                         default=Path("ontology.ttl"))
+    parser.add_argument("-g", "--named", metavar="GRAPH",
+                        help="with a .trig dataset: view only this named graph")
     parser.add_argument("-html", "--html", type=Path, nargs="?",
                         const=Path("ontology_views.html"), metavar="FILE",
                         help="write an explained HTML page instead of printing; "
                              "the default file is ontology_views.html")
     args = parser.parse_args()
 
-    graph = open_graph(args.graph)
+    graph = load_view_graph(args.graph, name=args.named)
     views = build_ontology_views(graph)
     if args.html is not None:
         write_report(args.graph, graph, views, args.html)

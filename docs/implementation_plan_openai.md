@@ -296,7 +296,7 @@ the normal milestone acceptance evidence.
 | M0 Baseline and packaging | [x] | ox-alpha agent | milestone/m00-packaging-baseline | 7c27e2c | 2026-08-24 |
 | M1 Public API and thin CLI | [x] | ox-alpha agent | milestone/m01-public-api-cli | (pending commit) | 2026-08-24 |
 | M2 Documents and windowing | [x] | ox-alpha agent | milestone/m02-documents-windowing | (pending commit) | 2026-08-24 |
-| M3 Local RDF dataset/store | [ ] | | | | |
+| M3 Local RDF dataset/store | [x] | ox-alpha agent | milestone/m03-local-graph-store | (pending commit) | 2026-08-24 |
 | M4 Candidate RDF and confidence | [ ] | | | | |
 | M5 Incremental source graph | [ ] | | | | |
 | M6 Source reconciliation and validation | [ ] | | | | |
@@ -669,7 +669,7 @@ human-readable RDF import/export.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [ ] Blocked  [x] Complete
 
 ### Acceptance criteria
 
@@ -694,45 +694,103 @@ human-readable RDF import/export.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M3-T1 → AC1:** Define the smallest store protocol required by existing
+- [x] **M3-T1 → AC1:** Define the smallest store protocol required by existing
   use cases. Avoid backend-specific methods in public signatures.
-- [ ] **M3-T2 → AC2, AC8:** Write the store contract tests before implementing
+- [x] **M3-T2 → AC2, AC8:** Write the store contract tests before implementing
   the RDFLib adapter.
-- [ ] **M3-T3 → AC2:** Implement in-memory and persisted RDFLib dataset modes.
-- [ ] **M3-T4 → AC3:** Define `GraphNames` configuration and graph-name
+- [x] **M3-T3 → AC2:** Implement in-memory and persisted RDFLib dataset modes.
+- [x] **M3-T4 → AC3:** Define `GraphNames` configuration and graph-name
   validation in one place.
-- [ ] **M3-T5 → AC4:** Move parse/serialize/file behavior out of graph domain
+- [x] **M3-T5 → AC4:** Move parse/serialize/file behavior out of graph domain
   modules and into the adapter/import-export boundary.
-- [ ] **M3-T6 → AC5:** Implement an explicit legacy Turtle importer. Use the
+- [x] **M3-T6 → AC5:** Implement an explicit legacy Turtle importer. Use the
   existing partitioner only for migration/compatibility, not as the normal
   dataset role mechanism.
-- [ ] **M3-T7 → AC6:** Implement Turtle, TriG, and N-Quads export/round-trip
+- [x] **M3-T7 → AC6:** Implement Turtle, TriG, and N-Quads export/round-trip
   tests.
-- [ ] **M3-T8 → AC7:** Retain copy-plus-atomic-replace behavior for local
+- [x] **M3-T8 → AC7:** Retain copy-plus-atomic-replace behavior for local
   persistence and test injected serialization/persistence failures.
-- [ ] **M3-T9 → AC1–AC8:** Update the viewer to accept configured named graphs or
+- [x] **M3-T9 → AC1–AC8:** Update the viewer to accept configured named graphs or
   a legacy Turtle import without changing the stored dataset.
 
 ### Required evidence
 
-- [ ] Store contract test names and result:
-- [ ] Legacy import triple/quad comparison:
-- [ ] TriG/N-Quads round-trip result:
-- [ ] Injected publication-failure result:
-- [ ] Search showing domain modules no longer open/parse graph files:
+- [x] Store contract test names and result:
+  `tests/store_contract.py` defines the backend-independent cases — fresh-store
+  emptiness, put/get isomorphic round trip, isolated `get` copies,
+  replace-whole puts, deletion, graph-name listing, cross-graph SPARQL query,
+  bound-variable query, SPARQL Update into one named graph, atomic
+  publication bundles, no-change publish (`StoreContract`), plus read-only
+  wrapper rules hiding every write path while reads still work
+  (`ReadOnlyRules`). They run unchanged against both adapters as
+  `InMemoryStoreTest` and `PersistedStoreTest`. Full suite:
+  `python3 -m unittest discover -s tests -p 'test_*.py'` →
+  `Ran 706 tests ... OK (skipped=1)`.
+- [x] Legacy import triple/quad comparison:
+  `test_every_legacy_triple_lands_in_exactly_one_configured_graph` imports
+  `tests/fixtures/miniature_repository.ttl`; schema + instance + support counts
+  sum to exactly the legacy triple count, and the union of the three named
+  graphs is isomorphic to the source.
+- [x] TriG/N-Quads round-trip result: `ExportRoundTripTest` exports two named
+  graphs through TriG and N-Quads; both formats reimport with identical graph
+  names and per-graph isomorphism; single-graph Turtle export round-trips too;
+  unknown formats raise ValueError.
+- [x] Injected publication-failure result:
+  `test_a_failed_publication_keeps_the_previous_file_and_memory` patches
+  `Graph.serialize` to raise "disk full": publish raises, the previous `.trig`
+  bytes are unchanged, no `.tmp` file remains, the in-memory dataset is
+  untouched, and a later successful publish persists new content.
+- [x] Search showing domain modules no longer open/parse graph files:
+  `grep -n "\.parse(\|\.serialize(\|read_text\|write_text\|open(" src/text_to_ontology/*.py`
+  excluding the store/adapter/viewer/CLI files shows only
+  `ingest_sources.py:23` and `windowing.py:116`, which read *source text*
+  files, never graphs. RDF parse/serialize now lives only in
+  `graph_management.py` (legacy Turtle adapter), `graph_store.py` (the
+  boundary), and the viewer/CLI adapters.
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- Dataset persistence format:
+- Owner: ox-alpha coding agent
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: milestone/m03-local-graph-store
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
+- Dataset persistence format: rdflib `Dataset` (default_union=True), serialized
+  as TriG to a temporary sibling file and moved into place with `os.replace`.
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - The contract is `get`/`put`/`delete`/`graph_names`/`query`/`update`/
+    `publish(Publication)` in `graph_store.py`. `put`/`delete` are in-memory
+    staging; durability happens only through `publish` - one explicit atomic
+    step, matching AC1's single publication operation.
+  - `get` returns an isolated copy so callers can never mutate stored state by
+    accident; contract-tested.
+  - Publication failure safety: the changes are applied to a clone, serialized,
+    and only then applied to the live dataset - so a failed serialization or
+    write leaves both file and memory unchanged (AC7).
+  - `GraphNames` holds every role from AC3 (schema/shape/data lists, target,
+    provenance, review, staging namespace), validates uniqueness and namespace
+    shape in one method, and derives source staging graph names per document ID
+    for M5.
+  - Read-only enforcement is a wrapper class exposing only reads (AC8): it has
+    no put/delete/update/publish attributes at all, tested.
+  - Legacy import maps partitioner output losslessly: schema structure →
+    schema graph, instance data → target graph, support material (ontology
+    header, SHACL shapes, audit records, unclassified) → provenance graph. The
+    partitioner is used for migration only, per the plan.
+  - The viewer accepts a `.trig` dataset (union of all named graphs, or one
+    selected via `-g/--named`) wrapped read-only, or any legacy `.ttl` file as
+    before; viewing cannot change what is stored.
+  - `tests/` became a package (`__init__.py`) so the contract mixin can be
+    shared by future adapter test modules.
+  - The pipeline keeps `LocalTurtleStore` for this milestone; moving the run
+    loop onto named graphs belongs to M5/M7 windowed orchestration.
+- Known follow-ups: migrate pipeline and merge/reporting paths onto
+  `RdflibGraphStore` when windowed processing lands (M5/M7); whole-dataset
+  serialization on each publish is fine at current scale but should be revisited
+  in M12 if it dominates runtime.
+- Acceptance evidence location: this section; outputs reproducible via the
+  recorded commands.
 
 ---
 
