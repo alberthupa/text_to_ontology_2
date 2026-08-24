@@ -9,15 +9,27 @@ from rdflib import Graph
 
 from .candidate_graph import build_candidate_graph
 from .candidate_validation import format_validation_failure, validate_candidates
-from .graph_management import LocalTurtleStore, save_graph
+from .graph_management import save_graph
 from .graph_merge import apply_merge_plan
-from .graph_store import RdflibGraphStore
+from .graph_store import GraphNames, RdflibGraphStore
 from .ingest_sources import find_text_files, read_source
 from .llm import SYSTEM_PROMPT, OpenRouterExtractor
 from .merge_policy import (
     AUTO_ACCEPT_MIN_CONFIDENCE,
     build_provenance,
     plan_graph_merge,
+)
+from .document_merge import plan_document_merge
+from .document_publication import (
+    DocumentPublicationPlan,
+    LegacyTurtleDatasetStore,
+    PublicationValidationError,
+    canonical_graph,
+    compile_document_publication,
+    initial_role_graphs,
+    publish_document,
+    shape_graphs,
+    union_graphs,
 )
 from .prompt_budget import PROMPT_BUDGET, estimate_tokens
 from .repair import extract_validated
@@ -120,16 +132,18 @@ class ValidationConfig:
 
 @dataclass
 class RunRequest:
-    """One complete request: sources in, knowledge into one graph file."""
+    """One complete request: sources in, knowledge into one RDF dataset."""
 
     source: Path
-    graph_path: Path = Path("ontology.ttl")
+    graph_path: Path = Path("ontology.trig")
     windowing: WindowingConfig = field(default_factory=WindowingConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
     extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
     merge: MergeConfig = field(default_factory=MergeConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     validation: ValidationConfig = field(default_factory=ValidationConfig)
+    graph_names: GraphNames = field(default_factory=GraphNames)
+    dry_run: bool = False
 
 
 @dataclass
@@ -141,6 +155,8 @@ class DocumentResult:
     source_artifact: SourceGraphArtifact
     reconciliation_report: dict
     source_validation: SourceValidationResult
+    publication_plan: DocumentPublicationPlan | None = None
+    publication_validation: SourceValidationResult | None = None
 
 
 @dataclass
@@ -154,6 +170,7 @@ class RunResult:
     files_blank: int
     windows_processed: int = 0
     documents: tuple[DocumentResult, ...] = ()
+    dry_run: bool = False
 
 
 @dataclass
@@ -193,10 +210,13 @@ class Reporter(Protocol):
     def window_admitted(self, number, total, counts, source_size): ...
     def reconciliation(self, report): ...
     def source_validation(self, result): ...
+    def publication_validation(self, result): ...
+    def dry_run(self, graph_path, before_size, proposed, counts): ...
     def merge_plan(self, plan, candidates, graph): ...
     def saved(self, graph_path, before_size, updated, counts): ...
     def staging_failed(self, document_id, retained, sidecar_path): ...
     def finished(self, graph, graph_path): ...
+    def dry_run_finished(self, graph, graph_path): ...
     def failed(self, error): ...
 
 
@@ -347,40 +367,30 @@ def _process_document(document, request, final_graph, extractor, reporter):
     )
 
 
-def _shape_graphs(request, final_graph):
-    """Configured shapes, or shapes embedded in the legacy Turtle graph."""
+def _source_shape_graphs(request, final_graph, roles, names):
+    """Configured shapes, named shape roles, or embedded compatibility shapes."""
     if request.validation.shape_graphs:
         return tuple(request.validation.shape_graphs)
+    configured = shape_graphs(roles, names)
+    if any(len(graph) for graph in configured):
+        return configured
     embedded = embedded_shape_graph(final_graph)
     return (embedded,) if len(embedded) else ()
 
 
-def _publish_packages(path, final_graph, packages, request, reporter):
-    """Interim per-window publication into the final ontology.
-
-    This is still the direct merge path: one read-only plan per window
-    package against the complete canonical graph, applied to copies, saved
-    atomically once the document completes. The single document-level
-    transaction that replaces it belongs to the final-merge milestone.
-    """
-    totals = {
-        "new_entities": 0, "resolved_entities": 0, "relation_triples": 0,
-        "fact_triples": 0, "duplicates": 0, "review": 0, "audit_triples": 0,
-    }
-    for window, model, candidates in packages:
-        provenance = build_provenance(path, window.text, model)
-        plan = plan_graph_merge(
-            final_graph, candidates, provenance,
-            min_new_confidence=request.merge.min_auto_accept_confidence)
-        reporter.merge_plan(plan, candidates, final_graph)
-        final_graph, counts = apply_merge_plan(final_graph, plan)
-        for key in totals:
-            totals[key] += counts.get(key, 0)
-    return final_graph, totals
+def _final_store(graph_store, request):
+    """Use a named store directly, or wrap the explicit Turtle compatibility adapter."""
+    if graph_store is None:
+        return RdflibGraphStore(path=request.graph_path)
+    if all(hasattr(graph_store, method)
+           for method in ("get", "graph_names", "publish")):
+        return graph_store
+    return LegacyTurtleDatasetStore(
+        graph_store, request.graph_path, request.graph_names, save_graph)
 
 
 def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
-    """Add the knowledge of every source file to one graph file.
+    """Add the knowledge of every source file to one RDF dataset.
 
     The public entry point of the application. Give it a request plus three
     adapters - where graphs live, who answers prompts, who hears about it -
@@ -388,11 +398,13 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
     into its own source staging graph first; the final ontology is touched
     only after a document's last window was admitted.
     """
-    graph_store = graph_store or LocalTurtleStore()
     extractor = extractor or OpenRouterExtractor(model=request.extraction.model)
     reporter = reporter or RunReporter()
-
-    graph = graph_store.load(request.graph_path)
+    names = request.graph_names
+    names.validate()
+    store = _final_store(graph_store, request)
+    roles = initial_role_graphs(store, names)
+    graph = union_graphs(roles.values())
     files = find_text_files(request.source, request.graph_path)
     if not files:
         raise RuntimeError("No text-like files found")
@@ -422,8 +434,10 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         models = [model for _window, model, _candidates in staged.packages]
         artifact = build_source_artifact(
             document, staged.source_graph, request.windowing, models)
+        validation_shapes = _source_shape_graphs(
+            request, graph, roles, names)
         validation = validate_source_graph(
-            staged.source_graph, _shape_graphs(request, graph))
+            staged.source_graph, validation_shapes)
         reporter.source_validation(validation)
         if not validation.conforms:
             retained = request.processing.retain_staging_on_failure
@@ -437,25 +451,59 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
             raise RuntimeError(
                 "the final ontology changed during source reconciliation")
 
-        graph, counts = _publish_packages(
-            path, graph, staged.packages, request, reporter)
-        save_graph(graph, request.graph_path)
-        reporter.saved(request.graph_path, before_size, graph, counts)
+        document_merge = plan_document_merge(
+            canonical_graph(roles, names), document, staged.packages,
+            staged.admission_plans,
+            request.merge.min_auto_accept_confidence,
+            planner=plan_graph_merge)
+        merge_plan = document_merge["merge_plan"]
+        reporter.merge_plan(
+            merge_plan, document_merge["candidates"],
+            canonical_graph(roles, names))
+        publication_plan = compile_document_publication(
+            document, document_merge, staged.candidate_graphs,
+            staged.packages, staged.admission_plans, roles, names,
+            validation_shapes=validation_shapes)
+        reporter.publication_validation(
+            publication_plan.proposed_validation)
+        if not publication_plan.proposed_validation.conforms:
+            raise PublicationValidationError(publication_plan)
+
+        proposed_graph = union_graphs(
+            publication_plan.publication.graphs.values())
+        if request.dry_run:
+            reporter.dry_run(
+                request.graph_path, before_size, proposed_graph,
+                publication_plan.counts)
+        else:
+            publish_document(store, publication_plan)
+            reporter.saved(
+                request.graph_path, before_size, proposed_graph,
+                publication_plan.counts)
+        roles = dict(roles)
+        roles.update(publication_plan.publication.graphs)
+        graph = union_graphs(roles.values())
         documents.append(DocumentResult(
             path=path,
             document_id=document.document_id,
             source_artifact=artifact,
             reconciliation_report=reconciliation,
             source_validation=validation,
+            publication_plan=publication_plan,
+            publication_validation=publication_plan.proposed_validation,
         ))
-    reporter.finished(graph, request.graph_path)
+    if request.dry_run:
+        reporter.dry_run_finished(graph, request.graph_path)
+    else:
+        reporter.finished(graph, request.graph_path)
 
     return RunResult(
         graph_path=request.graph_path,
         triples=len(graph),
         files_total=len(files),
-        files_saved=len(files) - blank_files,
+        files_saved=(0 if request.dry_run else len(files) - blank_files),
         files_blank=blank_files,
         windows_processed=windows_processed,
         documents=tuple(documents),
+        dry_run=request.dry_run,
     )

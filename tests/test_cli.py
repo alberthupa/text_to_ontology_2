@@ -133,6 +133,22 @@ class CliReportTest(unittest.TestCase):
         self.assertIn("Acme Corp exists.", saved_report)
 
 
+class CliDryRunTest(unittest.TestCase):
+    def test_dry_run_reports_the_plan_and_writes_no_graph(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "notes.txt"
+            source.write_text("Acme Corp exists.", encoding="utf-8")
+            graph_path = root / "graph.ttl"
+            with run_cli([str(source), str(graph_path), "--dry-run"],
+                         [entity_response("Acme Corp")]) as (code, out, _):
+                pass
+        self.assertEqual(code, 0)
+        self.assertFalse(graph_path.exists())
+        self.assertIn("Dry run complete", out)
+        self.assertIn("nothing written", out)
+
+
 class CliVerboseTest(unittest.TestCase):
     def test_verbose_output_shows_every_numbered_section(self):
         with tempfile.TemporaryDirectory() as folder:

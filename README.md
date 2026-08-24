@@ -2,7 +2,8 @@
 
 This is a deliberately small experiment, not a framework. Give it one text file
 or a directory of text-like files. It asks an LLM to extract entities,
-relations, and literal facts, then saves them in one Turtle (`.ttl`) graph.
+relations, and literal facts, then saves them in an RDF dataset with named
+graphs (`ontology.trig` by default).
 
 Every source file is one document with a stable content-derived ID. A long
 document is split into reproducible overlapping windows, and each window's
@@ -12,12 +13,13 @@ extracted (clearly marked `(this document)` in its prompt), repeated names are
 reconciled inside the document instead of duplicated, and anything ambiguous or
 conflicting is held for review rather than silently merged. After the last
 window, the complete source graph gets an explicit reconciliation report and is
-validated against every configured SHACL shape graph. The final ontology is
-only touched after that gate passes. Identity against
-the whole existing graph is still decided explicitly at that point: an exact
+validated against every configured SHACL shape graph. Identity against the
+whole configured canonical scope is then decided once for the complete
+document: an exact
 identifier or a unique exact name/alias match resolves to the existing entity,
 an ambiguous or close-spelling match is held for review, and only confident,
-unambiguous records create new entities.
+unambiguous records create new entities. The proposed data is SHACL-validated,
+then target, provenance, and review graphs are published in one atomic call.
 
 ## Install
 
@@ -59,24 +61,24 @@ After installing, use one of three equivalent commands (the console script,
 the module entry point, or the legacy root wrapper):
 
 ```bash
-text-to-ontology notes.txt ontology.ttl
-python3 -m text_to_ontology notes.txt ontology.ttl
-python ontology.py notes.txt ontology.ttl
+text-to-ontology notes.txt ontology.trig
+python3 -m text_to_ontology notes.txt ontology.trig
+python ontology.py notes.txt ontology.trig
 ```
 
 Add another file to that same graph:
 
 ```bash
-text-to-ontology more_notes.md ontology.ttl
+text-to-ontology more_notes.md ontology.trig
 ```
 
 Or recursively read all supported text-like files in a directory:
 
 ```bash
-text-to-ontology documents/ ontology.ttl
+text-to-ontology documents/ ontology.trig
 ```
 
-If the second argument is omitted, the output is `ontology.ttl`:
+If the second argument is omitted, the output is `ontology.trig`:
 
 ```bash
 text-to-ontology documents/
@@ -85,7 +87,7 @@ text-to-ontology documents/
 Save a detailed report as a timestamped Markdown file under `reports/runs/`:
 
 ```bash
-text-to-ontology documents/ ontology.ttl --report
+text-to-ontology documents/ ontology.trig --report
 ```
 
 `--report` writes to the file only, so a successful run stays silent in the
@@ -93,8 +95,15 @@ terminal. The report includes the exact system and user messages sent to the
 extraction LLM. Generated reports are ignored by Git because
 they may be large and may contain source-derived information.
 
-That is the whole workflow. Open `ontology.ttl` in a text editor to see or edit
-the RDF/RDFS/OWL/SHACL/SKOS graph directly.
+Preview the exact plan and both SHACL results without writing final graphs:
+
+```bash
+text-to-ontology documents/ ontology.trig --dry-run
+```
+
+Passing a `.ttl` output path keeps the explicit legacy single-Turtle
+compatibility mode. New datasets should use `.trig`, which preserves target,
+provenance, review, schema, and shape graph roles.
 
 ## Call it from Python
 
@@ -104,13 +113,11 @@ The public API is one function. The CLI is a thin adapter over it:
 from pathlib import Path
 
 from text_to_ontology.api import RunRequest, run_text_to_graph
-from text_to_ontology.graph_management import LocalTurtleStore
 from text_to_ontology.llm import OpenRouterExtractor
 from text_to_ontology.run_report import RunReporter
 
 result = run_text_to_graph(
-    RunRequest(source=Path("notes.txt"), graph_path=Path("ontology.ttl")),
-    graph_store=LocalTurtleStore(),
+    RunRequest(source=Path("notes.txt"), graph_path=Path("ontology.trig")),
     extractor=OpenRouterExtractor(),
     reporter=RunReporter(verbose=False),
 )
@@ -120,7 +127,7 @@ print(result.triples, "triples in", result.graph_path)
 `RunRequest` carries the source, the graph path, and the configuration:
 `WindowingConfig` (window target/overlap size in tokens), `ContextConfig`,
 `ExtractionConfig`, `MergeConfig`, `ValidationConfig` (optional explicit SHACL
-shape graphs), and `ProcessingConfig`
+shape graphs), `GraphNames`, `ProcessingConfig`, and `dry_run`
 (`retain_staging_on_failure` exports a failed document's staging graphs to a
 sidecar TriG file next to the output graph for diagnosis; by default they are
 discarded).
@@ -130,15 +137,17 @@ it is sent back to the model for self-repair up to
 before the window is rejected. Every answer, repaired or not, must pass the
 same validation gate.
 On success, `RunResult.documents` contains each document's reconciliation
-report, standard SHACL report, and deterministic canonical N-Triples source
+report, source and proposed-data SHACL reports, exact publication plan, and
+deterministic canonical N-Triples source
 artifact. Its metadata associates the export with the document digest,
 window-strategy version, candidate-mapping version, and extractor identities.
 SHACL non-conformance raises `SourceValidationError`; the source artifact,
 reconciliation report, and standard SHACL report remain available on that
-exception while the final graph stays unchanged.
+exception while the final graphs stay unchanged. `PublicationValidationError`
+does the same for a proposed post-merge SHACL failure.
 Any adapter can be replaced — pass an object with `model()` and
-`extract(prompt)` as the extractor (a fake in tests), or anything with
-`load(path)` and `save(graph, path)` as the graph store. The core pipeline
+`extract(prompt)` as the extractor (a fake in tests), or a named graph store
+with `get(...)` and `publish(...)`. The core pipeline
 never parses arguments, reads environment variables, or exits the process.
 
 ## Look at the graph
@@ -148,10 +157,11 @@ one: the schema / instance / support partitions, the declared skeleton copied
 out of the schema, and the usage patterns observed in the instance data.
 
 ```bash
-python view_ontology.py                            # print the report for ontology.ttl
-python view_ontology.py other.ttl                  # a different graph
+python view_ontology.py ontology.trig              # union of named graphs
+python view_ontology.py ontology.trig -g GRAPH_IRI # one named graph
+python view_ontology.py other.ttl                  # legacy Turtle still works
 python view_ontology.py -html                      # write ontology_views.html
-python view_ontology.py other.ttl -html out.html   # a different graph, a chosen file
+python view_ontology.py ontology.trig -html out.html
 ```
 
 The HTML page is one standalone file with no external assets. Besides the same
@@ -173,8 +183,9 @@ on how much ontology context one prompt may carry, and lowering it makes the
 prompt smaller by dropping the least relevant items first.
 
 Each non-empty window's answer is validated before it may change anything. The
-run prints a `Validated:` line, then plans the merge and prints a `Planned:`
-line before anything is written. Every record the model returns must carry a
+run prints a `Validated:` line for each window, then one document-level
+`Planned:` line and a proposed-data SHACL result before anything final is
+written. Every record the model returns must carry a
 `confidence` from 0.0 to 1.0 — the model's confidence that the source text
 directly supports that complete record. New assertions below `0.80` confidence
 are not merged; they are retained as review records instead. Exact duplicates
@@ -183,14 +194,12 @@ disagreements with explicit functional constraints go to review rather than
 overwriting anything: existing canonical statements are never replaced
 automatically.
 
-Every valid extraction leaves provenance in the graph: where the source came
-from (path and content digest), which model extracted it, and per-record
-normalized content, confidence, decision, and reason codes. These audit records
-live in the support partition of the graph — they never appear as entities, in
-prompts, or in usage statistics. A validation error still leaves the graph and
-file unchanged for that source, and exits with a short list of the offending
-paths and codes. Saves are atomic: a failed write never damages the previous
-graph file.
+Every valid extraction leaves independent standard PROV/DQV evidence in the
+provenance graph. Duplicate canonical assertions are not re-added, but each
+source/window confidence measurement remains separate. Withheld candidates are
+represented in the review graph. A validation or publication error leaves all
+final graphs unchanged. Each successful non-empty source document makes exactly
+one atomic publication call.
 
 ## Files
 
@@ -225,6 +234,10 @@ The pipeline that runs when you invoke the program:
   report, overlap support accounting, and deterministic source artifacts
 - `src/text_to_ontology/source_validation.py` — explicit shape-graph combining
   and the pySHACL gate with its standard validation report
+- `src/text_to_ontology/document_merge.py` — one complete-document candidate
+  package and one canonical identity/merge planning pass
+- `src/text_to_ontology/document_publication.py` — proposed-data validation,
+  PROV/DQV remapping, review material, dry-run plan, and atomic publication
 - `src/text_to_ontology/windowing.py` — stable documents and reproducible
   overlapping text windows
 - `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and
@@ -273,7 +286,7 @@ And the rest:
 - `pyproject.toml` — package metadata and the one dependency (`rdflib`)
 - `tests/fixtures/miniature_repository.ttl` — the frozen miniature graph the
   exact partition/skeleton/pattern tests run against
-- `ontology.ttl` — your graph, created when you first run the program
+- `ontology.trig` — the named-graph dataset created by the default run
 
 The accepted directory file extensions are listed near the top of
 `ingest_sources.py`. A directly supplied file is always read, regardless of

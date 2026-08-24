@@ -27,11 +27,19 @@ def bind(graph):
 
 
 def open_graph(path):
-    graph = Graph()
-    bind(graph)
     if path.exists():
+        graph = Graph()
+        bind(graph)
         graph.parse(path, format="turtle")
         return graph
+
+    return seed_graph()
+
+
+def seed_graph():
+    """The small initial ontology and shape graph, without file access."""
+    graph = Graph()
+    bind(graph)
 
     graph.add((ONTO.ontology, RDF.type, OWL.Ontology))
     graph.add((ONTO.Entity, RDF.type, OWL.Class))

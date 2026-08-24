@@ -1085,8 +1085,9 @@ def controls_section():
     </tbody>
   </table>
   <h3>Command-line controls</h3>
-  <pre>python view_ontology.py                     # the terminal report for ontology.ttl
-python view_ontology.py other.ttl           # a different graph
+  <pre>python view_ontology.py                     # union of ontology.trig
+python view_ontology.py ontology.trig -g GRAPH_IRI # one named graph
+python view_ontology.py other.ttl           # a legacy Turtle graph
 python view_ontology.py -html               # write ontology_views.html
 python view_ontology.py other.ttl -html out.html   # a different graph, a chosen file</pre>
   <p>There are no filter options on the command line, and that is deliberate: a

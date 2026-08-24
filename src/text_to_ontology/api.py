@@ -5,13 +5,11 @@ Minimal example:
     from pathlib import Path
 
     from text_to_ontology.api import RunRequest, run_text_to_graph
-    from text_to_ontology.graph_management import LocalTurtleStore
     from text_to_ontology.llm import OpenRouterExtractor
     from text_to_ontology.run_report import RunReporter
 
     result = run_text_to_graph(
-        RunRequest(source=Path("notes.txt"), graph_path=Path("ontology.ttl")),
-        graph_store=LocalTurtleStore(),
+        RunRequest(source=Path("notes.txt"), graph_path=Path("ontology.trig")),
         extractor=OpenRouterExtractor(),
         reporter=RunReporter(),
     )
@@ -22,6 +20,11 @@ environment configuration, and exit codes.
 """
 
 from .graph_management import GraphStore, LocalTurtleStore
+from .graph_store import GraphNames, RdflibGraphStore
+from .document_publication import (
+    DocumentPublicationPlan,
+    PublicationValidationError,
+)
 from .llm import OpenRouterExtractor
 from .source_reconciliation import SourceGraphArtifact
 from .source_validation import SourceValidationError, SourceValidationResult
@@ -46,9 +49,13 @@ __all__ = [
     "ExtractionConfig",
     "Extractor",
     "GraphStore",
+    "GraphNames",
     "LocalTurtleStore",
     "MergeConfig",
     "OpenRouterExtractor",
+    "DocumentPublicationPlan",
+    "PublicationValidationError",
+    "RdflibGraphStore",
     "ProcessingConfig",
     "Reporter",
     "RunRequest",

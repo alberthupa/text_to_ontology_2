@@ -176,6 +176,29 @@ class RunReporter:
                 self.block(result.report_graph.serialize(format="turtle"),
                            language="turtle")
 
+    def publication_validation(self, result):
+        """Report SHACL validation of the proposed post-merge data."""
+        result_count = len(set(result.report_graph.subjects(
+            RDF.type, SH.ValidationResult)))
+        status = "PASS" if result.conforms else "FAIL"
+        summary = (f"  Proposed data SHACL validation: {status}; "
+                   f"{result.shape_graphs_checked} shape graph(s), "
+                   f"{result_count} result(s)")
+        self.line(summary)
+        if self.verbose:
+            self.section(f"[7b] Proposed post-merge SHACL validation: {status}")
+            self.line(summary)
+            if not result.conforms:
+                self.block(result.report_graph.serialize(format="turtle"),
+                           language="turtle")
+
+    def dry_run(self, graph_path, before_size, proposed, counts):
+        """Report an exact plan that deliberately was not published."""
+        self.section("[8] Dry run")
+        self.line(f"  Proposed graph: {before_size} -> {len(proposed)} triples")
+        self.line(f"  Would publish atomically to {graph_path}")
+        self.line("  Final graphs unchanged")
+
     def staging_failed(self, document_id, retained, sidecar_path):
         """Record whether a failed document's staging graphs were kept."""
         if retained and sidecar_path is not None:
@@ -417,6 +440,10 @@ class RunReporter:
 
     def finished(self, graph, graph_path):
         self.line(f"Saved {len(graph)} triples to {graph_path}")
+
+    def dry_run_finished(self, graph, graph_path):
+        self.line(f"Dry run complete: {len(graph)} proposed triples; "
+                  f"nothing written to {graph_path}")
 
     def failed(self, error):
         if self.verbose:

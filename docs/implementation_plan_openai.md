@@ -40,8 +40,8 @@ confidence representation, and Python packaging.
 - Started: 2026-08-24
 - Target release:
 - Last updated: 2026-08-24
-- Current milestone: M7 (document-level final merge and publication) is next
-- Current branch: milestone/m06-source-reconciliation-validation
+- Current milestone: M8 (SPARQL context over named graphs) is next
+- Current branch: milestone/m07-document-publication
 - Overall notes:
 
 Use only one status checkbox on each status line. Anyone changing milestone
@@ -299,8 +299,8 @@ the normal milestone acceptance evidence.
 | M3 Local RDF dataset/store | [x] | ox-alpha agent | milestone/m03-local-graph-store | (pending commit) | 2026-08-24 |
 | M4 Candidate RDF and confidence | [x] | ox-alpha agent | milestone/m04-candidate-rdf-confidence | (pending commit) | 2026-08-24 |
 | M5 Incremental source graph | [x] | ox-alpha agent | milestone/m05-incremental-source-graph | (pending commit) | 2026-08-24 |
-| M6 Source reconciliation and validation | [ ] | | | | |
-| M7 One final document merge | [ ] | | | | |
+| M6 Source reconciliation and validation | [x] | Codex | milestone/m06-source-reconciliation-validation | 90d1f87 | 2026-08-24 |
+| M7 One final document merge | [x] | Codex | milestone/m07-document-publication | (pending commit) | 2026-08-24 |
 | M8 SPARQL context and skeleton | [ ] | | | | |
 | M9 Separate seed tool | [ ] | | | | |
 | M10 Jena/Fuseki adapter | [ ] | | | | |
@@ -514,7 +514,7 @@ changing current short-source behavior.
 - Started: 2026-08-24
 - Completed: 2026-08-24
 - Branch: milestone/m01-public-api-cli
-- Commits: pending commit on this branch
+- Commits: `90d1f87 m06: reconcile and validate complete source graphs`
 - Pull request/review: not opened; local branch only
 - Decisions made:
   - Version bumped 0.1.0 → 0.2.0 (new public API + console command).
@@ -1225,7 +1225,7 @@ triples plus provenance/review information in one atomic document transaction.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [ ] Blocked  [x] Complete
 
 ### Acceptance criteria
 
@@ -1255,47 +1255,70 @@ triples plus provenance/review information in one atomic document transaction.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M7-T1 → AC1, AC2:** Adapt identity resolution to consume the complete
+- [x] **M7-T1 → AC1, AC2:** Adapt identity resolution to consume the complete
   source graph and return a source-IRI-to-canonical-IRI mapping plan.
-- [ ] **M7-T2 → AC3:** Port current merge-policy precedence into document-level
+- [x] **M7-T2 → AC3:** Port current merge-policy precedence into document-level
   tests before replacing the old per-file candidate package path.
-- [ ] **M7-T3 → AC4:** Add dry-run to `RunRequest`, API result, reporter, and CLI.
-- [ ] **M7-T4 → AC5:** Build a proposed union/delta view for SHACL validation
+- [x] **M7-T3 → AC4:** Add dry-run to `RunRequest`, API result, reporter, and CLI.
+- [x] **M7-T4 → AC5:** Build a proposed union/delta view for SHACL validation
   without mutating the store.
-- [ ] **M7-T5 → AC6:** Compile target/provenance/review changes into one store
+- [x] **M7-T5 → AC6:** Compile target/provenance/review changes into one store
   publication operation.
-- [ ] **M7-T6 → AC7:** Inject plan, validation, serialization, and publication
+- [x] **M7-T6 → AC7:** Inject plan, validation, serialization, and publication
   failures and compare all named graphs before/after.
-- [ ] **M7-T7 → AC8, AC9:** Remap reified source statements and DQV measurements
+- [x] **M7-T7 → AC8, AC9:** Remap reified source statements and DQV measurements
   to canonical triple evidence without losing source-specific occurrences.
-- [ ] **M7-T8 → AC10:** Use document/configuration/package digests for stable
+- [x] **M7-T8 → AC10:** Use document/configuration/package digests for stable
   event and evidence identifiers; add exact rerun tests.
-- [ ] **M7-T9 → AC11:** Add a two-document test showing exactly two ordered
+- [x] **M7-T9 → AC11:** Add a two-document test showing exactly two ordered
   publications and growing final context only between documents.
-- [ ] **M7-T10 → AC1–AC11:** Remove or clearly mark the legacy direct merge path
+- [x] **M7-T10 → AC1–AC11:** Remove or clearly mark the legacy direct merge path
   after all compatibility tests use document-level publication.
 
 ### Required evidence
 
-- [ ] Publisher call-count tests:
-- [ ] Dry-run equality/no-write result:
-- [ ] Identity decision fixture results:
-- [ ] Injected atomic-publication failure result:
-- [ ] Multi-source confidence/provenance query result:
-- [ ] Exact rerun result:
+- [x] Publisher call-count tests: `PublicationCountTest` proves one call for one
+  document and exactly two ordered calls for two directory files; the second
+  prompt sees the first publication.
+- [x] Dry-run equality/no-write result: `DryRunTest` compares dry-run target,
+  provenance, review replacements and identity mapping with a real run; the
+  persistent dry-run path is absent and publish count is zero.
+- [x] Identity decision fixture results: `OneDocumentPlanTest` proves one final
+  planner call across many windows, explicit reasoned source-IRI mappings, and
+  lookup across every configured canonical data graph.
+- [x] Injected atomic-publication failure result: `AtomicFailureTest` covers
+  planning, serialization, and publication exceptions; `ProposedValidationTest`
+  covers post-merge SHACL failure. Every final named graph remains equal.
+- [x] Multi-source confidence/provenance query result: `EvidenceTest` finds one
+  canonical relation with two remapped RDF statements and distinct DQV values
+  `0.9` and `0.7` from two documents.
+- [x] Exact rerun result: `EvidenceTest` reruns one document and compares target,
+  provenance, and review triples exactly; all three are unchanged.
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- Merge-policy version:
+- Owner: Codex
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: `milestone/m07-document-publication`
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
+- Merge-policy version: existing safe policy v1, wrapped by document merge v1
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - The default durable output is a TriG RDF dataset. `.ttl` remains an explicit
+    compatibility adapter that atomically exports the same role union.
+  - Window candidates are deduplicated into one document package for decisions,
+    while their original PROV collections and DQV measurements remain separate.
+  - Review graph placement expresses withheld status; operational reason codes
+    remain in the plain merge plan instead of creating an RDF workflow vocabulary.
+  - Dry-run simulates each document publication in memory so later directory
+    files see the same proposed state without touching the external store.
+- Known follow-ups: M8 replaces whole-graph context reads with focused SPARQL
+  over configured graph roles. The Turtle compatibility adapter cannot preserve
+  named-graph placement across reopen and is intentionally not the default.
+- Acceptance evidence location: `tests/test_pipeline_m7.py`, existing merge
+  policy precedence tests, and the full deterministic suite: 789 tests passed,
+  with one intentional skip.
 
 ---
 

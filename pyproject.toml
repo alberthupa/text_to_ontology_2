@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "text-to-ontology"
 version = "0.2.0"
-description = "Dead simple text to ontology: add knowledge from text files to one Turtle graph."
+description = "Dead simple text to ontology: add knowledge from text files to one RDF dataset."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

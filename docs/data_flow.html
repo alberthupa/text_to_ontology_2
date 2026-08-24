@@ -138,14 +138,23 @@
     <p class="eyebrow">Active write path · source traced</p>
     <h1>How <code>ontology.py</code> turns text into a growing ontology</h1>
     <p class="intro">The page follows one real run through every transitively related pipeline file. It shows the payload passed between methods, the read-only context branch, the validation and policy gates, the graph-copy write, the per-file feedback loop, and the new verbose report path.</p>
-    <div class="command">python ontology.py &lt;source file or directory&gt; [ontology.ttl] [-v | --report]</div>
+    <div class="command">python ontology.py &lt;source file or directory&gt; [ontology.trig] [-v | --report] [--dry-run]</div>
     <div class="facts">
-      <span class="fact"><b>M6</b> reconciliation + SHACL gate</span>
+      <span class="fact"><b>M7</b> document publication</span>
       <span class="fact"><b>one file</b> processed at a time</span>
       <span class="fact"><b>read-only plan</b> before mutation</span>
-      <span class="fact"><b>atomic save</b> after each non-empty file</span>
+      <span class="fact"><b>one atomic publication</b> per non-empty file</span>
     </div>
   </header>
+  <div class="callout" style="margin-top:18px">
+    <b>M7 update — one document transaction</b>
+    After M6, <code>document_merge.py</code> resolves the complete source once
+    against all configured canonical graphs. <code>document_publication.py</code>
+    validates the proposed data and replaces target, provenance, and review
+    graphs in one <code>Publication</code>. Dry-run returns that exact bundle
+    without calling the store. The diagram below preserves the earlier flow
+    detail; its per-window final merge lane is superseded by this document gate.
+  </div>
   <div class="callout" style="margin-top:18px">
     <b>M6 update — complete-source gate</b>
     Window candidates first build one source-local graph. Before the merge-policy

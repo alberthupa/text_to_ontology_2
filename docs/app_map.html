@@ -207,23 +207,31 @@
 
   <header class="hero">
     <p class="kicker">Code map · reconstructed from source only</p>
-    <h1>text_to_ontology<span class="arrow"> →</span> ontology.ttl</h1>
+    <h1>text_to_ontology<span class="arrow"> →</span> ontology.trig</h1>
     <p class="subtitle">
       A deliberately small pipeline that reads text files, selects the small slice of the
       current graph that each file actually relates to, asks an LLM to extract
       <b>entities</b>, <b>relations</b>, and literal <b>facts</b> with per-record
       <b>confidence</b>, <b>validates</b> the reply, <b>plans</b> every identity and merge
       decision read-only, then materializes that plan into a single RDF/OWL/SHACL/SKOS
-      Turtle graph. This page maps every file, class, function, and constant in the repository.
+      named-graph RDF dataset. This page maps the repository and marks newer milestone gates.
     </p>
     <div class="pill-row">
-      <span class="pill">Python 3 · <b>32 source files</b></span>
+      <span class="pill">Python 3 · <b>34 source files</b></span>
       <span class="pill">depends on <b>rdflib + pyshacl</b></span>
       <span class="pill">LLM: <b>OpenRouter</b> (Pareto router)</span>
-      <span class="pill">output: <b>ontology.ttl</b></span>
-      <span class="pill"><b>29</b> test files · <b>775</b> cases</span>
+      <span class="pill">output: <b>ontology.trig</b></span>
+      <span class="pill"><b>30</b> test files · <b>789</b> cases</span>
     </div>
   </header>
+
+  <div class="callout green">
+    <b>M7 document publication:</b> <code>document_merge.py</code> creates one
+    reasoned final plan for the complete source. <code>document_publication.py</code>
+    remaps PROV/DQV evidence, validates proposed canonical data, and makes one
+    atomic target/provenance/review publication. <code>--dry-run</code> returns
+    the same plan without writing. TriG is the default; Turtle is compatibility.
+  </div>
 
   <div class="callout green">
     <b>M6 source-completion gate:</b> after all windows are admitted,
@@ -258,6 +266,8 @@
           <li><span class="fn">candidate_validation.py</span><span class="desc">validate + normalize before planning</span></li>
           <li><span class="fn">source_reconciliation.py</span><span class="desc">complete-document report + deterministic artifact</span></li>
           <li><span class="fn">source_validation.py</span><span class="desc">combined SHACL gate before final planning</span></li>
+          <li><span class="fn">document_merge.py</span><span class="desc">one final identity and merge plan per document</span></li>
+          <li><span class="fn">document_publication.py</span><span class="desc">proposed SHACL + atomic named-graph publication</span></li>
           <li><span class="fn">merge_policy.py</span><span class="desc">read-only merge planning + provenance</span></li>
           <li><span class="fn">entity_lookup.py</span><span class="desc">identity decisions (existing/new/review)</span></li>
           <li><span class="fn">graph_merge.py</span><span class="desc">apply_merge_plan into a graph copy</span></li>
@@ -377,7 +387,7 @@
           <li><span class="fn">report_context / report_validation / report_plan</span><span class="desc">one-line Context: / Validated: / Planned: reports</span></li>
         </ul>
         <div class="const-block"><span class="tag">details</span>
-          args: <b>source</b> (required), <b>graph</b> (default <code>ontology.ttl</code>). Any validation error → <code>RuntimeError</code> (caught → exit 1). Blank files skipped. The plan materializes into a <b>graph copy</b>; the copy is saved atomically and only then becomes the next file's active graph.
+          args: <b>source</b> (required), <b>graph</b> (default <code>ontology.trig</code>), and optional <code>--dry-run</code>. Blank files are skipped. Each complete document is reconciled, resolved once, SHACL-validated, then published as one named-graph replacement bundle.
         </div>
       </div>
 

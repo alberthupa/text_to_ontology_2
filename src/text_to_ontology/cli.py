@@ -10,20 +10,23 @@ from .graph_management import LocalTurtleStore
 from .llm import OpenRouterExtractor
 from .run_report import RunReporter, default_report_path
 
-DEFAULT_GRAPH = Path("ontology.ttl")
+DEFAULT_GRAPH = Path("ontology.trig")
 
 
 def build_parser():
     """The one command line this program accepts."""
     parser = argparse.ArgumentParser(
-        description="Add knowledge from text files to one Turtle graph.")
+        description="Add knowledge from text files to one RDF dataset.")
     parser.add_argument("source", type=Path, help="a text file or directory")
     parser.add_argument("graph", type=Path, nargs="?", default=DEFAULT_GRAPH,
-                        help="the Turtle graph to create or extend")
+                        help="the TriG dataset to create or extend; .ttl keeps "
+                             "legacy Turtle compatibility")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="show every intermediate artifact, step by step")
     parser.add_argument("--report", action="store_true",
                         help="save a verbose Markdown report; stay silent on success")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="return and report the exact plan without publishing")
     return parser
 
 
@@ -48,9 +51,12 @@ def main(argv=None):
 
     reporter.run_started(args.source, args.graph, started_at, report_path)
     try:
+        compatibility_store = (LocalTurtleStore()
+                               if args.graph.suffix.lower() == ".ttl" else None)
         run_text_to_graph(
-            RunRequest(source=args.source, graph_path=args.graph),
-            graph_store=LocalTurtleStore(),
+            RunRequest(source=args.source, graph_path=args.graph,
+                       dry_run=args.dry_run),
+            graph_store=compatibility_store,
             extractor=OpenRouterExtractor(),
             reporter=reporter,
         )

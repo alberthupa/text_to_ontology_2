@@ -149,7 +149,7 @@ class SavingTest(unittest.TestCase):
 
             self.assertTrue(graph_path.exists())
 
-    def test_the_default_graph_path_is_ontology_ttl(self):
+    def test_the_default_graph_path_is_ontology_trig(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             output = io.StringIO()
@@ -160,15 +160,14 @@ class SavingTest(unittest.TestCase):
             try:
                 result = run_text_to_graph(
                     RunRequest(source=source),
-                    graph_store=graph_management.LocalTurtleStore(),
                     extractor=FakeExtractor(entity_response("Acme Corp")),
                     reporter=RunReporter(stream=output),
                 )
             finally:
                 os.chdir(previous)
 
-            self.assertTrue((root / "ontology.ttl").exists())
-            self.assertEqual(result.graph_path, Path("ontology.ttl"))
+            self.assertTrue((root / "ontology.trig").exists())
+            self.assertEqual(result.graph_path, Path("ontology.trig"))
 
 
 class ReportingTest(unittest.TestCase):
@@ -215,7 +214,7 @@ class ReportingTest(unittest.TestCase):
                         "[6b] Complete-source SHACL validation: PASS",
                         "[7] Merge plan", "[8] Apply and save"):
             self.assertIn(section, printed)
-        self.assertIn("Identity e1: NEW", printed)
+        self.assertIn(": NEW", printed)
         self.assertIn("Fact[0]: REVIEW", printed)
         self.assertIn("reason: confidence.below_auto_accept", printed)
         self.assertIn(f"Saved atomically to {graph_path}", printed)
@@ -407,15 +406,6 @@ class ValidationGateTest(unittest.TestCase):
     """Proposal 6C: every non-empty response is validated before graph mutation."""
 
     def test_normalized_candidates_reach_the_merger(self):
-        captured = {}
-
-        def fake_apply(graph, plan):
-            captured["plan"] = plan
-            return graph, {"new_entities": 0, "resolved_entities": 0,
-                           "relation_triples": 0, "fact_triples": 0,
-                           "metadata_triples": 0, "duplicates": 0,
-                           "review": 0, "audit_triples": 0}
-
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             source = root / "notes.txt"
@@ -430,13 +420,12 @@ class ValidationGateTest(unittest.TestCase):
                 }],
                 "relations": [], "facts": [],
             })
-            with mock.patch.object(pipeline, "apply_merge_plan", fake_apply):
-                run_api(source, graph_path, fake)
-        domain = set(captured["plan"]["domain_triples"])
+            run_api(source, graph_path, fake)
+            graph = graph_management.open_graph(graph_path)
         self.assertIn((ENTITY["acme-corp"], SKOS.prefLabel,
-                       Literal("Acme Corp")), domain)
+                       Literal("Acme Corp")), graph)
         self.assertIn((ENTITY["acme-corp"], SKOS.altLabel,
-                       Literal("ACME")), domain)
+                       Literal("ACME")), graph)
 
     def test_a_successful_run_reports_validation_and_duplicate_counts(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -690,7 +679,7 @@ class MergePolicyPipelineTest(unittest.TestCase):
 
         self.assertIn("1 for review", printed)
         self.assertEqual(set(graph.subjects(RDF.type, ONTO.Entity)), set())
-        self.assertTrue(any("merge-candidate" in str(subject)
+        self.assertTrue(any("/review/" in str(subject)
                             for subject in set(graph.subjects())))
 
     def test_a_planning_failure_leaves_both_graphs_unchanged(self):

@@ -163,7 +163,7 @@ def report_patterns(patterns):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("graph", type=Path, nargs="?",
-                        default=Path("ontology.ttl"))
+                        default=Path("ontology.trig"))
     parser.add_argument("-g", "--named", metavar="GRAPH",
                         help="with a .trig dataset: view only this named graph")
     parser.add_argument("-html", "--html", type=Path, nargs="?",
