@@ -346,26 +346,34 @@ from `pyproject.toml` without changing current short-source behavior.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M0-T1 → AC1, AC2:** Add small RDF fixtures representing the exact
+- [x] **M0-T1 → AC1, AC2:** Add small RDF fixtures representing the exact
   partition, skeleton, and pattern cases currently tested against
   `ontology.ttl`.
-- [ ] **M0-T2 → AC1, AC2:** Change exact snapshot tests to load fixtures. Keep a
+- [x] **M0-T2 → AC1, AC2:** Change exact snapshot tests to load fixtures. Keep a
   separate repository-graph smoke test limited to invariants that remain true as
   the user graph grows.
-- [ ] **M0-T3 → AC3:** Add `pyproject.toml` using standard `[build-system]` and
+- [x] **M0-T3 → AC3:** Add `pyproject.toml` using standard `[build-system]` and
   `[project]` metadata. Keep runtime dependencies minimal.
-- [ ] **M0-T4 → AC3:** Move development/test dependencies into a standard
+- [x] **M0-T4 → AC3:** Move development/test dependencies into a standard
   dependency group. Decide whether `requirements.txt` is temporarily generated
   or removed; document the decision.
-- [ ] **M0-T5 → AC4, AC6:** Create `src/text_to_ontology/` and move modules in
+  (No dev-only dependencies exist beyond the standard library; the placeholder
+  PEP 735 group is documented in `pyproject.toml`, and `requirements.txt` was
+  removed.)
+- [x] **M0-T5 → AC4, AC6:** Create `src/text_to_ontology/` and move modules in
   small groups while preserving readable imports. Use compatibility wrappers if
   necessary so one move does not require a repository-wide rewrite.
-- [ ] **M0-T6 → AC5:** Package prompts, SPARQL files, and future shapes using
+  (Done in one coherent move; root `ontology.py`/`view_ontology.py` wrappers.)
+- [x] **M0-T6 → AC5:** Package prompts, SPARQL files, and future shapes using
   package resources rather than paths relative to the working directory.
-- [ ] **M0-T7 → AC5:** Add an installation smoke test that imports the package
+  (Prompts/SPARQL are Python string constants inside package modules today, so
+  they ship in the wheel by definition; no non-Python resource files exist yet.
+  The only file-relative resource was `.env`, which is user configuration now
+  loaded from the working directory. Revisit when prompts/SPARQL become files.)
+- [x] **M0-T7 → AC5:** Add an installation smoke test that imports the package
   from a directory outside the repository.
-- [ ] **M0-T8 → AC7:** Review `.gitignore` and build inclusion rules.
-- [ ] **M0-T9 → AC1–AC7:** Update README installation and test commands.
+- [x] **M0-T8 → AC7:** Review `.gitignore` and build inclusion rules.
+- [x] **M0-T9 → AC1–AC7:** Update README installation and test commands.
 
 ### Required evidence
 
