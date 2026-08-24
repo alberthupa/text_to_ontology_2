@@ -1,0 +1,686 @@
+@prefix ns1: <http://example.org/text-ontology/relation/> .
+@prefix ns2: <http://example.org/text-ontology/fact/> .
+@prefix ns3: <http://example.org/text-ontology/> .
+@prefix ns4: <http://www.w3.org/ns/dqv#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://example.org/text-ontology/graphs/shapes> {
+    ns3:EntityShape a sh:NodeShape ;
+        sh:property _:Nc4746bab168c4641b972ab1639ca0708 ;
+        sh:targetClass ns3:Entity .
+
+    _:Nc4746bab168c4641b972ab1639ca0708 sh:minCount 1 ;
+        sh:path skos:prefLabel .
+}
+
+<http://example.org/text-ontology/graphs/data> {
+    <http://example.org/text-ontology/entity/france> a ns3:Entity,
+            <http://example.org/text-ontology/class/country>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "France" ;
+        ns3:kind "Country" ;
+        rdfs:comment "A region identified in the brief's metadata." ;
+        skos:prefLabel "France" .
+
+    <http://example.org/text-ontology/entity/paris-talks> a ns3:Entity,
+            <http://example.org/text-ontology/class/diplomatic-event>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "Paris talks" ;
+        ns2:did-not-remove-frictions-over "chips, trade, and strategic competition" ;
+        ns2:diplomatic-purpose "stabilize a structurally adversarial relationship" ;
+        ns2:suggested "both sides wanted some managed stability" ;
+        ns3:kind "Diplomatic Event" ;
+        ns1:concerns-relationship-between <http://example.org/text-ontology/entity/china>,
+            <http://example.org/text-ontology/entity/united-states> ;
+        ns1:held-in <http://example.org/text-ontology/entity/paris> ;
+        ns1:prepared-for <http://example.org/text-ontology/entity/trump-xi-summit> ;
+        rdfs:comment "Diplomatic talks framed as an effort to stabilize a structurally adversarial relationship and prepare for a future Trump-Xi summit." ;
+        skos:altLabel "Talks in Paris" ;
+        skos:prefLabel "Paris talks" .
+
+    ns2:did-not-remove-frictions-over a owl:DatatypeProperty ;
+        rdfs:label "did not remove frictions over" .
+
+    ns2:diplomatic-purpose a owl:DatatypeProperty ;
+        rdfs:label "diplomatic purpose" .
+
+    ns2:status a owl:DatatypeProperty ;
+        rdfs:label "status" .
+
+    ns2:suggested a owl:DatatypeProperty ;
+        rdfs:label "suggested" .
+
+    ns1:concerns-relationship-between a owl:ObjectProperty ;
+        rdfs:label "concerns relationship between" .
+
+    ns1:held-in a owl:ObjectProperty ;
+        rdfs:label "held in" .
+
+    ns1:involves a owl:ObjectProperty ;
+        rdfs:label "involves" .
+
+    ns1:prepared-for a owl:ObjectProperty ;
+        rdfs:label "prepared for" .
+
+    <http://example.org/text-ontology/class/place> a owl:Class ;
+        rdfs:label "Place" ;
+        rdfs:subClassOf ns3:Entity .
+
+    <http://example.org/text-ontology/entity/china> a ns3:Entity,
+            <http://example.org/text-ontology/class/country>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "China" ;
+        ns3:kind "Country" ;
+        rdfs:comment "One side in the relationship discussed in the diplomatic brief." ;
+        skos:prefLabel "China" .
+
+    <http://example.org/text-ontology/entity/paris> a ns3:Entity,
+            <http://example.org/text-ontology/class/place>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "Paris" ;
+        ns3:kind "Place" ;
+        rdfs:comment "City where the diplomatic talks occurred." ;
+        skos:prefLabel "Paris" .
+
+    <http://example.org/text-ontology/entity/trump> a ns3:Entity,
+            <http://example.org/text-ontology/class/person>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "Trump" ;
+        ns3:kind "Person" ;
+        rdfs:comment "One of the two leaders expected to participate in a future summit." ;
+        skos:prefLabel "Trump" .
+
+    <http://example.org/text-ontology/entity/trump-xi-summit> a ns3:Entity,
+            <http://example.org/text-ontology/class/diplomatic-event>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "Trump-Xi summit" ;
+        ns2:status "future summit" ;
+        ns3:kind "Diplomatic Event" ;
+        ns1:involves <http://example.org/text-ontology/entity/trump>,
+            <http://example.org/text-ontology/entity/xi> ;
+        rdfs:comment "A future summit involving Trump and Xi for which officials sought to prepare the ground." ;
+        skos:prefLabel "Trump-Xi summit" .
+
+    <http://example.org/text-ontology/entity/united-states> a ns3:Entity,
+            <http://example.org/text-ontology/class/country>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "United States" ;
+        ns3:kind "Country" ;
+        rdfs:comment "One side in the relationship discussed in the diplomatic brief." ;
+        skos:prefLabel "United States" .
+
+    <http://example.org/text-ontology/entity/xi> a ns3:Entity,
+            <http://example.org/text-ontology/class/person>,
+            owl:NamedIndividual,
+            skos:Concept ;
+        rdfs:label "Xi" ;
+        ns3:kind "Person" ;
+        rdfs:comment "One of the two leaders expected to participate in a future summit." ;
+        skos:prefLabel "Xi" .
+
+    <http://example.org/text-ontology/class/diplomatic-event> a owl:Class ;
+        rdfs:label "Diplomatic Event" ;
+        rdfs:subClassOf ns3:Entity .
+
+    <http://example.org/text-ontology/class/person> a owl:Class ;
+        rdfs:label "Person" ;
+        rdfs:subClassOf ns3:Entity .
+
+    <http://example.org/text-ontology/class/country> a owl:Class ;
+        rdfs:label "Country" ;
+        rdfs:subClassOf ns3:Entity .
+}
+
+<http://example.org/text-ontology/graphs/provenance> {
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.91 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.91 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/0/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/0> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/1/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/1> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/2/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/2> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/3/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/3> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/0/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/0> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/1/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/1> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/2/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/2> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/3/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/3> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.99 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/4/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/4> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.9 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/5/confidence> a ns4:QualityMeasurement ;
+        ns4:computedOn <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/5> ;
+        ns4:isMeasurementOf <http://example.org/text-ontology/metric/extraction-confidence> ;
+        ns4:value 0.9 ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    ns3:ontology a owl:Ontology .
+
+    <http://example.org/text-ontology/agent/openrouter-pareto-code-nitro> a prov:SoftwareAgent ;
+        rdfs:label "openrouter/pareto-code:nitro" .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/5>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/6> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/diplomaticevent> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/diplomaticevent> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/2> a rdf:Statement ;
+        rdf:object "DiplomaticEvent" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/diplomaticevent> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/diplomaticevent> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/4> a rdf:Statement ;
+        rdf:object "Paris talks" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/5> a rdf:Statement ;
+        rdf:object "Diplomatic talks framed as an effort to stabilize a structurally adversarial relationship and prepare for a future Trump-Xi summit." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/0/statement/6> a rdf:Statement ;
+        rdf:object "Talks in Paris" ;
+        rdf:predicate skos:altLabel ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/place> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/place> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/2> a rdf:Statement ;
+        rdf:object "Place" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/place> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/place> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/paris> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/4> a rdf:Statement ;
+        rdf:object "Paris" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/paris> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/1/statement/5> a rdf:Statement ;
+        rdf:object "City where the diplomatic talks occurred." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/paris> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/person> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/person> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/2> a rdf:Statement ;
+        rdf:object "Person" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/person> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/person> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/trump> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/4> a rdf:Statement ;
+        rdf:object "Trump" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/trump> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/2/statement/5> a rdf:Statement ;
+        rdf:object "One of the two leaders expected to participate in a future summit." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/trump> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/person> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/person> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/2> a rdf:Statement ;
+        rdf:object "Person" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/person> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/person> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/xi> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/4> a rdf:Statement ;
+        rdf:object "Xi" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/xi> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/3/statement/5> a rdf:Statement ;
+        rdf:object "One of the two leaders expected to participate in a future summit." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/xi> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/diplomaticevent> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/diplomaticevent> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/2> a rdf:Statement ;
+        rdf:object "DiplomaticEvent" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/diplomaticevent> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/diplomaticevent> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/trump-xi-summit> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/4> a rdf:Statement ;
+        rdf:object "Trump-Xi summit" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/trump-xi-summit> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/4/statement/5> a rdf:Statement ;
+        rdf:object "A future summit involving Trump and Xi for which officials sought to prepare the ground." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/trump-xi-summit> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/2> a rdf:Statement ;
+        rdf:object "Country" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/country> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/united-states> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/4> a rdf:Statement ;
+        rdf:object "United States" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/united-states> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/5/statement/5> a rdf:Statement ;
+        rdf:object "One side in the relationship discussed in the diplomatic brief." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/united-states> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/2> a rdf:Statement ;
+        rdf:object "Country" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/country> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/china> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/4> a rdf:Statement ;
+        rdf:object "China" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/china> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/6/statement/5> a rdf:Statement ;
+        rdf:object "One side in the relationship discussed in the diplomatic brief." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/china> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/0>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/1>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/2>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/3>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/4>,
+            <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/5> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/0> a rdf:Statement ;
+        rdf:object owl:Class ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/1> a rdf:Statement ;
+        rdf:object ns3:Entity ;
+        rdf:predicate rdfs:subClassOf ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/2> a rdf:Statement ;
+        rdf:object "Country" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/class/country> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/3> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/class/country> ;
+        rdf:predicate rdf:type ;
+        rdf:subject <http://example.org/text-ontology/entity/france> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/4> a rdf:Statement ;
+        rdf:object "France" ;
+        rdf:predicate rdfs:label ;
+        rdf:subject <http://example.org/text-ontology/entity/france> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/entity/7/statement/5> a rdf:Statement ;
+        rdf:object "A region identified in the brief's metadata." ;
+        rdf:predicate skos:definition ;
+        rdf:subject <http://example.org/text-ontology/entity/france> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/0> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/0/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/0/statement/0> a rdf:Statement ;
+        rdf:object "stabilize a structurally adversarial relationship" ;
+        rdf:predicate ns2:diplomatic-purpose ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/1> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/1/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/1/statement/0> a rdf:Statement ;
+        rdf:object "both sides wanted some managed stability" ;
+        rdf:predicate ns2:suggested ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/2> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/2/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/2/statement/0> a rdf:Statement ;
+        rdf:object "chips, trade, and strategic competition" ;
+        rdf:predicate ns2:did-not-remove-frictions-over ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/3> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/3/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/fact/3/statement/0> a rdf:Statement ;
+        rdf:object "future summit" ;
+        rdf:predicate ns2:status ;
+        rdf:subject <http://example.org/text-ontology/entity/trump-xi-summit> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/0> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/0/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/0/statement/0> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/entity/paris> ;
+        rdf:predicate ns1:held-in ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/1> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/1/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/1/statement/0> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/entity/trump-xi-summit> ;
+        rdf:predicate ns1:prepared-for ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/2> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/2/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/2/statement/0> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/entity/trump> ;
+        rdf:predicate ns1:involves ;
+        rdf:subject <http://example.org/text-ontology/entity/trump-xi-summit> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/3> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/3/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/3/statement/0> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/entity/xi> ;
+        rdf:predicate ns1:involves ;
+        rdf:subject <http://example.org/text-ontology/entity/trump-xi-summit> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/4> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/4/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/4/statement/0> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/entity/united-states> ;
+        rdf:predicate ns1:concerns-relationship-between ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/5> a prov:Collection ;
+        prov:hadMember <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/5/statement/0> ;
+        prov:wasGeneratedBy <http://example.org/text-ontology/activity/bfffd6b56813dc21> .
+
+    <http://example.org/text-ontology/candidate/doc-2799a1911bfd9a2c/win-af830bf6add74e17/relation/5/statement/0> a rdf:Statement ;
+        rdf:object <http://example.org/text-ontology/entity/china> ;
+        rdf:predicate ns1:concerns-relationship-between ;
+        rdf:subject <http://example.org/text-ontology/entity/paris-talks> .
+
+    <http://example.org/text-ontology/document/doc-2799a1911bfd9a2c> a prov:Entity .
+
+    <http://example.org/text-ontology/window/win-af830bf6add74e17> a prov:Entity ;
+        prov:wasDerivedFrom <http://example.org/text-ontology/document/doc-2799a1911bfd9a2c> .
+
+    <http://example.org/text-ontology/metric/extraction-confidence> a ns4:Metric ;
+        rdfs:label "extraction confidence" .
+
+    <http://example.org/text-ontology/activity/bfffd6b56813dc21> a prov:Activity ;
+        prov:used <http://example.org/text-ontology/window/win-af830bf6add74e17> ;
+        prov:wasAssociatedWith <http://example.org/text-ontology/agent/openrouter-pareto-code-nitro> .
+}
+
+<http://example.org/text-ontology/graphs/schema> {
+    ns3:Entity a owl:Class ;
+        rdfs:label "Entity" .
+}
+
