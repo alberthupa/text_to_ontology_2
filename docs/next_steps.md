@@ -15,5 +15,5 @@ We will in the future definitely want to pamatrize how graph skeleton is taken i
 * in scope of semantic technologies i want to stick to vanilla rdf, rdfs, owl, skos, shacl solutions (and using of some most common vocabularies like foaf and others), but nothing custom!
 
 ### final thing
-do not change any code, just write your architecture proposal. save your answer in architecture_proposal_openai.md in docs folder
+do not change any code, just write your architecture proposal. save your answer in architecture_proposal_deepseek.md in docs folder
 
