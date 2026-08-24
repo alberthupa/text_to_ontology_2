@@ -295,7 +295,7 @@ the normal milestone acceptance evidence.
 |---|---|---|---|---|---|
 | M0 Baseline and packaging | [x] | ox-alpha agent | milestone/m00-packaging-baseline | 7c27e2c | 2026-08-24 |
 | M1 Public API and thin CLI | [x] | ox-alpha agent | milestone/m01-public-api-cli | (pending commit) | 2026-08-24 |
-| M2 Documents and windowing | [ ] | | | | |
+| M2 Documents and windowing | [x] | ox-alpha agent | milestone/m02-documents-windowing | (pending commit) | 2026-08-24 |
 | M3 Local RDF dataset/store | [ ] | | | | |
 | M4 Candidate RDF and confidence | [ ] | | | | |
 | M5 Incremental source graph | [ ] | | | | |
@@ -552,7 +552,7 @@ not depend on RDF, the LLM, or the graph store.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [ ] Blocked  [x] Complete
 
 ### Acceptance criteria
 
@@ -578,43 +578,84 @@ not depend on RDF, the LLM, or the graph store.
 
 ### Tasks derived from the acceptance criteria
 
-- [ ] **M2-T1 → AC1, AC2:** Implement the source and window dataclasses and
+- [x] **M2-T1 → AC1, AC2:** Implement the source and window dataclasses and
   stable digest rules. Document normalization before hashing.
-- [ ] **M2-T2 → AC4:** Implement heading/paragraph segmentation and paragraph
+- [x] **M2-T2 → AC4:** Implement heading/paragraph segmentation and paragraph
   packing.
-- [ ] **M2-T3 → AC4:** Implement sentence fallback and final hard split for an
+- [x] **M2-T3 → AC4:** Implement sentence fallback and final hard split for an
   oversized sentence.
-- [ ] **M2-T4 → AC5:** Implement token-based overlap while preserving offsets.
-- [ ] **M2-T5 → AC3, AC5, AC6:** Add reconstruction/coverage tests, including a
+- [x] **M2-T4 → AC5:** Implement token-based overlap while preserving offsets.
+- [x] **M2-T5 → AC3, AC5, AC6:** Add reconstruction/coverage tests, including a
   unique marker in the final characters of a very long document.
-- [ ] **M2-T6 → AC6:** Include strategy version and window parameters in the
+- [x] **M2-T6 → AC6:** Include strategy version and window parameters in the
   stable window ID input.
-- [ ] **M2-T7 → AC7:** Adapt token-estimator injection already used by prompt
+- [x] **M2-T7 → AC7:** Adapt token-estimator injection already used by prompt
   budgeting.
-- [ ] **M2-T8 → AC8, AC9:** Add blank and import-boundary tests.
-- [ ] **M2-T9 → AC1–AC9:** Add fixtures for one short document, a long
+- [x] **M2-T8 → AC8, AC9:** Add blank and import-boundary tests.
+- [x] **M2-T9 → AC1–AC9:** Add fixtures for one short document, a long
   paragraph-based document, one oversized sentence, Unicode, and CRLF input.
 
 ### Required evidence
 
-- [ ] Source coverage test result:
-- [ ] Tail-marker test result:
-- [ ] Determinism test result:
-- [ ] Example document/window IDs:
-- [ ] Import-boundary test result:
+- [x] Source coverage test result:
+  `python3 -m unittest discover -s tests -p 'test_*.py'` after `pip install -e .`
+  → `Ran 666 tests ... OK (skipped=1)`; the skip is the opt-in install smoke
+  test. Coverage tests assert the union of window `[start, end)` spans equals
+  the full normalized text for every fixture and for the uploaded long sample
+  (41 windows at defaults; 53 at target=600/overlap=60).
+- [x] Tail-marker test result: with target=600/overlap=60 the last window of
+  the long sample ends `...become bolder builders themselves.` — the document
+  tail survives all splits; an oversized-sentence fixture's final words end its
+  last window too.
+- [x] Determinism test result: two runs give identical IDs/spans; changing
+  strategy version, target tokens, or tokenizer *name* (same counts) changes
+  every window ID while leaving boundaries intact (`DeterminismTest`).
+- [x] Example document/window IDs: document `doc-13ed72f888288435` (digest
+  `13ed72f888288435...e752`, media type `text/markdown`); first windows of that
+  document: `win-ccc5213fe5b14915`, `win-01b219f82e49ae74`,
+  `win-b7b9a77947f744d5`.
+- [x] Import-boundary test result: AST scan of `windowing.py` import roots ⊆
+  {hashlib, re, dataclasses, pathlib, text_to_ontology}; module source contains
+  neither "rdflib" nor "llm" (`ImportBoundaryTest`).
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- Strategy version introduced:
+- Owner: ox-alpha coding agent
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: milestone/m02-documents-windowing (to be cut when committing;
+  work currently sits on milestone/m01-public-api-cli)
+- Commits: pending commit on this branch
+- Pull request/review: not opened; local branch only
+- Strategy version introduced: 2 (version 1 remains the pipeline's whole-text
+  placeholder until per-window orchestration lands in M5)
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - New source-only module `src/text_to_ontology/windowing.py`; it imports no
+    RDFLib and no LLM adapter, enforced by an AST-based test.
+  - Document identity: full SHA-256 over the normalized text is the digest;
+    `document_id = "doc-" + digest[:16]`. Normalization is line endings only
+    (`\r\n`/`\r` → `\n`), so CRLF/LF twins hash identically.
+  - Window identity: SHA-256 over strategy version, target/overlap token
+    settings, tokenizer name, document ID, index, and offsets, prefixed
+    `win-`.
+  - Defaults: target 800 tokens, overlap 100 tokens, using
+    `prompt_budget.estimate_tokens` as the injected fallback counter.
+  - Segmentation tiles the text exactly — blocks absorb trailing blank lines,
+    and heading gaps are closed into the preceding span — so coverage holds by
+    construction rather than by repair.
+  - The sentence splitter is deliberately plain (sentence-ending punctuation
+    followed by whitespace/end); abbreviations like "J.D." may split. Simple
+    and reproducible beats linguistically clever.
+  - A blank (whitespace-only) document yields an empty window list; that empty
+    list is the documented skip result.
+  - The user-supplied long input was copied to
+    `tests/fixtures/documents/long_article.md` so the deterministic suite stays
+    self-contained; `sources/` remains user data.
+- Known follow-ups: wire real windows into the pipeline loop and make
+  `pipeline.WindowingConfig` delegate to this module (M5); richer media-type
+  detection if ever needed.
+- Acceptance evidence location: this section; outputs reproducible via the
+  recorded commands.
 
 ---
 
