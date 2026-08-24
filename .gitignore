@@ -6,3 +6,11 @@ sth.txt
 ontology_views.html
 /reports/runs/*
 !/reports/runs/.gitkeep
+
+# Python packaging and build output
+/build/
+/dist/
+/*.egg-info/
+/src/*.egg-info/
+.pytest_cache/
+.coverage

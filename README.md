@@ -19,12 +19,20 @@ the whole graph, not just what was sent.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
+```
+
+`pyproject.toml` is the single dependency declaration (`rdflib` is the only
+runtime dependency); there is no `requirements.txt`. Python 3.12+ is required.
+The tests need the same editable install:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## Configure OpenRouter
 
-Create a `.env` file beside `ontology.py`:
+Create a `.env` file in the directory you run the program from:
 
 ```text
 OPENROUTER_API_KEY=your-key
@@ -128,53 +136,70 @@ graph file.
 
 ## Files
 
+All importable code lives in the `text_to_ontology` package under `src/`.
+The root scripts `ontology.py` and `view_ontology.py` are thin compatibility
+wrappers that call the packaged modules, so both old workflows keep working.
+
 The pipeline that runs when you invoke the program:
 
-- `ontology.py` — the command line and the run loop
-- `run_report.py` — normal and verbose run reporting to the terminal, a file,
-  or any supplied text stream
-- `ingest_sources.py` — finding and reading source files
-- `source_parse.py` — building the prompt and parsing the LLM's answer
-- `candidate_validation.py` — validating and normalizing a response before merge
-- `merge_policy.py` — read-only merge planning: identity decisions, acceptance,
-  corroboration, conflict review, and provenance
-- `entity_lookup.py` — deciding whether an entity is already in the graph
-- `graph_merge.py` — materializing a completed plan (and the legacy direct
-  merger) into the graph
-- `graph_management.py` — opening, seeding, naming, and atomically saving the
-  graph
-- `llm.py` — the tiny OpenRouter client
+- `src/text_to_ontology/ontology.py` — the command line and the run loop
+- `src/text_to_ontology/run_report.py` — normal and verbose run reporting to
+  the terminal, a file, or any supplied text stream
+- `src/text_to_ontology/ingest_sources.py` — finding and reading source files
+- `src/text_to_ontology/source_parse.py` — building the prompt and parsing the
+  LLM's answer
+- `src/text_to_ontology/candidate_validation.py` — validating and normalizing a
+  response before merge
+- `src/text_to_ontology/merge_policy.py` — read-only merge planning: identity
+  decisions, acceptance, corroboration, conflict review, and provenance
+- `src/text_to_ontology/entity_lookup.py` — deciding whether an entity is
+  already in the graph
+- `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and
+  the legacy direct merger) into the graph
+- `src/text_to_ontology/graph_management.py` — opening, seeding, naming, and
+  atomically saving the graph
+- `src/text_to_ontology/llm.py` — the tiny OpenRouter client
 
 Choosing what the LLM gets to see. All read-only: none of these writes to the
 graph, and each one can be read, tested, or replaced on its own:
 
-- `source_concepts.py` — what one text mentions, before any ontology is opened.
-  Deliberately simple for now, and free of RDF so it can later be replaced by
-  NLP, NER, embeddings, or a small model without changing anything else
-- `task_context.py` — align the text with the graph and select the relevant
-  classes, properties, observed usage, resources, and example assertions
-- `context_render.py` — turn that selection into compact lines an LLM can read,
-  keeping declared structure and observed usage visibly apart
-- `prompt_budget.py` — estimate tokens and keep only the complete items that fit.
-  The token counter is swappable for a real tokenizer later
+- `src/text_to_ontology/source_concepts.py` — what one text mentions, before
+  any ontology is opened. Deliberately simple for now, and free of RDF so it
+  can later be replaced by NLP, NER, embeddings, or a small model without
+  changing anything else
+- `src/text_to_ontology/task_context.py` — align the text with the graph and
+  select the relevant classes, properties, observed usage, resources, and
+  example assertions
+- `src/text_to_ontology/context_render.py` — turn that selection into compact
+  lines an LLM can read, keeping declared structure and observed usage visibly
+  apart
+- `src/text_to_ontology/prompt_budget.py` — estimate tokens and keep only the
+  complete items that fit. The token counter is swappable for a real tokenizer
+  later
 
 Read-only tools that derive smaller views of an existing graph:
 
-- `graph_partition.py` — split a graph into schema, instance, and support views
-- `graph_skeleton.py` — copy the explicit class and property core out of a
-  schema view
-- `graph_patterns.py` — report which class-property-range patterns the instance
-  data actually contains, with evidence
-- `ontology_views.py` — hand back all of the above as one group of views
-- `view_ontology.py` — the viewer's command line: print those views, or write
-  them as an explained HTML page
-- `view_report.py` — turn the views into plain data, with no HTML anywhere in it
-- `view_html.py` — render that data as one self-contained page, explanations
-  included
+- `src/text_to_ontology/graph_partition.py` — split a graph into schema,
+  instance, and support views
+- `src/text_to_ontology/graph_skeleton.py` — copy the explicit class and
+  property core out of a schema view
+- `src/text_to_ontology/graph_patterns.py` — report which
+  class-property-range patterns the instance data actually contains, with
+  evidence
+- `src/text_to_ontology/ontology_views.py` — hand back all of the above as one
+  group of views
+- `src/text_to_ontology/view_ontology.py` — the viewer's command line: print
+  those views, or write them as an explained HTML page
+- `src/text_to_ontology/view_report.py` — turn the views into plain data, with
+  no HTML anywhere in it
+- `src/text_to_ontology/view_html.py` — render that data as one self-contained
+  page, explanations included
 
 And the rest:
 
-- `requirements.txt` — the one dependency (`rdflib`)
+- `pyproject.toml` — package metadata and the one dependency (`rdflib`)
+- `tests/fixtures/miniature_repository.ttl` — the frozen miniature graph the
+  exact partition/skeleton/pattern tests run against
 - `ontology.ttl` — your graph, created when you first run the program
 
 The accepted directory file extensions are listed near the top of
