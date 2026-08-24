@@ -293,7 +293,7 @@ the normal milestone acceptance evidence.
 
 | Milestone | Status | Owner | Branch | Completion commit | Completed |
 |---|---|---|---|---|---|
-| M0 Baseline and packaging | [ ] | | | | |
+| M0 Baseline and packaging | [x] | ox-alpha agent | milestone/m00-packaging-baseline | 7c27e2c | 2026-08-24 |
 | M1 Public API and thin CLI | [ ] | | | | |
 | M2 Documents and windowing | [ ] | | | | |
 | M3 Local RDF dataset/store | [ ] | | | | |
@@ -322,7 +322,7 @@ from `pyproject.toml` without changing current short-source behavior.
 
 ### Status
 
-- [ ] Not started  [ ] In progress  [ ] Blocked  [ ] Complete
+- [ ] Not started  [ ] In progress  [x] Complete
 
 ### Acceptance criteria
 
@@ -369,24 +369,55 @@ from `pyproject.toml` without changing current short-source behavior.
 
 ### Required evidence
 
-- [ ] Full test output summary:
-- [ ] Wheel filename and clean-install command:
-- [ ] Import smoke-test result:
-- [ ] List of fixture-backed tests:
-- [ ] `git diff --check` result:
+- [x] Full test output summary:
+  `python3 -m unittest discover -s tests -p 'test_*.py'` after
+  `pip install -e .` → `Ran 633 tests in 1.4s  OK (skipped=1)`; the one skip is
+  the opt-in installation smoke test. The six baseline failures are gone.
+- [x] Wheel filename and clean-install command:
+  `dist/text_to_ontology-0.1.0-py3-none-any.whl`;
+  `python3 -m venv <tmp> && <tmp>/bin/pip install dist/*.whl` then run
+  `scripts/install_smoke.sh` (automated by `tests/test_install_smoke.py`,
+  env `TEXT_TO_ONTOLOGY_INSTALL_SMOKE=1`).
+- [x] Import smoke-test result: with cwd outside the repository, the installed
+  package imports and reports `version: 0.1.0` from site-packages.
+- [x] List of fixture-backed tests: `MiniatureRepositoryTest` in
+  `tests/test_graph_partition.py`, `tests/test_graph_patterns.py`, and
+  `tests/test_graph_skeleton.py`, all loading the frozen
+  `tests/fixtures/miniature_repository.ttl`. The repository `ontology.ttl` is
+  now read only by invariant smoke tests (lossless partitioning, file-untouched).
+- [x] `git diff --check` result: clean (no whitespace errors or conflict
+  markers).
 
 ### Completion record
 
-- Owner:
-- Started:
-- Completed:
-- Branch:
-- Commits:
-- Pull request/review:
-- Files materially changed:
+- Owner: ox-alpha coding agent
+- Started: 2026-08-24
+- Completed: 2026-08-24
+- Branch: milestone/m00-packaging-baseline
+- Commits: 8b732c5, ae46925, f6297ff, 7c27e2c (+ plan-status update commit)
+- Pull request/review: not opened; local branch only
+- Files materially changed: all modules moved to `src/text_to_ontology/`;
+  root `ontology.py`/`view_ontology.py` are thin wrappers; tests updated to
+  package imports plus new fixture and install-smoke test; `pyproject.toml`
+  added; `requirements.txt` removed; `.gitignore`, `README.md` updated;
+  `scripts/install_smoke.sh` added
 - Decisions made:
-- Known follow-ups:
-- Acceptance evidence location:
+  - `requires-python = ">=3.12"` — the only version the suite was actually run
+    on; no untested version is claimed.
+  - `requirements.txt` removed; `pyproject.toml` is the single dependency
+    declaration (no dev-only dependencies exist beyond the standard library).
+  - Running the suite requires the documented editable install; the discovery
+    command itself is unchanged.
+  - `.env` is loaded from the working directory instead of beside the module
+    file, which keeps the documented workflow after packaging.
+  - Restored `report_skeleton` into `view_ontology.py`; the terminal viewer had
+    been broken since commit 2f8da8b deleted it from `ontology.py`.
+- Known follow-ups: console entry point `[project.scripts]`, public API module,
+  and `python3 -m text_to_ontology` belong to M1; no non-Python resource files
+  exist yet, so package-resource loading will be exercised when prompts/SPARQL
+  become files.
+- Acceptance evidence location: this section; full outputs reproducible via
+  the commands recorded above.
 
 ---
 
