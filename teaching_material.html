@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The knowledge stack · definitions · agents on ontologies</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --ink: #17121F;
+            --muted: #6C6580;
+            --p900: #3B0F72;
+            --p700: #5F1DA5;
+            --p500: #8149CF;
+            --p300: #B79AE6;
+            --p100: #E2D3F5;
+            --p050: #EFE6FB;
+            --p025: #F9F5FE;
+            --edge: #A98BDD;
+            --display: 'Space Grotesk', system-ui, sans-serif;
+            --body: 'Inter', system-ui, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #EDE9F2;
+            font-family: var(--body);
+            color: var(--ink)
+        }
+
+        .stage {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px
+        }
+
+        .slide {
+            width: 1280px;
+            height: 720px;
+            background: #fff;
+            position: relative;
+            transform-origin: center center;
+            display: none;
+            flex-direction: column;
+            padding: 40px 8px 20px;
+            border-radius: 4px;
+        }
+
+        .slide.active {
+            display: flex
+        }
+
+        .head {
+            padding: 0 32px
+        }
+
+        .eyebrow {
+            font-family: var(--body);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .18em;
+            color: var(--p700);
+            text-transform: uppercase
+        }
+
+        h1 {
+            font-family: var(--display);
+            font-size: 34px;
+            font-weight: 600;
+            letter-spacing: -.015em;
+            margin: 10px 0 6px
+        }
+
+        .sub {
+            font-size: 14px;
+            color: var(--muted);
+            max-width: 900px;
+            line-height: 1.45
+        }
+
+        .canvas {
+            padding: 6px 32px 0
+        }
+
+        svg {
+            width: 100%;
+            height: auto;
+            display: block
+        }
+
+        /* svg type scale */
+        .eb {
+            font-family: var(--body);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: .16em;
+            fill: var(--muted)
+        }
+
+        .eb-p {
+            fill: var(--p700)
+        }
+
+        .bt {
+            font-family: var(--display);
+            font-size: 14.5px;
+            font-weight: 600;
+            fill: var(--ink)
+        }
+
+        .bt-s {
+            font-size: 13.5px
+        }
+
+        .bd {
+            font-family: var(--body);
+            font-size: 10.8px;
+            font-weight: 400;
+            fill: var(--muted)
+        }
+
+        .bd-a {
+            fill: var(--p700);
+            font-weight: 600
+        }
+
+        .el {
+            font-family: var(--body);
+            font-size: 10px;
+            font-weight: 500;
+            fill: #584F6B;
+            paint-order: stroke;
+            stroke: #fff;
+            stroke-width: 3.5px;
+            stroke-linejoin: round
+        }
+
+        .cp {
+            font-family: var(--body);
+            font-size: 11.5px;
+            font-weight: 600;
+            fill: var(--ink)
+        }
+
+        .kv {
+            font-family: var(--display);
+            font-size: 11.5px;
+            font-weight: 700;
+            fill: var(--p700);
+            letter-spacing: .04em
+        }
+
+        .st {
+            font-family: var(--display);
+            font-size: 13px;
+            font-weight: 600;
+            fill: var(--ink)
+        }
+
+        .sd {
+            font-family: var(--body);
+            font-size: 10.6px;
+            fill: var(--muted)
+        }
+
+        .note1 {
+            font-family: var(--body);
+            font-size: 11px;
+            font-weight: 600;
+            fill: var(--ink)
+        }
+
+        .note2 {
+            font-family: var(--body);
+            font-size: 11px;
+            fill: var(--muted)
+        }
+
+        .num {
+            font-family: var(--display);
+            font-size: 11px;
+            font-weight: 700;
+            fill: var(--p700);
+            letter-spacing: .06em
+        }
+
+        .mono {
+            font-family: var(--body);
+            font-size: 10.4px;
+            font-weight: 500;
+            fill: var(--p700)
+        }
+
+        .line {
+            stroke: var(--edge);
+            stroke-width: 1.4;
+            fill: none
+        }
+
+        .line-t {
+            stroke: var(--p300);
+            stroke-width: 1.2;
+            fill: none
+        }
+
+        /* introductory RDF lesson slides */
+        .lesson-canvas {
+            height: 540px;
+            padding: 26px 40px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 18px
+        }
+
+        .lesson-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            flex: 1
+        }
+
+        .lesson-grid.three {
+            grid-template-columns: repeat(3, 1fr)
+        }
+
+        .lesson-panel {
+            background: var(--p025);
+            border: 1px solid var(--p100);
+            border-radius: 14px;
+            padding: 22px 24px
+        }
+
+        .lesson-panel.accent {
+            background: var(--p050);
+            border-color: var(--p300)
+        }
+
+        .lesson-label {
+            margin: 0 0 12px;
+            color: var(--p700);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .14em;
+            text-transform: uppercase
+        }
+
+        .lesson-text {
+            margin: 0;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.55
+        }
+
+        .lesson-text strong {
+            color: var(--ink)
+        }
+
+        .lesson-quote {
+            margin: 0;
+            padding: 34px 40px;
+            background: var(--p050);
+            border-left: 5px solid var(--p700);
+            border-radius: 12px;
+            font-family: var(--display);
+            font-size: 34px;
+            font-weight: 500;
+            line-height: 1.3
+        }
+
+        .lesson-code {
+            margin: 0;
+            padding: 22px 24px;
+            overflow: hidden;
+            border-radius: 12px;
+            background: #21172E;
+            color: #F7F1FF;
+            font: 500 18px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            white-space: pre-wrap
+        }
+
+        .lesson-code.compact {
+            font-size: 15px;
+            line-height: 1.48
+        }
+
+        .lesson-code.large {
+            padding: 30px;
+            font-size: 24px
+        }
+
+        .lesson-callout {
+            padding: 16px 20px;
+            border-left: 4px solid var(--p500);
+            border-radius: 8px;
+            background: var(--p025);
+            color: var(--ink);
+            font-size: 17px;
+            line-height: 1.45
+        }
+
+        .lesson-callout strong {
+            color: var(--p700)
+        }
+
+        .triple-anatomy {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto 1fr;
+            align-items: center;
+            gap: 12px
+        }
+
+        .triple-part {
+            min-height: 118px;
+            padding: 22px 16px;
+            border-radius: 12px;
+            background: var(--p050);
+            text-align: center
+        }
+
+        .triple-part b {
+            display: block;
+            margin-bottom: 14px;
+            color: var(--p700);
+            font-size: 12px;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        .triple-part code {
+            font-size: 18px
+        }
+
+        .triple-arrow {
+            color: var(--p500);
+            font-size: 26px
+        }
+
+        .lesson-list {
+            margin: 10px 0 0;
+            padding-left: 22px;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.7
+        }
+
+        .lesson-list strong {
+            color: var(--ink)
+        }
+
+        .result-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 110px;
+            border-radius: 12px;
+            background: #E8F6EE;
+            color: #17633A;
+            font-family: var(--display);
+            font-size: 26px;
+            font-weight: 700
+        }
+
+        .result-box.bad {
+            background: #FBECEF;
+            color: #9B2943
+        }
+
+        .dots {
+            display: flex;
+            gap: 7px;
+            align-items: center
+        }
+
+        /* vocabulary landscape slides */
+        .vocab-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            flex: 1
+        }
+
+        .vocab-grid.four {
+            grid-template-columns: repeat(4, 1fr)
+        }
+
+        .vocab-card {
+            padding: 18px 20px;
+            border: 1px solid var(--p100);
+            border-radius: 13px;
+            background: var(--p025)
+        }
+
+        .vocab-card.accent {
+            border-color: var(--p300);
+            background: var(--p050)
+        }
+
+        .vocab-card h2 {
+            margin: 0 0 8px;
+            font-family: var(--display);
+            font-size: 19px;
+            font-weight: 600
+        }
+
+        .vocab-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.45
+        }
+
+        .vocab-card code {
+            color: var(--p700)
+        }
+
+        .vocab-card .lesson-code code {
+            color: inherit
+        }
+
+        .vocab-link {
+            color: var(--p700);
+            font-weight: 700;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 3px
+        }
+
+        .vocab-link::after {
+            content: " ↗";
+            font-size: .8em
+        }
+
+        .vocab-pill {
+            display: inline-block;
+            margin-bottom: 9px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--p100);
+            color: var(--p700);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase
+        }
+
+        .vocab-pill.draft {
+            background: #FFF0CE;
+            color: #795400
+        }
+
+        .vocab-pill.retired {
+            background: #FBECEF;
+            color: #9B2943
+        }
+
+        .vocab-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px
+        }
+
+        .vocab-table th,
+        .vocab-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--p100);
+            text-align: left;
+            vertical-align: top
+        }
+
+        .vocab-table th {
+            color: var(--p700);
+            font-size: 10px;
+            letter-spacing: .12em;
+            text-transform: uppercase
+        }
+
+        .vocab-table td:first-child {
+            width: 34%;
+            color: var(--muted)
+        }
+
+        .vocab-table td:last-child {
+            color: var(--ink);
+            font-weight: 600
+        }
+
+        .vocab-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px
+        }
+
+        .vocab-layer {
+            padding: 13px 18px;
+            border-radius: 10px;
+            background: var(--p025);
+            color: var(--ink);
+            font-size: 15px;
+            text-align: center
+        }
+
+        .vocab-layer:nth-child(2) {
+            background: var(--p050)
+        }
+
+        .vocab-layer:nth-child(3) {
+            background: var(--p100)
+        }
+
+        .bookmark-list {
+            margin: 0;
+            padding: 0;
+            list-style: none
+        }
+
+        .bookmark-list li {
+            margin-bottom: 11px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.35
+        }
+
+        .nav {
+            position: fixed;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            background: #fff;
+            padding: 8px 14px;
+            border-radius: 999px;
+            box-shadow: 0 2px 14px rgba(59, 15, 114, .12)
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--p100);
+            border: 0;
+            padding: 0;
+            cursor: pointer
+        }
+
+        .dot.on {
+            background: var(--p700);
+            width: 22px;
+            border-radius: 999px
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: .02em
+        }
+
+        @media print {
+            body {
+                background: #fff
+            }
+
+            .stage {
+                display: block;
+                padding: 0
+            }
+
+            .nav {
+                display: none
+            }
+
+            .slide {
+                display: flex !important;
+                width: 1280px;
+                height: 720px;
+                page-break-after: always;
+                border-radius: 0
+            }
+
+            @page {
+                size: 1280px 720px;
+                margin: 0
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="stage">
+
+        <!-- ═══════════════ SLIDE 1 ═══════════════ -->
+        <section class="slide active" id="s1">
+            <div class="head">
+                <div class="eyebrow">01 — Knowledge</div>
+                <h1>The knowledge stack</h1>
+                <div class="sub">Nine artifacts that get called the same thing and are not. Each one has a different
+                    job: describe assets, structure data, fix vocabulary, fix meaning, hold facts, decide what counts as
+                    valid.</div>
+            </div>
+            <div class="canvas">
+                <svg viewBox="0 0 1280 580" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5"
+                            orient="auto-start-reverse">
+                            <path d="M0,1.2 L9,5 L0,8.8 Z" fill="#A98BDD" />
+                        </marker>
+                        <marker id="art" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6"
+                            orient="auto-start-reverse">
+                            <path d="M0,1.2 L9,5 L0,8.8 Z" fill="#B79AE6" />
+                        </marker>
+                    </defs>
+
+                    <!-- column headers -->
+                    <text class="eb" x="24" y="18">SOURCES</text>
+                    <text class="eb" x="260" y="18">DESCRIPTION</text>
+                    <text class="eb" x="518" y="18">MEANING</text>
+                    <text class="eb" x="776" y="18">FACTS</text>
+                    <text class="eb" x="1028" y="18">CONFORMANCE</text>
+
+                    <!-- C1 -->
+                    <rect x="24" y="40" width="180" height="104" rx="10" fill="#F9F5FE" />
+                    <text class="bt bt-s" x="38" y="68">Unstructured sources</text>
+                    <text class="bd" x="38" y="90">Documents, contracts,</text>
+                    <text class="bd" x="38" y="105">tickets, wiki, email, PDFs</text>
+                    <text class="bd bd-a" x="38" y="122">Meaning without schema</text>
+
+                    <rect x="24" y="200" width="180" height="104" rx="10" fill="#F9F5FE" />
+                    <text class="bt bt-s" x="38" y="228">Structured sources</text>
+                    <text class="bd" x="38" y="250">ERP, CRM, lake tables,</text>
+                    <text class="bd" x="38" y="265">warehouse, APIs</text>
+                    <text class="bd bd-a" x="38" y="282">Schema without meaning</text>
+
+                    <!-- C2 -->
+                    <rect x="260" y="32" width="206" height="104" rx="10" fill="#F4EEFC" />
+                    <text class="bt" x="274" y="60">Data catalog</text>
+                    <text class="bd" x="274" y="82">Inventory of data assets:</text>
+                    <text class="bd" x="274" y="97">owners, lineage, quality,</text>
+                    <text class="bd" x="274" y="112">policies, tags · DCAT</text>
+
+                    <rect x="260" y="168" width="206" height="104" rx="10" fill="#F4EEFC" />
+                    <text class="bt" x="274" y="196">Semantic layer</text>
+                    <text class="bd" x="274" y="218">Metrics, dimensions, joins,</text>
+                    <text class="bd" x="274" y="233">calculations → SQL</text>
+                    <text class="bd" x="274" y="250">Consistency, not inference</text>
+
+                    <rect x="260" y="304" width="206" height="104" rx="10" fill="#F4EEFC" />
+                    <text class="bt" x="274" y="332">Logical data model</text>
+                    <text class="bd" x="274" y="354">Entities, attributes, keys,</text>
+                    <text class="bd" x="274" y="369">cardinalities</text>
+                    <text class="bd" x="274" y="386">Closed world, per system</text>
+
+                    <!-- C3 -->
+                    <rect x="518" y="96" width="206" height="104" rx="10" fill="#EFE6FB" />
+                    <text class="bt" x="532" y="124">Thesaurus / taxonomy</text>
+                    <text class="bd" x="532" y="146">Concepts, preferred labels,</text>
+                    <text class="bd" x="532" y="161">synonyms, broader / narrower</text>
+                    <text class="bd bd-a" x="532" y="178">SKOS concept scheme</text>
+
+                    <rect x="518" y="272" width="206" height="132" rx="10" fill="#EFE6FB" />
+                    <text class="bt" x="532" y="300">Ontology</text>
+                    <text class="bd" x="532" y="322">Classes, properties, axioms,</text>
+                    <text class="bd" x="532" y="337">restrictions, inference</text>
+                    <text class="bd" x="532" y="352">Open world: unknown ≠ false</text>
+                    <text class="bd bd-a" x="532" y="376">OWL + RDFS · the TBox</text>
+
+                    <!-- C4 -->
+                    <rect x="776" y="40" width="206" height="124" rx="10" fill="#EFE6FB" />
+                    <text class="bt" x="790" y="68">Metadata graph</text>
+                    <text class="bd" x="790" y="90">Datasets, columns, owners,</text>
+                    <text class="bd" x="790" y="105">lineage, policies, quality,</text>
+                    <text class="bd" x="790" y="120">terms, dashboards, agents</text>
+                    <text class="bd bd-a" x="790" y="140">DCAT · PROV-O · DQV · ODRL</text>
+
+                    <rect x="776" y="212" width="206" height="140" rx="10" fill="#E2D3F5" />
+                    <text class="bt" x="790" y="240">Knowledge graph</text>
+                    <text class="bd" x="790" y="262">Entities, relations, facts —</text>
+                    <text class="bd" x="790" y="277">instances under the ontology</text>
+                    <text class="bd" x="790" y="292">Materialised or virtual</text>
+                    <text class="bd" x="790" y="307">Queried with SPARQL</text>
+                    <text class="bd bd-a" x="790" y="327">The ABox</text>
+
+                    <!-- C5 -->
+                    <rect x="1028" y="96" width="228" height="184" rx="10" fill="#F4EEFC" />
+                    <rect x="1028" y="96" width="4" height="184" rx="2" fill="#5F1DA5" />
+                    <text class="bt" x="1048" y="124">SHACL shapes</text>
+                    <text class="bd" x="1048" y="146">Node and property shapes:</text>
+                    <text class="bd" x="1048" y="161">cardinality, datatype, value</text>
+                    <text class="bd" x="1048" y="176">ranges, patterns, closed</text>
+                    <text class="bd" x="1048" y="191">shapes, severity levels</text>
+                    <text class="bd" x="1048" y="216">Output: a validation report —</text>
+                    <text class="bd" x="1048" y="231">conforms + results</text>
+                    <text class="bd bd-a" x="1048" y="256">The acceptance criteria</text>
+
+                    <!-- edges -->
+                    <path class="line" d="M204,76 C226,76 238,70 256,68" marker-end="url(#ar)" />
+                    <path class="line-t" d="M204,214 C230,182 232,124 256,106" marker-end="url(#art)" />
+                    <text class="el" x="232" y="52" text-anchor="middle">described</text>
+
+                    <path class="line" d="M204,236 C222,232 238,224 256,220" marker-end="url(#ar)" />
+                    <text class="el" x="232" y="200" text-anchor="middle">mapped to</text>
+
+                    <path class="line" d="M204,268 C224,272 236,330 256,340" marker-end="url(#ar)" />
+                    <text class="el" x="232" y="316" text-anchor="middle">modelled as</text>
+
+                    <path class="line" d="M300,304 L300,276" marker-end="url(#ar)" />
+                    <text class="el" x="312" y="292">entities → dimensions</text>
+
+                    <path class="line" d="M466,72 C560,44 680,52 772,86" marker-end="url(#ar)" />
+                    <text class="el" x="620" y="44" text-anchor="middle">catalog metadata expressed as RDF</text>
+
+                    <path class="line" d="M518,150 C494,158 480,180 470,196" marker-end="url(#ar)" />
+                    <text class="el" x="492" y="176" text-anchor="middle">governed terms</text>
+
+                    <path class="line" d="M621,200 L621,268" marker-end="url(#ar)" />
+                    <text class="el" x="634" y="240">anchors classes</text>
+
+                    <path class="line" d="M724,318 C744,314 756,304 772,300" marker-end="url(#ar)" />
+                    <text class="el" x="750" y="282" text-anchor="middle">governs facts</text>
+
+                    <path class="line" d="M830,164 L830,208" marker-end="url(#ar)" />
+                    <text class="el" x="844" y="192">a KG about data assets</text>
+
+                    <path class="line" d="M1028,150 C1008,132 998,120 986,112" marker-end="url(#ar)" />
+                    <path class="line" d="M1028,224 C1006,244 998,268 986,280" marker-end="url(#ar)" />
+                    <text class="el" x="1004" y="200" text-anchor="middle">validates</text>
+
+                    <!-- mapping corridor -->
+                    <path class="line"
+                        d="M204,112 C224,112 234,124 234,144 L234,404 C234,424 246,432 266,432 L820,432 C842,432 850,420 850,398 L850,356"
+                        marker-end="url(#ar)" />
+                    <text class="el" x="420" y="422" text-anchor="middle">entity extraction · linking ·
+                        resolution</text>
+
+                    <path class="line"
+                        d="M466,382 C496,382 506,396 506,416 L506,452 C506,466 518,472 538,472 L846,472 C868,472 876,460 876,438 L876,356"
+                        marker-end="url(#ar)" />
+                    <text class="el" x="640" y="462" text-anchor="middle">R2RML / RML mappings · materialised or
+                        virtual</text>
+
+                    <!-- reading strip -->
+                    <rect x="24" y="504" width="3" height="28" rx="1.5" fill="#8149CF" />
+                    <text class="note1" x="38" y="516">Catalog inventories assets.</text>
+                    <text class="note2" x="38" y="532">The metadata graph connects them.</text>
+
+                    <rect x="340" y="504" width="3" height="28" rx="1.5" fill="#8149CF" />
+                    <text class="note1" x="354" y="516">Thesaurus fixes vocabulary.</text>
+                    <text class="note2" x="354" y="532">Ontology fixes meaning. Link, don't collapse.</text>
+
+                    <rect x="656" y="504" width="3" height="28" rx="1.5" fill="#8149CF" />
+                    <text class="note1" x="670" y="516">Semantic layer computes metrics.</text>
+                    <text class="note2" x="670" y="532">It executes; it does not infer.</text>
+
+                    <rect x="972" y="504" width="3" height="28" rx="1.5" fill="#8149CF" />
+                    <text class="note1" x="986" y="516">OWL infers. SHACL validates.</text>
+                    <text class="note2" x="986" y="532">Same graph, two different questions.</text>
+                </svg>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 2 ═══════════════ -->
+        <section class="slide" id="s2">
+            <div class="head">
+                <div class="eyebrow">02 — Vocabulary</div>
+                <h1>What the words actually mean</h1>
+                <div class="sub">"Semantic layer" names three different things, and most disagreements in the room come
+                    from two people using different ones. Below it, the standards each answer a narrower question than
+                    the last.</div>
+            </div>
+            <div class="canvas">
+                <svg viewBox="0 0 1280 580" xmlns="http://www.w3.org/2000/svg">
+
+                    <!-- ══ BAND 1: three meanings ══ -->
+                    <text class="eb eb-p" x="24" y="14">"SEMANTIC LAYER" — THREE THINGS PEOPLE MEAN BY IT</text>
+
+                    <rect x="24" y="26" width="400" height="150" rx="10" fill="#F4EEFC" />
+                    <text class="num" x="42" y="52">01</text>
+                    <text class="bt" x="72" y="52">The BI semantic model</text>
+                    <text class="bd" x="42" y="76">Dimensions, metrics, KPI definitions, hierarchies,</text>
+                    <text class="bd" x="42" y="91">joins, row-level security — the DAX layer in Power BI,</text>
+                    <text class="bd" x="42" y="106">or the equivalent in Looker, dbt, Cube, AtScale.</text>
+                    <text class="bd" x="42" y="130">Compiles to SQL and executes it.</text>
+                    <text class="bd bd-a" x="42" y="154">Guarantees consistent numbers. Infers nothing.</text>
+
+                    <rect x="440" y="26" width="400" height="150" rx="10" fill="#EFE6FB" />
+                    <text class="num" x="458" y="52">02</text>
+                    <text class="bt" x="488" y="52">The meaning layer</text>
+                    <text class="bd" x="458" y="76">The vocabulary and logic layer: RDFS, OWL, SKOS,</text>
+                    <text class="bd" x="458" y="91">SHACL. Defines what things <tspan font-style="italic">are</tspan>,
+                        how classes</text>
+                    <text class="bd" x="458" y="106">relate, which terms mean the same thing.</text>
+                    <text class="bd" x="458" y="130">Independent of any one system or query engine.</text>
+                    <text class="bd bd-a" x="458" y="154">Guarantees shared meaning. Supports inference.</text>
+
+                    <rect x="856" y="26" width="400" height="150" rx="10" fill="#F4EEFC" />
+                    <text class="num" x="874" y="52">03</text>
+                    <text class="bt" x="904" y="52">The metadata graph</text>
+                    <text class="bd" x="874" y="76">A graph over the data estate itself: datasets, columns,</text>
+                    <text class="bd" x="874" y="91">owners, lineage, policies, quality, glossary terms.</text>
+                    <text class="bd" x="874" y="106">DCAT · PROV-O · DQV · ODRL.</text>
+                    <text class="bd" x="874" y="130">Semantics <tspan font-style="italic">about</tspan> data, not
+                        semantics <tspan font-style="italic">of</tspan> the business.</text>
+                    <text class="bd bd-a" x="874" y="154">Guarantees you can find and trust the asset.</text>
+
+                    <!-- ══ BAND 2: the standards ladder ══ -->
+                    <text class="eb eb-p" x="24" y="212">THE STANDARDS — EACH ADDS ONE THING THE PREVIOUS ONE COULDN'T
+                        SAY</text>
+
+                    <rect x="24" y="224" width="298" height="146" rx="10" fill="#F9F5FE" />
+                    <text class="bt" x="42" y="250">RDF</text>
+                    <text class="mono" x="42" y="270">the data model</text>
+                    <text class="bd" x="42" y="292">Triples: subject → predicate → object.</text>
+                    <text class="bd" x="42" y="307">Everything is an IRI, so anything can be</text>
+                    <text class="bd" x="42" y="322">joined to anything, across systems.</text>
+                    <text class="bd bd-a" x="42" y="348">Structure only. Zero vocabulary,</text>
+                    <text class="bd bd-a" x="42" y="362">zero meaning.</text>
+
+                    <rect x="334" y="224" width="298" height="146" rx="10" fill="#F4EEFC" />
+                    <text class="bt" x="352" y="250">RDFS</text>
+                    <text class="mono" x="352" y="270">a minimal schema on top of RDF</text>
+                    <text class="bd" x="352" y="292">Classes, subClassOf, domain, range,</text>
+                    <text class="bd" x="352" y="307">subPropertyOf.</text>
+                    <text class="bd" x="352" y="329">Enough to infer types up a hierarchy:</text>
+                    <text class="bd" x="352" y="344">a Retailer is a Customer, so it inherits.</text>
+                    <text class="bd bd-a" x="352" y="364">Light inference. No constraints.</text>
+
+                    <rect x="644" y="224" width="298" height="146" rx="10" fill="#EFE6FB" />
+                    <text class="bt" x="662" y="250">OWL</text>
+                    <text class="mono" x="662" y="270">a full ontology language</text>
+                    <text class="bd" x="662" y="292">Cardinality restrictions, disjointness,</text>
+                    <text class="bd" x="662" y="307">equivalence, transitive / inverse /</text>
+                    <text class="bd" x="662" y="322">functional properties, sameAs.</text>
+                    <text class="bd bd-a" x="662" y="348">Open world: what isn't stated is</text>
+                    <text class="bd bd-a" x="662" y="362">unknown, not false.</text>
+
+                    <rect x="954" y="224" width="302" height="146" rx="10" fill="#F4EEFC" />
+                    <text class="bt" x="972" y="250">SKOS</text>
+                    <text class="mono" x="972" y="270">vocabulary, not logic</text>
+                    <text class="bd" x="972" y="292">Concepts with prefLabel, altLabel,</text>
+                    <text class="bd" x="972" y="307">broader, narrower, related — the</text>
+                    <text class="bd" x="972" y="322">thesaurus / taxonomy layer.</text>
+                    <text class="bd bd-a" x="972" y="348">broader ≠ subClassOf. SKOS organises</text>
+                    <text class="bd bd-a" x="972" y="362">terms; OWL defines classes.</text>
+
+                    <!-- ══ BAND 3: the three artifacts ══ -->
+                    <text class="eb eb-p" x="24" y="406">THE ARTIFACTS THEY BUILD</text>
+
+                    <rect x="24" y="418" width="400" height="150" rx="10" fill="#EFE6FB" />
+                    <text class="bt" x="42" y="444">Ontology</text>
+                    <rect x="132" y="430" width="52" height="19" rx="9" fill="#DCC9F2" />
+                    <text class="mono" x="158" y="443" text-anchor="middle">TBox</text>
+                    <text class="bd" x="42" y="468">The <tspan font-weight="600" fill="#5F1DA5">terminological box
+                        </tspan>: the schema of meaning.</text>
+                    <text class="bd" x="42" y="486">Classes, properties, axioms, restrictions — written</text>
+                    <text class="bd" x="42" y="501">in RDFS + OWL, with SKOS concepts alongside.</text>
+                    <text class="bd" x="42" y="525">Definitions only. Contains no instances.</text>
+                    <text class="bd bd-a" x="42" y="550">"A Shipment must have exactly one Origin."</text>
+
+                    <rect x="440" y="418" width="400" height="150" rx="10" fill="#E2D3F5" />
+                    <text class="bt" x="458" y="444">Knowledge graph</text>
+                    <rect x="606" y="430" width="52" height="19" rx="9" fill="#CDB4EC" />
+                    <text class="mono" x="632" y="443" text-anchor="middle">ABox</text>
+                    <text class="bd" x="458" y="468">The <tspan font-weight="600" fill="#5F1DA5">assertional box</tspan>
+                        : the facts.</text>
+                    <text class="bd" x="458" y="486">Individuals typed by the TBox, plus their relations.</text>
+                    <text class="bd" x="458" y="501">Materialised in a store or virtualised over SQL.</text>
+                    <text class="bd" x="458" y="525">Queried with SPARQL. Grows constantly.</text>
+                    <text class="bd bd-a" x="458" y="550">"Shipment #4471 has Origin Warsaw DC."</text>
+
+                    <rect x="856" y="418" width="400" height="150" rx="10" fill="#F4EEFC" />
+                    <rect x="856" y="418" width="4" height="150" rx="2" fill="#5F1DA5" />
+                    <text class="bt" x="878" y="444">SHACL</text>
+                    <text class="mono" x="878" y="464">shapes over the graph</text>
+                    <text class="bd" x="878" y="488">Node and property shapes: cardinality, datatype,</text>
+                    <text class="bd" x="878" y="503">value range, pattern, closed shape, severity.</text>
+                    <text class="bd" x="878" y="527">Closed world: absent means invalid.</text>
+                    <text class="bd bd-a" x="878" y="552">Output is a report — conforms, plus results.</text>
+
+                    <!-- the one-liner that separates OWL and SHACL -->
+                    <text class="el" x="1256" y="406" text-anchor="end">OWL asks "what else follows?" · SHACL asks "is
+                        this acceptable?"</text>
+                </svg>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 3 · RDF EXAMPLE 1/11 ═══════════════ -->
+        <section class="slide" id="s3">
+            <div class="head">
+                <div class="eyebrow">03 — From text to RDF · 1/11</div>
+                <h1>Start with one input sentence</h1>
+                <div class="sub">We will keep the same tiny example all the way from raw text to RDF, RDFS, a knowledge
+                    graph, SHACL, and SPARQL.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <blockquote class="lesson-quote">“There was a conference in Paris.”</blockquote>
+                <div class="lesson-grid three">
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Thing 1</p>
+                        <p class="lesson-text"><strong>A conference</strong><br>An event mentioned in the sentence.</p>
+                    </div>
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">Relationship</p>
+                        <p class="lesson-text"><strong>Was held in</strong><br>How the two things are connected.</p>
+                    </div>
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Thing 2</p>
+                        <p class="lesson-text"><strong>Paris</strong><br>A place mentioned in the sentence.</p>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>First mental model:</strong> conference → held in → Paris</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 4 · RDF EXAMPLE 2/11 ═══════════════ -->
+        <section class="slide" id="s4">
+            <div class="head">
+                <div class="eyebrow">04 — From text to RDF · 2/11</div>
+                <h1>Give the things identifiers</h1>
+                <div class="sub">Computers need identifiers that do not depend on spelling or language. In RDF, these
+                    global identifiers are IRIs.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <pre class="lesson-code large"><code>@prefix ex: &lt;http://example.org/&gt; .</code></pre>
+                <div class="lesson-grid">
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">Short identifiers</p>
+                        <pre class="lesson-code"><code>ex:conference-1
+ex:heldIn
+ex:paris</code></pre>
+                    </div>
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Their complete IRIs</p>
+                        <pre class="lesson-code compact"><code>http://example.org/conference-1
+http://example.org/heldIn
+http://example.org/paris</code></pre>
+                    </div>
+                </div>
+                <div class="lesson-callout">A prefix only makes an IRI easier to read. <strong>It does not change the
+                        identifier.</strong></div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 5 · RDF EXAMPLE 3/11 ═══════════════ -->
+        <section class="slide" id="s5">
+            <div class="head">
+                <div class="eyebrow">05 — From text to RDF · 3/11</div>
+                <h1>Create the first RDF triple</h1>
+                <div class="sub">RDF represents a statement with three parts: subject, predicate, and object. RDF calls
+                    this a triple.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <pre class="lesson-code large"><code>ex:conference-1 ex:heldIn ex:paris .</code></pre>
+                <div class="triple-anatomy">
+                    <div class="triple-part"><b>Subject</b><code>ex:conference-1</code></div>
+                    <div class="triple-arrow">→</div>
+                    <div class="triple-part"><b>Predicate</b><code>ex:heldIn</code></div>
+                    <div class="triple-arrow">→</div>
+                    <div class="triple-part"><b>Object</b><code>ex:paris</code></div>
+                </div>
+                <div class="lesson-callout">Read it as: <strong>“Conference 1 was held in Paris.”</strong> The period
+                    ends the triple.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 6 · RDF EXAMPLE 4/11 ═══════════════ -->
+        <section class="slide" id="s6">
+            <div class="head">
+                <div class="eyebrow">06 — From text to RDF · 4/11</div>
+                <h1>Declare the classes with RDFS</h1>
+                <div class="sub">RDFS adds a small schema vocabulary on top of RDF: classes, labels, hierarchies,
+                    domain, and range.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <pre class="lesson-code compact"><code>@prefix rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt; .
+
+ex:Event a rdfs:Class ;
+    rdfs:label "Event" .
+
+ex:Conference a rdfs:Class ;
+    rdfs:label "Conference" .
+
+ex:Place a rdfs:Class ;
+    rdfs:label "Place" .</code></pre>
+                <div class="lesson-grid">
+                    <div class="lesson-panel">
+                        <p class="lesson-label">The semicolon</p>
+                        <p class="lesson-text">Continue describing the same subject with another predicate and object.
+                        </p>
+                    </div>
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">What we created</p>
+                        <p class="lesson-text">Three reusable categories: <strong>Event</strong>,
+                            <strong>Conference</strong>, and <strong>Place</strong>.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 7 · RDF EXAMPLE 5/11 ═══════════════ -->
+        <section class="slide" id="s7">
+            <div class="head">
+                <div class="eyebrow">07 — From text to RDF · 5/11</div>
+                <h1>Create a class hierarchy</h1>
+                <div class="sub">A hierarchy lets a reasoner derive a more general type from a more specific one.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="lesson-panel">
+                        <p class="lesson-label">What we state</p>
+                        <pre class="lesson-code"><code>ex:Conference
+    rdfs:subClassOf ex:Event .
+
+ex:conference-1
+    a ex:Conference .</code></pre>
+                    </div>
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">What RDFS can infer</p>
+                        <pre class="lesson-code"><code>ex:conference-1
+    a ex:Event .</code></pre>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Reasoning:</strong> every Conference is an Event; Conference 1 is a
+                    Conference; therefore Conference 1 is an Event.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 8 · RDF EXAMPLE 6/11 ═══════════════ -->
+        <section class="slide" id="s8">
+            <div class="head">
+                <div class="eyebrow">08 — From text to RDF · 6/11</div>
+                <h1>Describe the relationship</h1>
+                <div class="sub">RDFS domain and range tell a reasoner what types of resources a property connects.
+                </div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <pre class="lesson-code compact"><code>@prefix rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt; .
+
+ex:heldIn
+    a rdf:Property ;
+    rdfs:label "held in" ;
+    rdfs:domain ex:Event ;
+    rdfs:range ex:Place .
+
+ex:conference-1 ex:heldIn ex:paris .</code></pre>
+                <div class="lesson-grid">
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Domain inference</p>
+                        <p class="lesson-text"><code>ex:conference-1</code> is an <strong>Event</strong>.</p>
+                    </div>
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Range inference</p>
+                        <p class="lesson-text"><code>ex:paris</code> is a <strong>Place</strong>.</p>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Important:</strong> domain and range support inference. They are not
+                    validation rules.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 9 · RDF EXAMPLE 7/11 ═══════════════ -->
+        <section class="slide" id="s9">
+            <div class="head">
+                <div class="eyebrow">09 — From text to RDF · 7/11</div>
+                <h1>Put the ontology and facts together</h1>
+                <div class="sub">The ontology defines reusable meaning. The knowledge graph uses that vocabulary to
+                    describe particular things.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">Ontology · vocabulary</p>
+                        <pre class="lesson-code compact"><code>ex:Event a rdfs:Class .
+
+ex:Conference
+    a rdfs:Class ;
+    rdfs:subClassOf ex:Event .
+
+ex:Place a rdfs:Class .
+ex:heldIn a rdf:Property .</code></pre>
+                    </div>
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Knowledge graph · facts</p>
+                        <pre class="lesson-code compact"><code>ex:conference-1
+    a ex:Conference ;
+    rdfs:label "Conference 1" ;
+    ex:heldIn ex:paris .
+
+ex:paris
+    a ex:Place ;
+    rdfs:label "Paris" .</code></pre>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Ontology:</strong> what kinds of things and relationships exist.
+                    <strong>Knowledge graph:</strong> what we know about particular things.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 10 · RDF EXAMPLE 8/11 ═══════════════ -->
+        <section class="slide" id="s10">
+            <div class="head">
+                <div class="eyebrow">10 — From text to RDF · 8/11</div>
+                <h1>Add a SHACL validation rule</h1>
+                <div class="sub">Our data requirement: every Conference must have at least one <code>heldIn</code>
+                    relationship.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <pre class="lesson-code"><code>@prefix sh:
+  &lt;http://www.w3.org/ns/shacl#&gt; .
+
+ex:ConferenceShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Conference ;
+    sh:property [
+        sh:path ex:heldIn ;
+        sh:minCount 1
+    ] .</code></pre>
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">Read the shape</p>
+                        <ul class="lesson-list">
+                            <li><strong>NodeShape</strong> — validate resources.</li>
+                            <li><strong>targetClass</strong> — check every Conference.</li>
+                            <li><strong>path</strong> — inspect the <code>heldIn</code> property.</li>
+                            <li><strong>minCount 1</strong> — require at least one value.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="lesson-callout">The ontology describes meaning. <strong>The SHACL shape states an acceptance
+                        criterion.</strong></div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 11 · RDF EXAMPLE 9/11 ═══════════════ -->
+        <section class="slide" id="s11">
+            <div class="head">
+                <div class="eyebrow">11 — From text to RDF · 9/11</div>
+                <h1>Validate conforming data</h1>
+                <div class="sub">Conference 1 has the required relationship, so it satisfies the shape.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Data</p>
+                        <pre class="lesson-code"><code>ex:conference-1
+    a ex:Conference ;
+    ex:heldIn ex:paris .</code></pre>
+                    </div>
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">SHACL result</p>
+                        <div class="result-box">Conforms: true</div>
+                        <p class="lesson-text" style="margin-top:18px">The conference has at least one
+                            <code>heldIn</code> value.</p>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Conference 1 → held in → Paris</strong> passes the rule.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 12 · RDF EXAMPLE 10/11 ═══════════════ -->
+        <section class="slide" id="s12">
+            <div class="head">
+                <div class="eyebrow">12 — From text to RDF · 10/11</div>
+                <h1>Validate non-conforming data</h1>
+                <div class="sub">Conference 2 has no <code>heldIn</code> relationship, so SHACL reports the missing
+                    required value.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="lesson-panel">
+                        <p class="lesson-label">Data</p>
+                        <pre class="lesson-code"><code>ex:conference-2
+    a ex:Conference ;
+    rdfs:label "Conference 2" .</code></pre>
+                    </div>
+                    <div class="lesson-panel">
+                        <p class="lesson-label">SHACL result</p>
+                        <div class="result-box bad">Conforms: false</div>
+                        <p class="lesson-text" style="margin-top:18px">Required <code>ex:heldIn</code> value is missing.
+                        </p>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>RDFS supports inference:</strong> “What else follows?” &nbsp;
+                    <strong>SHACL validates:</strong> “Does this data satisfy our requirements?”</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 13 · RDF EXAMPLE 11/11 ═══════════════ -->
+        <section class="slide" id="s13">
+            <div class="head">
+                <div class="eyebrow">13 — From text to RDF · 11/11</div>
+                <h1>Query the knowledge graph</h1>
+                <div class="sub">SPARQL uses graph patterns. The variable <code>?place</code> asks RDF to find the
+                    missing part of our triple.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <pre class="lesson-code compact"><code>PREFIX ex: &lt;http://example.org/&gt;
+
+SELECT ?place
+WHERE {
+    ex:conference-1
+        ex:heldIn ?place .
+}</code></pre>
+                    <div class="lesson-panel accent">
+                        <p class="lesson-label">Question</p>
+                        <p class="lesson-text"><strong>Where was Conference 1 held?</strong></p>
+                        <p class="lesson-label" style="margin-top:28px">Result</p>
+                        <div class="result-box">ex:paris</div>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>RDF</strong> states the fact · <strong>RDFS</strong> defines basic
+                    meaning · <strong>SHACL</strong> validates it · <strong>SPARQL</strong> retrieves it.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 14 · ORIGINAL SLIDE 3 ═══════════════ -->
+        <section class="slide" id="s14">
+            <div class="head">
+                <div class="eyebrow">14 — Knowledge + agent</div>
+                <h1>AI agents fully operational with ontologies</h1>
+                <div class="sub">Nothing below changes. The agent does not browse the graph — it resolves identities,
+                    pulls an evidence graph, validates it, clears the gates, and only then touches data.</div>
+            </div>
+            <div class="canvas">
+                <svg viewBox="0 0 1280 580" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="ar2" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5"
+                            orient="auto-start-reverse">
+                            <path d="M0,1.2 L9,5 L0,8.8 Z" fill="#8149CF" />
+                        </marker>
+                    </defs>
+
+                    <!-- LEFT: the plane -->
+                    <rect x="24" y="24" width="440" height="420" rx="16" fill="#F9F5FE" />
+                    <text class="eb eb-p" x="44" y="54">SEMANTIC CONTROL PLANE</text>
+
+                    <text class="eb" x="44" y="86">SOURCES</text>
+                    <rect x="44" y="94" width="190" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="139" y="115" text-anchor="middle">Unstructured sources</text>
+                    <rect x="250" y="94" width="190" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="345" y="115" text-anchor="middle">Structured sources</text>
+
+                    <text class="eb" x="44" y="154">DESCRIPTION</text>
+                    <rect x="44" y="162" width="124" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="106" y="183" text-anchor="middle">Logical model</text>
+                    <rect x="178" y="162" width="124" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="240" y="183" text-anchor="middle">Semantic layer</text>
+                    <rect x="312" y="162" width="128" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="376" y="183" text-anchor="middle">Data catalog</text>
+
+                    <text class="eb" x="44" y="222">MEANING</text>
+                    <rect x="44" y="230" width="190" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="139" y="251" text-anchor="middle">Thesaurus · SKOS</text>
+                    <rect x="250" y="230" width="190" height="34" rx="8" fill="#fff" />
+                    <text class="cp" x="345" y="251" text-anchor="middle">Ontology · OWL</text>
+
+                    <text class="eb" x="44" y="290">FACTS</text>
+                    <rect x="44" y="298" width="190" height="34" rx="8" fill="#EFE6FB" />
+                    <text class="cp" x="139" y="319" text-anchor="middle">Knowledge graph</text>
+                    <rect x="250" y="298" width="190" height="34" rx="8" fill="#EFE6FB" />
+                    <text class="cp" x="345" y="319" text-anchor="middle">Metadata graph</text>
+
+                    <text class="eb" x="44" y="358">CONFORMANCE</text>
+                    <rect x="44" y="366" width="396" height="34" rx="8" fill="#EFE6FB" />
+                    <text class="cp" x="242" y="387" text-anchor="middle">SHACL shapes · the semantic data
+                        contract</text>
+
+                    <text class="bd" x="44" y="426">Slide 1, unchanged. The agent is a consumer here, never the
+                        owner.</text>
+
+                    <!-- MIDDLE: runtime exchange -->
+                    <path class="line" style="stroke:#8149CF" d="M690,142 L478,142" marker-end="url(#ar2)" />
+                    <text class="el" x="584" y="130" text-anchor="middle">approved SPARQL templates, not free-form
+                        queries</text>
+
+                    <path class="line" style="stroke:#8149CF" d="M478,246 L690,246" marker-end="url(#ar2)" />
+                    <text class="el" x="584" y="234" text-anchor="middle">CONSTRUCT → context graph, shapes, policy,
+                        lineage</text>
+
+                    <path class="line" style="stroke:#8149CF;stroke-dasharray:5 4" d="M690,352 L478,352"
+                        marker-end="url(#ar2)" />
+                    <text class="el" x="584" y="340" text-anchor="middle">governed execution: the semantic layer runs
+                        the metric</text>
+
+                    <!-- RIGHT: agent -->
+                    <rect x="700" y="24" width="556" height="420" rx="16" fill="#EFE6FB" />
+                    <text class="bt" x="722" y="56" style="font-size:16px">Governance agent</text>
+                    <text class="eb eb-p" x="1234" y="54" text-anchor="end">OWN RUNTIME</text>
+
+                    <rect x="722" y="76" width="512" height="48" rx="9" fill="#fff" />
+                    <text class="kv" x="740" y="106">01</text>
+                    <text class="st" x="776" y="98">Identifies identities</text>
+                    <text class="sd" x="776" y="114">Resolves labels to IRIs: SKOS concepts, OWL classes, individuals,
+                        datasets</text>
+
+                    <rect x="722" y="132" width="512" height="48" rx="9" fill="#fff" />
+                    <text class="kv" x="740" y="162">02</text>
+                    <text class="st" x="776" y="154">Checks properties</text>
+                    <text class="sd" x="776" y="170">Types, domain and range, owner, certification, freshness,
+                        applicable policy</text>
+
+                    <rect x="722" y="188" width="512" height="48" rx="9" fill="#fff" />
+                    <text class="kv" x="740" y="218">03</text>
+                    <text class="st" x="776" y="210">Extracts data and context graph</text>
+                    <text class="sd" x="776" y="226">CONSTRUCT returns the evidence subgraph around the entity — before
+                        any data</text>
+
+                    <rect x="722" y="244" width="512" height="48" rx="9" fill="#fff" />
+                    <text class="kv" x="740" y="274">04</text>
+                    <text class="st" x="776" y="266">Runs the result through SHACL</text>
+                    <text class="sd" x="776" y="282">Node and property shapes execute over the retrieved graph →
+                        validation report</text>
+
+                    <rect x="722" y="300" width="512" height="48" rx="9" fill="#fff" />
+                    <text class="kv" x="740" y="330">05</text>
+                    <text class="st" x="776" y="322">Checks constraints and properties</text>
+                    <text class="sd" x="776" y="338">Cardinality · ODRL policy · DQV quality · PROV-O lineage — every
+                        gate must clear</text>
+
+                    <rect x="722" y="364" width="250" height="64" rx="10" fill="#E2D3F5" />
+                    <text class="st" x="738" y="388">Materialised named graph</text>
+                    <text class="sd" x="738" y="404">Its own graph IRI: retrieved</text>
+                    <text class="sd" x="738" y="418">evidence, results, provenance, TTL</text>
+
+                    <rect x="984" y="364" width="250" height="64" rx="10" fill="#E2D3F5" />
+                    <text class="st" x="1000" y="388">Own semantic engine</text>
+                    <text class="sd" x="1000" y="404">Term resolver, query templates,</text>
+                    <text class="sd" x="1000" y="418">shape runner, light reasoner</text>
+
+                    <!-- outcome bar -->
+                    <rect x="24" y="474" width="1232" height="76" rx="14" fill="#5F1DA5" />
+                    <text class="eb" x="48" y="506" style="fill:#C4A6E8">THE RULE</text>
+                    <text x="48" y="534"
+                        style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600;fill:#fff">The
+                        agent retrieves an evidence graph before it retrieves data.</text>
+                    <text x="1232" y="512" text-anchor="end"
+                        style="font-family:Inter,sans-serif;font-size:11.5px;fill:#DCC9F2">Answer carries its own
+                        justification: subgraph, shapes passed,</text>
+                    <text x="1232" y="530" text-anchor="end"
+                        style="font-family:Inter,sans-serif;font-size:11.5px;fill:#DCC9F2">policy cleared, lineage
+                        attached.</text>
+                </svg>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 15 · VOCABULARY LANDSCAPE ═══════════════ -->
+        <section class="slide" id="s15">
+            <div class="head">
+                <div class="eyebrow">15 — Vocabulary landscape · 2026</div>
+                <h1>The active stack has moved on</h1>
+                <div class="sub">The classic FOAF/SIOC-era picture is no longer the best map. Separate the languages
+                    that structure and process RDF from the vocabularies that supply reusable terms.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="vocab-card">
+                        <span class="vocab-pill">Classic mental model</span>
+                        <pre class="lesson-code"><code>RDF
+  ↓
+RDFS
+  ↓
+OWL
+  ↓
+FOAF · SIOC · Dublin Core</code></pre>
+                    </div>
+                    <div class="vocab-card accent">
+                        <span class="vocab-pill">Active 2026 stack</span>
+                        <div class="vocab-stack">
+                            <div class="vocab-layer">RDF 1.2 · JSON-LD · Turtle</div>
+                            <div class="vocab-layer">OWL 2 · SHACL 1.2 · SPARQL 1.2</div>
+                            <div class="vocab-layer">Schema.org · DCAT · PROV · SKOS · QUDT · SOSA</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Languages</strong> tell us how to model, infer, validate, and query.
+                    <strong>Vocabularies</strong> give us shared classes and properties for a domain.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 16 · VOCABULARY REPOSITORIES ═══════════════ -->
+        <section class="slide" id="s16">
+            <div class="head">
+                <div class="eyebrow">16 — Vocabulary landscape · discovery</div>
+                <h1>Where to search before inventing terms</h1>
+                <div class="sub">Start broad, then move to a curated domain portal. These names are clickable and open
+                    the live repository.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="vocab-grid four">
+                    <div class="vocab-card accent"><span class="vocab-pill">General</span>
+                        <h2><a class="vocab-link" href="https://lov.linkeddata.es/dataset" target="_blank"
+                                rel="noopener noreferrer">LOV</a></h2>
+                        <p>Linked Open Vocabularies: broad RDF vocabulary discovery.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Biomedical</span>
+                        <h2><a class="vocab-link" href="https://bioportal.bioontology.org/" target="_blank"
+                                rel="noopener noreferrer">BioPortal</a></h2>
+                        <p>1,288 ontologies, 12.3M classes, and 63.2M mappings in August 2026.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Curated science</span>
+                        <h2><a class="vocab-link" href="https://obofoundry.org/" target="_blank"
+                                rel="noopener noreferrer">OBO Foundry</a></h2>
+                        <p>Interoperable ontologies for biological sciences.</p>
+                    </div>
+                    <div class="vocab-card accent"><span class="vocab-pill">API + MCP</span>
+                        <h2><a class="vocab-link" href="https://www.ebi.ac.uk/ols4/" target="_blank"
+                                rel="noopener noreferrer">EMBL-EBI OLS4</a></h2>
+                        <p>Search and browse through a web UI, REST API, or hosted MCP server.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Taxonomies</span>
+                        <h2><a class="vocab-link" href="https://bartoc.org/" target="_blank"
+                                rel="noopener noreferrer">BARTOC</a></h2>
+                        <p>Thesauri, classifications, terminologies, and SKOS resources.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Portal network</span>
+                        <h2><a class="vocab-link" href="https://ontoportal.org/" target="_blank"
+                                rel="noopener noreferrer">OntoPortal</a></h2>
+                        <p>A federation and technology for domain ontology repositories.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill retired">Retired portal</span>
+                        <h2><a class="vocab-link" href="https://ontoportal.org/" target="_blank"
+                                rel="noopener noreferrer">IndustryPortal</a></h2>
+                        <p>The Alliance now lists it as retired; use active industrial vocabularies directly.</p>
+                    </div>
+                    <div class="vocab-card accent"><span class="vocab-pill">Agri-food</span>
+                        <h2><a class="vocab-link" href="https://agroportal.eu/" target="_blank"
+                                rel="noopener noreferrer">AgroPortal</a></h2>
+                        <p>Food, agriculture, plant science, and environmental vocabularies.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 17 · ACTIVE STANDARDS ═══════════════ -->
+        <section class="slide" id="s17">
+            <div class="head">
+                <div class="eyebrow">17 — Vocabulary landscape · active standards</div>
+                <h1>The standards layer is active again</h1>
+                <div class="sub">RDF 1.2 Concepts reached Candidate Recommendation in April 2026; Turtle, SHACL 1.2,
+                    and SPARQL 1.2 remain active W3C drafts. They are relevant and still evolving—not yet finished
+                    Recommendations.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="vocab-stack">
+                        <div class="vocab-card accent">
+                            <span class="vocab-pill draft">Working Draft</span>
+                            <h2><a class="vocab-link" href="https://www.w3.org/TR/2026/WD-shacl12-rules-20260220/"
+                                    target="_blank" rel="noopener noreferrer">SHACL 1.2</a></h2>
+                            <p>Core, rules, node expressions, SPARQL extensions, profiling, compact syntax, and UI work.
+                                The practical bridge from semantics to executable acceptance rules.</p>
+                        </div>
+                        <div class="vocab-card">
+                            <span class="vocab-pill draft">Working Draft</span>
+                            <h2><a class="vocab-link" href="https://www.w3.org/TR/sparql12-query/" target="_blank"
+                                    rel="noopener noreferrer">SPARQL 1.2</a></h2>
+                            <p>The query language evolves alongside RDF 1.2 and its new triple-term model.</p>
+                        </div>
+                    </div>
+                    <div class="vocab-card">
+                        <span class="vocab-pill draft">RDF 1.2 Turtle · Working Draft</span>
+                        <h2><a class="vocab-link" href="https://www.w3.org/TR/rdf12-turtle/" target="_blank"
+                                rel="noopener noreferrer">Metadata about a claim</a></h2>
+                        <pre class="lesson-code compact"><code>VERSION "1.2"
+
+:alice :worksFor :acme .
+
+&lt;&lt; :alice :worksFor :acme
+   ~ :claim123 &gt;&gt;
+    :confidence 0.92 ;
+    :source :SAP .</code></pre>
+                        <p style="margin-top:12px">Current RDF 1.2 terminology distinguishes triple terms and reified
+                            triples. This is valuable for claims, evidence, confidence, and provenance.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 18 · RDF-STAR AND RDF 1.2 ═══════════════ -->
+        <section class="slide" id="s18">
+            <div class="head">
+                <div class="eyebrow">18 — RDF-star → RDF 1.2</div>
+                <h1>Give a statement its own metadata</h1>
+                <div class="sub">A normal RDF triple states a fact. RDF-star introduced a compact way to add a source,
+                    time, confidence, or other metadata to that fact. RDF 1.2 brings this idea into the core RDF model
+                    with precise triple-term and reifier semantics.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="vocab-card">
+                        <span class="vocab-pill">Earlier RDF-star notation</span>
+                        <h2><a class="vocab-link" href="https://graphwise.ai/fundamentals/what-is-rdf-star/"
+                                target="_blank" rel="noopener noreferrer">Describe the relationship itself</a></h2>
+                        <pre class="lesson-code compact" style="margin-top:14px"><code>:conference-1 ex:heldIn :paris .
+
+&lt;&lt; :conference-1 ex:heldIn :paris &gt;&gt;
+    ex:confidence 0.92 ;
+    ex:source :report-7 .</code></pre>
+                        <p style="margin-top:14px">The metadata is about “Conference 1 was held in Paris”—not about
+                            the conference or Paris on its own. This avoids the four-part classic reification pattern.</p>
+                    </div>
+                    <div class="vocab-card accent">
+                        <span class="vocab-pill draft">RDF 1.2 Turtle · Working Draft</span>
+                        <h2><a class="vocab-link" href="https://www.w3.org/TR/rdf12-turtle/" target="_blank"
+                                rel="noopener noreferrer">Assert and annotate the fact</a></h2>
+                        <pre class="lesson-code compact" style="margin-top:14px"><code>VERSION "1.2"
+
+:conference-1 ex:heldIn :paris
+  ~ :claim-7 {|
+    ex:confidence 0.92 ;
+    ex:source :report-7
+  |} .</code></pre>
+                        <p style="margin-top:14px">This shortcut asserts the fact, names its <strong>reifier</strong>
+                            <code>:claim-7</code>, and attaches the metadata. Underneath, the reifier points to a
+                            <strong>triple term</strong>:</p>
+                        <pre class="lesson-code compact" style="margin-top:10px;padding:12px 16px;font-size:13px"><code>:claim-7 rdf:reifies
+  &lt;&lt;( :conference-1 ex:heldIn :paris )&gt;&gt; .</code></pre>
+                    </div>
+                </div>
+                <div class="lesson-callout" style="padding:12px 18px;font-size:15px;line-height:1.35">
+                    <strong>The relationship:</strong> RDF-star is the proposal lineage; RDF 1.2 is its standards-track
+                    destination. A <strong>triple term</strong> denotes the proposition; a <strong>reifier</strong> is the
+                    claim or occurrence carrying metadata. In RDF 1.2, a reified triple alone does not assert the fact;
+                    the annotation form above does both.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 19 · GENERAL VOCABULARIES ═══════════════ -->
+        <section class="slide" id="s19">
+            <div class="head">
+                <div class="eyebrow">19 — Vocabulary landscape · reusable foundations</div>
+                <h1>Four vocabularies worth knowing first</h1>
+                <div class="sub">These cover generic entities, data assets, provenance, and controlled vocabularies
+                    without forcing every project to invent its own terms.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="vocab-grid">
+                    <div class="vocab-card accent"><span class="vocab-pill">Generic entities</span>
+                        <h2><a class="vocab-link" href="https://schema.org/" target="_blank"
+                                rel="noopener noreferrer">Schema.org</a></h2>
+                        <p><code>Person · Organization · Product · Event · Place · Dataset</code><br>Version 30.0 was
+                            released in March 2026; deployment reaches tens of millions of domains.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Data assets</span>
+                        <h2><a class="vocab-link" href="https://www.w3.org/TR/vocab-dcat-3/" target="_blank"
+                                rel="noopener noreferrer">DCAT 3</a></h2>
+                        <p><code>Catalog · Dataset · DataService · Distribution · DatasetSeries</code><br>A W3C
+                            Recommendation for describing data ecosystems.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Lineage</span>
+                        <h2><a class="vocab-link" href="https://www.w3.org/TR/prov-o/" target="_blank"
+                                rel="noopener noreferrer">PROV-O</a></h2>
+                        <p><code>Entity · Activity · Agent · used · generated · wasDerivedFrom</code><br>A strong fit
+                            for agent traces, evidence, and auditability.</p>
+                    </div>
+                    <div class="vocab-card accent"><span class="vocab-pill">Taxonomies</span>
+                        <h2><a class="vocab-link" href="https://www.w3.org/TR/skos-reference/" target="_blank"
+                                rel="noopener noreferrer">SKOS</a></h2>
+                        <p><code>Concept · prefLabel · altLabel · broader · narrower · related</code><br>Old, stable,
+                            and still excellent infrastructure for controlled vocabularies.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 20 · MEASUREMENT VOCABULARIES ═══════════════ -->
+        <section class="slide" id="s20">
+            <div class="head">
+                <div class="eyebrow">20 — Vocabulary landscape · measurements</div>
+                <h1>Use shared models for quantities and observations</h1>
+                <div class="sub">Manufacturing, supply chain, buildings, and IoT need consistent units and a common
+                    observation pattern.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid three">
+                    <div class="vocab-card accent"><span class="vocab-pill">Units</span>
+                        <h2><a class="vocab-link" href="https://www.qudt.org/catalog/qudt-catalog.html" target="_blank"
+                                rel="noopener noreferrer">QUDT 3.5</a></h2>
+                        <p>Quantities, units, dimensions, and datatypes. Includes OWL and SHACL artifacts.</p>
+                        <pre class="lesson-code compact" style="margin-top:14px"><code>:revenue
+  qudt:quantityKind
+      quantitykind:Currency ;
+  qudt:unit unit:EUR .</code></pre>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Observations</span>
+                        <h2><a class="vocab-link" href="https://www.w3.org/TR/vocab-ssn/" target="_blank"
+                                rel="noopener noreferrer">SOSA / SSN</a></h2>
+                        <p>Sensors, observations, samples, actuators, observed properties, and results.</p>
+                        <pre class="lesson-code compact" style="margin-top:14px"><code>Sensor
+   ↓ madeObservation
+Observation
+   ↓ hasResult
+Result</code></pre>
+                    </div>
+                    <div class="vocab-card accent"><span class="vocab-pill">Smart systems</span>
+                        <h2><a class="vocab-link" href="https://saref.etsi.org/" target="_blank"
+                                rel="noopener noreferrer">SAREF</a></h2>
+                        <p>ETSI's reference ontology and extensions for smart applications, devices, buildings,
+                            industry, energy, and related domains.</p>
+                    </div>
+                </div>
+                <div class="lesson-callout">Shared units and observation patterns prevent hundreds of incompatible local
+                    versions of “temperature,” “revenue,” or “measurement.”</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 21 · DOMAIN ECOSYSTEMS ═══════════════ -->
+        <section class="slide" id="s21">
+            <div class="head">
+                <div class="eyebrow">21 — Vocabulary landscape · domains</div>
+                <h1>Domain ecosystems matter more than one universal ontology</h1>
+                <div class="sub">The healthier pattern is a small standard toolbox plus the strongest ontology ecosystem
+                    for the actual domain.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="vocab-grid">
+                    <div class="vocab-card"><span class="vocab-pill">Finance</span>
+                        <h2><a class="vocab-link" href="https://edmcouncil.org/frameworks/industry-models/fibo/"
+                                target="_blank" rel="noopener noreferrer">FIBO</a></h2>
+                        <p>Financial instruments, contracts, organizations, markets, and business concepts. Reviewed and
+                            updated quarterly.</p>
+                    </div>
+                    <div class="vocab-card accent"><span class="vocab-pill">Manufacturing</span>
+                        <h2><a class="vocab-link" href="https://github.com/iofoundry/ontology/releases/" target="_blank"
+                                rel="noopener noreferrer">IOF</a> · <a class="vocab-link"
+                                href="https://emmo-repo.github.io/" target="_blank" rel="noopener noreferrer">EMMO</a>
+                        </h2>
+                        <p>Core manufacturing concepts, supply chain, maintenance, materials, processes, and engineering
+                            semantics.</p>
+                    </div>
+                    <div class="vocab-card accent"><span class="vocab-pill">Buildings</span>
+                        <h2><a class="vocab-link" href="https://brickschema.org/" target="_blank"
+                                rel="noopener noreferrer">Brick</a> · <a class="vocab-link"
+                                href="https://www.realestatecore.io/" target="_blank"
+                                rel="noopener noreferrer">RealEstateCore</a></h2>
+                        <p>Building systems, equipment, spaces, points, controls, and real-estate data.</p>
+                    </div>
+                    <div class="vocab-card"><span class="vocab-pill">Science</span>
+                        <h2><a class="vocab-link" href="https://obofoundry.org/" target="_blank"
+                                rel="noopener noreferrer">OBO</a> · <a class="vocab-link"
+                                href="https://www.ebi.ac.uk/ols4/ontologies/efo" target="_blank"
+                                rel="noopener noreferrer">EFO</a></h2>
+                        <p>Strong biomedical and scientific ecosystems. EFO's 2026 release history shows an
+                            approximately monthly cadence.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 22 · OLD AND CURRENT INSTINCTS ═══════════════ -->
+        <section class="slide" id="s22">
+            <div class="head">
+                <div class="eyebrow">22 — Vocabulary landscape · practical choices</div>
+                <h1>Old instinct → current instinct</h1>
+                <div class="sub">Reuse is still the goal, but the default vocabulary choices have changed.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-panel" style="padding:10px 20px">
+                    <table class="vocab-table">
+                        <thead>
+                            <tr>
+                                <th>Old instinct</th>
+                                <th>Current instinct</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>foaf:Person</code></td>
+                                <td><code>schema:Person</code></td>
+                            </tr>
+                            <tr>
+                                <td><code>foaf:Organization</code></td>
+                                <td><code>schema:Organization</code> or <a class="vocab-link"
+                                        href="https://www.w3.org/TR/vocab-org/" target="_blank"
+                                        rel="noopener noreferrer">W3C ORG</a></td>
+                            </tr>
+                            <tr>
+                                <td>FOAF profile model</td>
+                                <td>Schema.org or a domain identity model</td>
+                            </tr>
+                            <tr>
+                                <td>Classic RDF reification</td>
+                                <td>RDF 1.2 reified triples and triple terms</td>
+                            </tr>
+                            <tr>
+                                <td>Handmade constraints</td>
+                                <td>SHACL</td>
+                            </tr>
+                            <tr>
+                                <td>Handmade provenance</td>
+                                <td>PROV-O</td>
+                            </tr>
+                            <tr>
+                                <td>Handmade dataset model</td>
+                                <td>DCAT</td>
+                            </tr>
+                            <tr>
+                                <td>Handmade units / sensors</td>
+                                <td>QUDT + SOSA/SSN</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="lesson-callout"><a class="vocab-link" href="https://lov.linkeddata.es/dataset/vocabs/foaf"
+                        target="_blank" rel="noopener noreferrer">FOAF</a> remains widely linked but has had no update
+                    since 2014. <strong>SKOS is the exception:</strong> old, stable, and absolutely not obsolete.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 23 · PRACTICAL TOOLBOX ═══════════════ -->
+        <section class="slide" id="s23">
+            <div class="head">
+                <div class="eyebrow">23 — Vocabulary landscape · recommended toolbox</div>
+                <h1>A practical enterprise and agent toolbox</h1>
+                <div class="sub">Start with standards that solve recurring problems, then add only the domain ontologies
+                    the use case needs.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid">
+                    <div class="vocab-card accent">
+                        <div class="vocab-stack">
+                            <div class="vocab-layer"><strong>RDF 1.2 / Turtle</strong><br><small>graph data model and
+                                    syntax</small></div>
+                            <div class="vocab-layer"><strong>OWL 2 · SHACL 1.2 · SPARQL 1.2</strong><br><small>meaning ·
+                                    constraints · query</small></div>
+                            <div class="vocab-layer"><strong>Schema.org · SKOS · DCAT ·
+                                    PROV-O</strong><br><small>entities · taxonomy · data · lineage</small></div>
+                            <div class="vocab-layer"><strong>QUDT · SOSA/SSN</strong><br><small>quantities ·
+                                    observations</small></div>
+                        </div>
+                    </div>
+                    <div class="vocab-card">
+                        <span class="vocab-pill">Then choose a domain</span>
+                        <ul class="lesson-list">
+                            <li><strong>Finance:</strong> FIBO</li>
+                            <li><strong>Manufacturing:</strong> IOF, EMMO</li>
+                            <li><strong>Buildings:</strong> Brick, RealEstateCore</li>
+                            <li><strong>Science:</strong> OBO, EFO, OBI, GO</li>
+                            <li><strong>Smart systems:</strong> SAREF</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Promising agent pattern:</strong> RDF 1.2 claim metadata + PROV-O
+                    lineage + SHACL rules can represent claims, evidence, confidence, permissions, and reasoning traces
+                    together.</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════ SLIDE 24 · BOOKMARKS ═══════════════ -->
+        <section class="slide" id="s24">
+            <div class="head">
+                <div class="eyebrow">24 — Vocabulary landscape · bookmarks</div>
+                <h1>Authoritative links</h1>
+                <div class="sub">Direct destinations without tracking parameters. Draft specifications may change;
+                    follow their “latest published version” links.</div>
+            </div>
+            <div class="canvas lesson-canvas">
+                <div class="lesson-grid three">
+                    <div class="vocab-card">
+                        <p class="lesson-label">Repositories</p>
+                        <ul class="bookmark-list">
+                            <li><a class="vocab-link" href="https://lov.linkeddata.es/dataset" target="_blank"
+                                    rel="noopener noreferrer">Linked Open Vocabularies</a></li>
+                            <li><a class="vocab-link" href="https://bioportal.bioontology.org/" target="_blank"
+                                    rel="noopener noreferrer">BioPortal</a></li>
+                            <li><a class="vocab-link" href="https://obofoundry.org/" target="_blank"
+                                    rel="noopener noreferrer">OBO Foundry</a></li>
+                            <li><a class="vocab-link" href="https://www.ebi.ac.uk/ols4/" target="_blank"
+                                    rel="noopener noreferrer">EMBL-EBI OLS4</a> · <a class="vocab-link"
+                                    href="https://www.ebi.ac.uk/ols4/mcp" target="_blank"
+                                    rel="noopener noreferrer">MCP</a></li>
+                            <li><a class="vocab-link" href="https://bartoc.org/" target="_blank"
+                                    rel="noopener noreferrer">BARTOC</a></li>
+                            <li><a class="vocab-link" href="https://ontoportal.org/" target="_blank"
+                                    rel="noopener noreferrer">OntoPortal</a></li>
+                            <li><a class="vocab-link" href="https://agroportal.eu/" target="_blank"
+                                    rel="noopener noreferrer">AgroPortal</a></li>
+                        </ul>
+                    </div>
+                    <div class="vocab-card accent">
+                        <p class="lesson-label">Standards and foundations</p>
+                        <ul class="bookmark-list">
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/rdf12-concepts/" target="_blank"
+                                    rel="noopener noreferrer">RDF 1.2 Concepts</a></li>
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/sparql12-query/" target="_blank"
+                                    rel="noopener noreferrer">SPARQL 1.2 Query</a></li>
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/2026/WD-shacl12-rules-20260220/"
+                                    target="_blank" rel="noopener noreferrer">SHACL 1.2 Rules</a></li>
+                            <li><a class="vocab-link" href="https://schema.org/docs/releases.html" target="_blank"
+                                    rel="noopener noreferrer">Schema.org releases</a></li>
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/vocab-dcat-3/" target="_blank"
+                                    rel="noopener noreferrer">DCAT 3</a></li>
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/prov-o/" target="_blank"
+                                    rel="noopener noreferrer">PROV-O</a></li>
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/skos-reference/" target="_blank"
+                                    rel="noopener noreferrer">SKOS</a></li>
+                        </ul>
+                    </div>
+                    <div class="vocab-card">
+                        <p class="lesson-label">Domain vocabularies</p>
+                        <ul class="bookmark-list">
+                            <li><a class="vocab-link" href="https://www.qudt.org/catalog/qudt-catalog.html"
+                                    target="_blank" rel="noopener noreferrer">QUDT</a></li>
+                            <li><a class="vocab-link" href="https://www.w3.org/TR/vocab-ssn/" target="_blank"
+                                    rel="noopener noreferrer">SOSA / SSN</a></li>
+                            <li><a class="vocab-link" href="https://saref.etsi.org/" target="_blank"
+                                    rel="noopener noreferrer">SAREF</a></li>
+                            <li><a class="vocab-link" href="https://edmcouncil.org/frameworks/industry-models/fibo/"
+                                    target="_blank" rel="noopener noreferrer">FIBO</a></li>
+                            <li><a class="vocab-link" href="https://github.com/iofoundry/ontology/releases/"
+                                    target="_blank" rel="noopener noreferrer">IOF</a> · <a class="vocab-link"
+                                    href="https://emmo-repo.github.io/" target="_blank"
+                                    rel="noopener noreferrer">EMMO</a></li>
+                            <li><a class="vocab-link" href="https://brickschema.org/" target="_blank"
+                                    rel="noopener noreferrer">Brick</a></li>
+                            <li><a class="vocab-link" href="https://www.realestatecore.io/" target="_blank"
+                                    rel="noopener noreferrer">RealEstateCore</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="lesson-callout"><strong>Rule of thumb:</strong> search a repository, inspect governance and
+                    release activity, test the terms against your use case, then extend locally only where necessary.
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <div class="nav">
+        <div class="dots" aria-label="Slide navigation"></div>
+        <span class="hint">← → to move · Ctrl/Cmd+P for PDF</span>
+    </div>
+
+    <script>
+        const slides = [...document.querySelectorAll('.slide')];
+        const dotHost = document.querySelector('.dots');
+        slides.forEach((_, index) => {
+            const dot = document.createElement('button');
+            dot.className = 'dot' + (index === 0 ? ' on' : '');
+            dot.dataset.i = index;
+            dot.setAttribute('aria-label', 'Slide ' + (index + 1));
+            dotHost.appendChild(dot);
+        });
+        const dots = [...document.querySelectorAll('.dot')];
+        let i = Math.max(0, slides.findIndex(slide => '#' + slide.id === window.location.hash));
+        function go(n) {
+            i = (n + slides.length) % slides.length;
+            slides.forEach((s, k) => s.classList.toggle('active', k === i));
+            dots.forEach((d, k) => d.classList.toggle('on', k === i)); fit();
+        }
+        function fit() {
+            const s = slides[i]; const sc = Math.min((window.innerWidth - 48) / 1280, (window.innerHeight - 48) / 720, 1);
+            s.style.transform = 'scale(' + sc + ')';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === ' ') go(i + 1); if (e.key === 'ArrowLeft') go(i - 1); });
+        dots.forEach(d => d.addEventListener('click', () => go(+d.dataset.i)));
+        document.querySelector('.stage').addEventListener('click', e => { if (!e.target.closest('a, .nav')) go(i + 1); });
+        window.addEventListener('resize', fit); go(i);
+    </script>
+</body>
+
+</html>
