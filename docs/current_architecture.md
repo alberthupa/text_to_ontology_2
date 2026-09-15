@@ -108,7 +108,6 @@ text_to_ontology_2/
 ├── requirements.txt         # rdflib>=7,<8
 ├── .env                     # OPENROUTER_API_KEY, OPENROUTER_MODEL
 ├── README.md / next_steps.md# notes (not architecture source)
-├── sources/                 # 5 geopolitical briefs (.md) — sample input
 └── tests/                   # one unittest file per module + pipeline
     ├── test_pipeline.py
     ├── test_ingest_sources.py
@@ -1126,35 +1125,36 @@ smaller wins.
 
 ## 12. Current data snapshot (`ontology.ttl`, as parsed from the file)
 
-- **Triples**: 685 total → partition: `schema` 177 · `instance` 502 · `support` 6
-  (support = `onto:ontology` + `onto:EntityShape`). `skeleton` == `schema` == 177.
-- **Entities**: 45. Kinds: `Entity` (default) 12, `Location` 11, `Event` 8, `Policy` 6,
-  `Organization` 4, `Person` 3, `Infrastructure` 1.
+- **Triples**: 82 total → partition: `schema` 44 · `instance` 31 · `support` 7
+  (support = `onto:ontology` + `onto:EntityShape`). `skeleton` == `schema` == 44.
+- **Entities**: 5, one per neutral kind used by the example.
 - **Entity → kind** (exact):
 
   | Kind | Entities |
   |---|---|
-  | Event | conflict-involving-iran, energy-shock, nvidia-gpu-routing-attempts, orthodox-easter-ceasefire, paris-preparatory-talks, regional-conflicts, russia-ukraine-war, trump-xi-summit |
-  | Entity (default) | advanced-chips, defense-manufacturing, electric-vehicles, emerging-military-technologies, energy-markets, energy-transition, long-range-strike-capacity, maritime-security, nato-burden-sharing, rare-earths, renewable-energy-systems, world-economic-forum-2026-global-risks-work |
-  | Infrastructure | russian-refining-capacity |
-  | Location | canada, china, east-asia, europe, iran, middle-east, paris, russia, strait-of-hormuz, ukraine, united-states |
-  | Organization | european-union, nato, nvidia, world-economic-forum |
-  | Person | donald-trump, kirill-dmitriev, xi-jinping |
-  | Policy | allied-hormuz-maritime-security-commitments, chinese-export-controls, coordinated-mineral-strategy, nato-2-percent-defense-spending-target, temporary-us-sanctions-waiver-on-russian-oil, us-export-restrictions |
+  | Event | launch |
+  | Organization | acme |
+  | Person | alice |
+  | Place | springfield |
+  | Product | widget |
 
-- **Classes**: 8 `owl:Class` — the root `onto:Entity` plus 7 `class:*` kinds (`entity`,
-  `event`, `infrastructure`, `location`, `organization`, `person`, `policy`). `class:entity`
-  carries the sources that report no kind (the validator's `Entity` default).
-- **Properties**: 39 `relation:*` object properties, 38 `fact:*` datatype properties (each with an `rdfs:label`).
-- **Patterns**: 84 pattern records derived from the instance view.
-- **Sources**: 5 `.md` briefs (global risk; US–China–EU semiconductors; critical minerals;
-  Russia–Ukraine sanctions; NATO posture and burden sharing).
+- **Classes**: 7 `owl:Class` — the root `onto:Entity` plus 6 `class:*` kinds
+  (`action`, `event`, `organization`, `person`, `place`, `product`). These are
+  the neutral building blocks the example starts from.
+- **Properties**: 4 `relation:*` object properties (`employs`, `located-in`,
+  `participates-in`, `produces`), 2 `fact:*` datatype properties (`founded`,
+  `name`), each with an `rdfs:label`.
+- **Patterns**: 6 pattern records derived from the instance view.
+- **Sources**: none. The repository no longer ships topic-specific sample
+  briefs; `ontology.ttl` is a small, neutral example that can be regenerated
+  from any text.
 
-> Note: a handful of repository-graph tests (`test_graph_partition.RepositoryGraphTest`,
-> `test_graph_skeleton.RepositoryGraphTest`, parts of `test_graph_patterns`) still pin the
-> *previous* snapshot's numbers (169/43/120/6 triples and 17 patterns) and currently fail
-> against this grown graph. They are data-snapshot assertions, not logic failures; re-run the
-> pipeline snapshot numbers or update the pinned values to make them green again.
+> Note: the repository-graph tests that read `ontology.ttl`
+> (`test_graph_partition.RepositoryGraphTest`,
+> `test_graph_skeleton.RepositoryGraphTest`, parts of `test_graph_patterns`)
+> assert only that it parses and is left untouched, not fixed sizes. The exact
+> partition, skeleton, and pattern numbers are pinned on the frozen miniature
+> in `tests/fixtures/miniature_repository.ttl`.
 
 ---
 
@@ -1175,7 +1175,7 @@ smaller wins.
 | `test_candidate_validation.py` | result/issue/count field sets; container errors; record + field shape; id grammar and no type coercion; NFKC/line-ending/control/whitespace normalization; description internal whitespace; date/number strings not coerced; kind defaulting; alias normalization/dedup; literal types and the typed duplicate key; NaN/inf/collection rejection; empty/`unnamed`/URI-looking predicates; deterministic issue order; invalid result exposes no candidates; input immutability; `existing_id` allowed/present/kind-match rules; duplicate ids and existing ids; unknown references; relation/fact duplicates and kept+removed paths; graph-exact duplicates only with explicit ids; no `identify_entity` import; relation/fact/kind role and type collisions; compatible pre-existing properties; slug-colliding label pairs; new predicates accepted; non-contradiction of differing values; determinism across insertion order; graph immutability; `format_validation_failure`; **07**: required numeric confidence in `[0,1]`, missing/invalid confidence codes, duplicate-confidence warnings keeping the lower value, graph-exact candidates kept for policy corroboration |
 | `test_merge_policy.py` | canonical JSON + record digests; provenance fields; identity decisions (explicit id, exact name/alias, planned exact, ambiguous exact review, kind collision review, close-spelling review-only suggestions, below-threshold provisional URI); URI reservation so two new entities cannot collide; assertion outcomes accept/duplicate/review with reason codes; exact-triple corroboration without re-adding; functional / inverse-functional conflict review; existing labels/descriptions never overwritten; alias claimed by another same-kind entity routes only that alias to review; audit vocabulary (`ExtractionEvent`, `MergeCandidate`, reified assertions, `rdf:JSON` normalized candidate, decimal confidence); event/candidate URI determinism across reruns; no timestamps or raw source/prompt/response in the graph; counts and diagnostics; read-only planning |
 | `test_graph_management.py` | seed structure (isomorphic, 8 triples); no reseed on existing; prefix bindings; save/reload round-trip; **07**: atomic save via temp sibling + `os.replace`; failed serialization leaves the old file byte-identical and no stale temp file |
-| `test_graph_partition.py` | role classification per triple; restrictions; remainder; dual-role; lossless+disjoint+read-only invariants; repo-graph snapshot sizes (pinned values currently behind the grown graph — see §12) |
+| `test_graph_partition.py` | role classification per triple; restrictions; remainder; dual-role; lossless+disjoint+read-only invariants; the repository graph parses and is left untouched (exact sizes are pinned on the frozen miniature, see §12) |
 | `test_graph_skeleton.py` | core retention; exclusion of instances/support; supported vs unsupported restrictions; no inference; skeleton ⊆ input |
 | `test_graph_patterns.py` | class/literal/unknown ranges; counting; coverage/cardinality; most-specific class; exclusions; deterministic ordering; read-only |
 

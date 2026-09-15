@@ -22,7 +22,7 @@ import unicodedata
 
 
 # One word is one run of word characters. Splitting on every other character
-# lets "supply-chain" meet the label "supply chain", and lets a label meet
+# lets "widget-part" meet the label "widget part", and lets a label meet
 # "Forum's" without the possessive attached.
 WORD = re.compile(r"\w+", re.UNICODE)
 

@@ -9,11 +9,11 @@ from text_to_ontology.source_parse import make_prompt, parse_prompt, parse_sourc
 
 
 CONTEXT = """RELEVANT DECLARED ONTOLOGY
-- [class] Policy is a kind of Entity.
-- [object property] waives sanctions on: domain Policy; range Location.
+- [class] Event is a kind of Entity.
+- [object property] participates in: domain Event; range Place.
 
 OBSERVED USAGE — EVIDENCE, NOT AN ONTOLOGY RULE
-- Policy --waives sanctions on--> Location
+- Event --participates in--> Place
   occurrences=1; subjects=1/1; cardinality=1/1/1
 
 RELEVANT EXISTING RESOURCES
@@ -24,9 +24,9 @@ RELEVANT EXISTING RESOURCES
   uri: http://example.com/other/widget1 (existing resource; not usable as existing_id)
 
 REPRESENTATIVE CURRENT ASSERTIONS
-- Acme Corp --waives sanctions on--> Russia"""
+- Acme Corp --participates in--> Springfield"""
 
-SOURCE = "Acme Corp waives sanctions on Russia."
+SOURCE = "Acme Corp participates in Springfield."
 
 
 class ContextTest(unittest.TestCase):

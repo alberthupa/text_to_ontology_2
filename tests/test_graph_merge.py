@@ -31,7 +31,7 @@ class LabelTest(unittest.TestCase):
     def test_code_like_names_become_readable(self):
         self.assertEqual(label("worksFor"), "works For")
         self.assertEqual(label("birth_date"), "birth date")
-        self.assertEqual(label("supply-chain"), "supply chain")
+        self.assertEqual(label("widget-part"), "widget part")
 
 
 class NewEntityUriTest(unittest.TestCase):

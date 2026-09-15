@@ -156,7 +156,7 @@ class LongArticleTest(unittest.TestCase):
             covered_offsets(windows), set(range(len(document.text)))
         )
         joined = "".join(window.text for window in windows)
-        self.assertIn("Under Destruction", joined)
+        self.assertIn("The Widget Launch", joined)
         self.assertIn("Key Points", joined)
 
 

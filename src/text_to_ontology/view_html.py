@@ -514,19 +514,19 @@ def head_section(report):
   <div class="grid five">{cards}</div>
   <h3>A triple is one statement</h3>
   <p>RDF has exactly one kind of sentence: <b>subject → predicate → object</b>.
-  “Taiwan” “pursues” “porcupine strategy” is one triple. So is “Taiwan”
-  “prefLabel” “Taiwan”. A graph is nothing but a pile of such statements, and
+  “Acme” “employs” “Alice” is one triple. So is “Acme”
+  “prefLabel” “Acme”. A graph is nothing but a pile of such statements, and
   every count on this page is a count of statements.</p>
-  <pre>entity:taiwan   relation:pursues   entity:porcupine-strategy   ← subject, predicate, object (a link)
-entity:taiwan   skos:prefLabel     "Taiwan"                    ← subject, predicate, object (a value)</pre>
+  <pre>entity:acme     relation:employs   entity:alice                ← subject, predicate, object (a link)
+entity:acme     skos:prefLabel     "Acme"                      ← subject, predicate, object (a value)</pre>
   <p>An object is either another <b>resource</b> (identified by a URI, so the
   statement is a link) or a <b>literal</b> (a plain value such as a string or a
   date, so the statement is a fact). A third form, the <b>blank node</b>, is an
   anonymous helper resource used to express something that needs several parts
   at once, such as an OWL restriction.</p>
   <div class="note"><b>Prefixes.</b> URIs are long, so they are abbreviated:
-  <code>entity:taiwan</code> stands for
-  <code>http://example.org/text-ontology/entity/taiwan</code>. The prefix is
+  <code>entity:acme</code> stands for
+  <code>http://example.org/text-ontology/entity/acme</code>. The prefix is
   only a display shortcut; the full URI is the real identifier.</div>
 </section>"""
 
@@ -676,7 +676,7 @@ def partitions_section(report):
     <button class="on instance" onclick="toggleView(this, 'instance')">instance</button>
     <button class="on support" onclick="toggleView(this, 'support')">support</button>
     <label>search
-      <input type="search" id="t-search" placeholder="taiwan, subClassOf, …"
+      <input type="search" id="t-search" placeholder="acme, subClassOf, …"
              oninput="tripleShown = 300; renderTriples()"></label>
     <span class="count" id="t-count"></span>
   </div>
@@ -748,7 +748,7 @@ def skeleton_section(report):
   a weaker rule than it is, so it is dropped instead. {restriction_note}</div>
   <div class="controls">
     <label>search
-      <input type="search" id="s-search" placeholder="location, pursues, …"
+      <input type="search" id="s-search" placeholder="place, employs, …"
              oninput="renderSkeleton()"></label>
     <label>show
       <select id="s-kind" onchange="renderSkeleton()">
@@ -1115,7 +1115,7 @@ def glossary_section(report):
         ("blank node", "An anonymous resource used to hold a multi-part "
                        "expression, such as an OWL restriction. It has no URI "
                        "and cannot be referred to from outside."),
-        ("prefix", "A display shortcut for a namespace: <code>entity:taiwan</code> "
+        ("prefix", "A display shortcut for a namespace: <code>entity:acme</code> "
                    "for the full URI."),
         ("class", "A kind of thing, declared with <code>owl:Class</code>. "
                   "Individuals are members of it."),

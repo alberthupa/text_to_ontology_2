@@ -336,7 +336,7 @@
           <text x="400" y="478" fill="#93a2bf" font-size="11.5">decide read-only → materialize into a graph copy</text>
 
           <rect x="380" y="516" width="360" height="50" rx="10" fill="#16283a" stroke="#7ee0c0" stroke-width="2"/>
-          <text x="400" y="538" fill="#7ee0c0" font-size="13.5" font-weight="bold">ontology.ttl (685 triples)</text>
+          <text x="400" y="538" fill="#7ee0c0" font-size="13.5" font-weight="bold">ontology.ttl (82 triples)</text>
           <text x="400" y="557" fill="#93a2bf" font-size="11.5">graph_management.save_graph() — atomic, after each file</text>
 
           <!-- main arrows -->
@@ -652,48 +652,41 @@
   <!-- 6. GRAPH CONTENT -->
   <section id="data">
     <h2><span class="num">6</span> What's actually in the graph today</h2>
-    <p class="lead">Current <code>ontology.ttl</code> state, parsed straight from the file: <b>685 triples</b> → schema 177 · instance 502 · support 6 (ontology + EntityShape).</p>
+    <p class="lead">Current <code>ontology.ttl</code> state, parsed straight from the file: <b>82 triples</b> → schema 44 · instance 31 · support 7 (ontology + EntityShape).</p>
 
     <div class="two-col">
       <div class="card">
-        <h3><span class="badge data">entities</span> 45 individuals · 7 kinds</h3>
+        <h3><span class="badge data">entities</span> 5 individuals · 5 kinds</h3>
         <table>
           <tr><th>kind</th><th>count</th><th>members</th></tr>
-          <tr><td class="mono">Entity*</td><td class="mono">12</td><td class="mono">Advanced chips, Defense manufacturing, Electric vehicles, Emerging military technologies, Energy markets, Energy transition, Long-range strike capacity, Maritime security, NATO burden sharing, Rare earths, Renewable energy systems, WEF 2026 global risks work (no kind reported)</td></tr>
-          <tr><td class="mono">Location</td><td class="mono">11</td><td class="mono">Canada, China, East Asia, Europe, Iran, Middle East, Paris, Russia, Strait of Hormuz, Ukraine, United States</td></tr>
-          <tr><td class="mono">Event</td><td class="mono">8</td><td class="mono">Russia-Ukraine war, Orthodox Easter ceasefire, Trump-Xi summit, Nvidia GPU routing attempts, energy shock, …</td></tr>
-          <tr><td class="mono">Policy</td><td class="mono">6</td><td class="mono">Allied Hormuz maritime-security commitments, Chinese export controls, NATO 2% target, US export restrictions, …</td></tr>
-          <tr><td class="mono">Organization</td><td class="mono">4</td><td class="mono">European Union, NATO, Nvidia, World Economic Forum</td></tr>
-          <tr><td class="mono">Person</td><td class="mono">3</td><td class="mono">Donald Trump, Kirill Dmitriev, Xi Jinping</td></tr>
-          <tr><td class="mono">Infrastructure</td><td class="mono">1</td><td class="mono">Russian refining capacity</td></tr>
+          <tr><td class="mono">Event</td><td class="mono">1</td><td class="mono">Widget Launch</td></tr>
+          <tr><td class="mono">Organization</td><td class="mono">1</td><td class="mono">Acme</td></tr>
+          <tr><td class="mono">Person</td><td class="mono">1</td><td class="mono">Alice</td></tr>
+          <tr><td class="mono">Place</td><td class="mono">1</td><td class="mono">Springfield</td></tr>
+          <tr><td class="mono">Product</td><td class="mono">1</td><td class="mono">Widget</td></tr>
         </table>
       </div>
 
       <div class="card">
         <h3><span class="badge data">vocabulary</span> derived properties</h3>
-        <p class="what">39 object properties (<code>relation:*</code>) and 38 datatype properties (<code>fact:*</code>), each auto-declared with a label. 8 <code>owl:Class</code>es (<code>onto:Entity</code> + 7 kinds). 84 observed usage patterns.</p>
-        <span class="tag">relations (sample)</span>
+        <p class="what">4 object properties (<code>relation:*</code>) and 2 datatype properties (<code>fact:*</code>), each auto-declared with a label. 7 <code>owl:Class</code>es (<code>onto:Entity</code> + 6 kinds). 6 observed usage patterns.</p>
+        <span class="tag">relations</span>
         <div class="chips" style="margin:6px 0 12px;">
-          <span class="chip">affects</span><span class="chip">competes-with</span><span class="chip">coordinates-with</span>
-          <span class="chip">depends-on</span><span class="chip">imposes</span><span class="chip">introduced</span>
-          <span class="chip">restricts-chip-exports-to</span><span class="chip">visited</span>
-          <span class="chip">waives-sanctions-on</span><span class="chip">planned-summit-with</span>
+          <span class="chip">employs</span><span class="chip">located-in</span>
+          <span class="chip">participates-in</span><span class="chip">produces</span>
         </div>
-        <span class="tag">facts (sample)</span>
+        <span class="tag">facts</span>
         <div class="chips" style="margin-top:6px;">
-          <span class="chip">affects</span><span class="chip">shapes</span><span class="chip">ranks</span>
-          <span class="chip">introduced-date</span><span class="chip">scheduled-expiry-date</span>
-          <span class="chip">settlement-position</span><span class="chip">expiration-date</span>
-          <span class="chip">top-near-term-risk</span>
+          <span class="chip">founded</span><span class="chip">name</span>
         </div>
       </div>
     </div>
 
     <div class="callout">
-      <b>The domain.</b> The five ingested briefs (global risk, US–China–EU semiconductors,
-      critical minerals, Russia–Ukraine sanctions, NATO posture) produce a geopolitical-risk
-      ontology: countries, leaders, alliances, and policies connected by <code>relation:*</code>
-      edges and annotated with <code>fact:*</code> strings and dates.
+      <b>The vocabulary.</b> The example uses only neutral schema.org building blocks —
+      Event, Organization, Person, Place, Product, and Action — connected by
+      <code>relation:*</code> edges and annotated with <code>fact:*</code> values and dates.
+      Any text can grow the same graph.
     </div>
   </section>
 
@@ -744,11 +737,10 @@
 ├── <span class="py">graph_partition.py</span>          <span class="comment"># [read-only] schema / instance / support</span>
 ├── <span class="py">graph_skeleton.py</span>           <span class="comment"># [read-only] structural core</span>
 ├── <span class="py">graph_patterns.py</span>           <span class="comment"># [read-only] empirical patterns</span>
-├── <span class="data">ontology.ttl</span>                <span class="comment"># the output graph (685 triples)</span>
+├── <span class="data">ontology.ttl</span>                <span class="comment"># the output graph (82 triples)</span>
 ├── <span class="txt">requirements.txt</span>             <span class="comment"># rdflib&gt;=7,&lt;8</span>
 ├── <span class="txt">.env</span>                        <span class="comment"># OPENROUTER_API_KEY / OPENROUTER_MODEL</span>
 ├── <span class="txt">README.md</span> / <span class="txt">next_steps.md</span>      <span class="comment"># notes &amp; roadmap</span>
-├── <span class="dir">sources/</span>                    <span class="comment"># 5 geopolitical briefs (.md)</span>
 └── <span class="dir">tests/</span>
     ├── <span class="test">test_pipeline.py</span>
     ├── <span class="test">test_ingest_sources.py</span>
