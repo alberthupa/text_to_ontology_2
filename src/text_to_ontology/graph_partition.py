@@ -24,6 +24,11 @@ AUDIT_TYPES = {
     URIRef("http://example.org/text-ontology/MergeCandidate"),
 }
 
+SOURCE_PREDICATES = {
+    URIRef("http://example.org/text-ontology/" + name)
+    for name in ("sourceDocument", "sourceFile", "sourcePath")
+}
+
 # Declaring a resource with one of these types makes it supporting material.
 SUPPORT_TYPES = {OWL.Ontology, SH.NodeShape, SH.PropertyShape}
 
@@ -136,6 +141,8 @@ def choose_view(triple, support_nodes, restrictions, schema_nodes,
     """Name the view one triple belongs to, in decreasing order of certainty."""
     subject, predicate, target = triple
 
+    if predicate in SOURCE_PREDICATES:
+        return "support"
     if subject in support_nodes or target in support_nodes:
         return "support"
     if subject in opaque or target in opaque:

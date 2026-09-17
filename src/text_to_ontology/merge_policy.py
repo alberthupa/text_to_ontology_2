@@ -6,7 +6,7 @@ The planner reads the current graph and the validated candidates and returns a
 complete plain-record merge plan; a separate materializer applies it. Planning
 never calls graph.add(), never serializes, and never mutates its inputs.
 
-Policy version 1 is additive: existing canonical assertions are never replaced,
+The policy is additive: existing canonical assertions are never replaced,
 close spellings never merge automatically, and confidence below
 AUTO_ACCEPT_MIN_CONFIDENCE blocks new domain assertions but not corroboration.
 """
@@ -19,11 +19,11 @@ from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from .entity_lookup import entity_catalog, identity_decision, identity_key
-from .graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
-from .graph_merge import label, slug
+from .graph_management import ENTITY, FACT, ONTO, RELATION
+from .graph_merge import class_triples, class_uri, label, slug
 
 
-MERGE_POLICY_VERSION = 1
+MERGE_POLICY_VERSION = 2
 AUTO_ACCEPT_MIN_CONFIDENCE = 0.80
 
 RDF_JSON = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#JSON")
@@ -213,11 +213,9 @@ class _Planner:
 
     def _plan_new_entity(self, record, uri):
         kind = label(record["kind"] or "Entity")
-        kind_uri = CLASS[slug(kind)]
+        kind_uri = class_uri(kind)
         triples = {
-            (kind_uri, RDF.type, OWL.Class),
-            (kind_uri, RDFS.subClassOf, ONTO.Entity),
-            (kind_uri, RDFS.label, Literal(kind)),
+            *class_triples(kind),
             (uri, RDF.type, ONTO.Entity),
             (uri, RDF.type, OWL.NamedIndividual),
             (uri, RDF.type, SKOS.Concept),

@@ -20,7 +20,7 @@ from text_to_ontology.api import (
 )
 from text_to_ontology.candidate_graph import DQV
 from text_to_ontology.document_publication import PublicationValidationError
-from text_to_ontology.graph_management import FACT, ONTO, RELATION
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
 from text_to_ontology.graph_store import GraphNames, RdflibGraphStore
 from text_to_ontology.run_report import RunReporter
 from text_to_ontology.windowing import make_source_document, plan_windows
@@ -87,6 +87,32 @@ def snapshot(store):
 
 
 class PublicationCountTest(unittest.TestCase):
+    def test_generic_kinds_reuse_root_across_repeated_ingestion(self):
+        for kind in ("Entity", "entity", "ENTITY", None, "", "   "):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                source = root / "notes.txt"
+                source.write_text("A thing exists.", encoding="utf-8")
+                response = package(["A thing"])
+                if kind is None:
+                    del response["entities"][0]["kind"]
+                else:
+                    response["entities"][0]["kind"] = kind
+                store = CountingStore()
+                request = RunRequest(source=source,
+                                     graph_path=root / "dataset.trig")
+                run(request, FakeExtractor(response), store)
+                source.write_text("A thing still exists.", encoding="utf-8")
+                run(request, FakeExtractor(response), store)
+                self.assertEqual(store.publish_calls, 2)
+                target = store.get(GraphNames().target_graph)
+                self.assertEqual(set(target.subjects(RDF.type, ONTO.Entity)),
+                                 {ENTITY["a-thing"]})
+                for triples in snapshot(store).values():
+                    self.assertFalse(any(CLASS["entity"] in t for t in triples))
+                    self.assertNotIn(
+                        (ONTO.Entity, RDFS.subClassOf, ONTO.Entity), triples)
+
     def test_default_api_store_persists_the_named_dataset(self):
         names = GraphNames()
         with tempfile.TemporaryDirectory() as folder:

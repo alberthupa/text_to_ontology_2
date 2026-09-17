@@ -230,6 +230,24 @@ class VocabularyTest(unittest.TestCase):
 class EntityMappingTest(unittest.TestCase):
     """AC3: labels and definitions follow their standard meanings."""
 
+    def test_generic_kind_reuses_root_in_assertions_and_evidence(self):
+        for kind in ("Entity", "entity", "ENTITY"):
+            with self.subTest(kind=kind):
+                package = sample_package()
+                package["entities"][0]["kind"] = kind
+                graph = built(package)
+                iri = provisional_entity_iri("doc-abc123", "e1")
+                self.assertIn((iri, RDF.type, ONTO.Entity), graph)
+                self.assertEqual(set(graph.objects(ONTO.Entity, RDFS.label)),
+                                 {Literal("Entity")})
+                self.assertNotIn(
+                    (ONTO.Entity, RDFS.subClassOf, ONTO.Entity), graph)
+                self.assertFalse(any(CLASS["entity"] in t for t in graph))
+                statements = [s for s in graph.subjects(RDF.subject, iri)
+                              if (s, RDF.predicate, RDF.type) in graph]
+                self.assertTrue(any((s, RDF.object, ONTO.Entity) in graph
+                                    for s in statements))
+
     def test_entity_names_descriptions_and_aliases_use_rdfs_and_skos(self):
         graph = built()
         ada = URIRef(CANDIDATE_BASE + "provisional/doc-abc123/e1")

@@ -9,6 +9,9 @@ from rdflib.namespace import PROV, RDF, RDFS
 from .candidate_graph import CANDIDATE_BASE, provisional_entity_iri
 from .graph_management import seed_graph
 from .graph_partition import partition_graph
+from .publication_sources import (
+    link_statement_sources, materialize_sources, source_records,
+)
 from .graph_store import GraphNames, Publication, RdflibGraphStore
 from .source_validation import embedded_shape_graph, validate_source_graph
 
@@ -122,8 +125,12 @@ def compile_document_publication(document, document_merge, candidate_graphs,
     for triple in merge_plan["domain_triples"]:
         target.add(triple)
 
+    proposed_roles = dict(roles)
+    proposed_roles[names.target_graph] = target
+    proposed_data = canonical_graph(proposed_roles, names)
     evidence = remap_candidate_evidence(
         document, document_merge, candidate_graphs, packages, admission_plans)
+    materialize_sources(evidence, document, document_merge, proposed_data)
     provenance = copy_graph(roles[names.provenance_graph])
     for triple in evidence:
         provenance.add(triple)
@@ -132,9 +139,6 @@ def compile_document_publication(document, document_merge, candidate_graphs,
     for triple in build_review_graph(document, document_merge):
         review.add(triple)
 
-    proposed_roles = dict(roles)
-    proposed_roles[names.target_graph] = target
-    proposed_data = canonical_graph(proposed_roles, names)
     validation = validate_source_graph(
         proposed_data,
         (tuple(validation_shapes) if validation_shapes is not None
@@ -254,6 +258,9 @@ def build_review_graph(document, document_merge):
             graph.add((statement, RDF.predicate, item["triple"][1]))
             graph.add((statement, RDF.object, item["triple"][2]))
             graph.add((resource, PROV.hadMember, statement))
+    if len(graph):
+        document_uri, file_uri = source_records(graph, document)
+        link_statement_sources(graph, document_uri, file_uri)
     return graph
 
 

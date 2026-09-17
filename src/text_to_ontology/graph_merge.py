@@ -20,6 +20,23 @@ def label(text):
     return re.sub(r"[_-]+", " ", text).strip()
 
 
+def class_uri(kind):
+    """Reuse the built-in Entity class for generic or missing kinds."""
+    name = slug((kind or "Entity").strip() or "Entity")
+    return ONTO.Entity if name == "entity" else CLASS[name]
+
+
+def class_triples(kind):
+    """Declare a kind without creating a duplicate root or self-subclass."""
+    uri = class_uri(kind)
+    name = "Entity" if uri == ONTO.Entity else kind
+    triples = [(uri, RDF.type, OWL.Class),
+               (uri, RDFS.label, Literal(name))]
+    if uri != ONTO.Entity:
+        triples.append((uri, RDFS.subClassOf, ONTO.Entity))
+    return triples
+
+
 def new_entity_uri(graph, name):
     stem, number = slug(name), 1
     while True:
@@ -48,10 +65,9 @@ def merge_into_graph(graph, data):
         local_ids[str(entity["id"])] = uri
 
         kind = label(entity.get("kind") or "Entity")
-        kind_uri = CLASS[slug(kind)]
-        graph.add((kind_uri, RDF.type, OWL.Class))
-        graph.add((kind_uri, RDFS.subClassOf, ONTO.Entity))
-        graph.add((kind_uri, RDFS.label, Literal(kind)))
+        kind_uri = class_uri(kind)
+        for triple in class_triples(kind):
+            graph.add(triple)
         graph.add((uri, RDF.type, ONTO.Entity))
         graph.add((uri, RDF.type, OWL.NamedIndividual))
         graph.add((uri, RDF.type, SKOS.Concept))

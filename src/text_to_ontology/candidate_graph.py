@@ -23,16 +23,16 @@ from datetime import date
 from decimal import Decimal
 
 from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import OWL, PROV, RDF, RDFS, SKOS, XSD
+from rdflib.namespace import PROV, RDF, RDFS, SKOS, XSD
 
 # DQV is not bundled with rdflib's namespace module; it is a W3C vocabulary.
 DQV = Namespace("http://www.w3.org/ns/dqv#")
 
-from .graph_management import CLASS, FACT, ONTO, RELATION, bind
-from .graph_merge import slug
+from .graph_management import FACT, RELATION, bind
+from .graph_merge import class_triples, class_uri, slug
 
 # Bumped whenever the mapping rules change meaningfully.
-CANDIDATE_MAPPING_VERSION = 1
+CANDIDATE_MAPPING_VERSION = 2
 
 CANDIDATE_BASE = "http://example.org/text-ontology/"
 PROVISIONAL = Namespace(CANDIDATE_BASE + "provisional/")
@@ -140,11 +140,9 @@ def _declare_provenance_chain(graph, document_id, window_id, activity_id,
 
 def _entity_triples(record, iri):
     """One entity record as RDF: types instead of kind strings, SKOS names."""
-    kind_uri = CLASS[slug(record["kind"])]
+    kind_uri = class_uri(record["kind"])
     triples = [
-        (kind_uri, RDF.type, OWL.Class),
-        (kind_uri, RDFS.subClassOf, ONTO.Entity),
-        (kind_uri, RDFS.label, Literal(record["kind"])),
+        *class_triples(record["kind"]),
         (iri, RDF.type, kind_uri),
         (iri, RDFS.label, Literal(record["name"])),
     ]

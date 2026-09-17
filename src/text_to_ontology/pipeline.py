@@ -420,7 +420,8 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
             blank_files += 1
             continue
 
-        document = make_source_document(path.name, raw_text)
+        document = make_source_document(path.name, raw_text,
+                                        source_path=path.as_posix())
         before_size = len(graph)
         before_snapshot = final_graphs_snapshot(graph)
         staged = _process_document(

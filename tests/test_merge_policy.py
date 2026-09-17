@@ -1023,7 +1023,7 @@ class AuditMetadataTest(unittest.TestCase):
                   for t in self.event_triples() if t[1] != RDF.type}
         self.assertEqual(values["sourcePath"], "sources/notes.md")
         self.assertEqual(values["modelName"], "test-model")
-        self.assertEqual(values["mergePolicyVersion"], "1")
+        self.assertEqual(values["mergePolicyVersion"], "2")
 
     def test_no_raw_source_prompt_context_response_or_secret_is_stored(self):
         secrets = ("sk-secret-key", "OPENROUTER_API_KEY")
@@ -1099,7 +1099,7 @@ class BuildProvenanceTest(unittest.TestCase):
         self.assertEqual(record["source_sha256"],
                          hashlib.sha256(b"the text").hexdigest())
         self.assertEqual(record["model"], "test-model")
-        self.assertEqual(record["policy_version"], 1)
+        self.assertEqual(record["policy_version"], 2)
 
 
 class PartitionAuditTest(unittest.TestCase):

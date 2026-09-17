@@ -201,6 +201,31 @@ represented in the review graph. A validation or publication error leaves all
 final graphs unchanged. Each successful non-empty source document makes exactly
 one atomic publication call.
 
+The provenance graph also contains direct source links:
+
+- Documents are `prov:Entity` resources identified by content, with filenames
+  in `rdfs:label` and `onto:sourceFile` links to file records.
+- File records carry `rdfs:label` (filename) and `onto:sourcePath` (the input
+  path as supplied/discovered). Identical content in different files shares a
+  document but retains separate file records; changed content creates a new
+  document and file-version record.
+- Each published statement has a stable `onto:statement/<hash>` resource,
+  typed `rdf:Statement` and `prov:Entity`, with `rdf:subject`, `rdf:predicate`,
+  and `rdf:object`. Its `prov:wasDerivedFrom` and `onto:sourceFile` values
+  accumulate supporting documents and files across runs.
+- Domain instances, classes, and properties carry `onto:sourceDocument` and
+  `onto:sourceFile` summaries. These custom properties mean that information
+  about the resource was supported by the linked source; they do not mean
+  that every assertion about it came from every listed file.
+
+Only accepted statements and corroborating duplicates contribute to these
+published summaries. Extraction and review statement records retain their own
+direct source links, including for withheld claims. Application-supplied root
+class declarations are excluded from document-source summaries. All source
+metadata stays in the provenance/review graphs in the same TriG file, and is
+classified as support metadata by the viewer. Existing datasets gain these
+links as documents are processed; old files are not automatically backfilled.
+
 ## Files
 
 All importable code lives in the `text_to_ontology` package under `src/`.
@@ -238,6 +263,8 @@ The pipeline that runs when you invoke the program:
   package and one canonical identity/merge planning pass
 - `src/text_to_ontology/document_publication.py` — proposed-data validation,
   PROV/DQV remapping, review material, dry-run plan, and atomic publication
+- `src/text_to_ontology/publication_sources.py` — document/file metadata and
+  source summaries for published statements, instances, classes, and predicates
 - `src/text_to_ontology/windowing.py` — stable documents and reproducible
   overlapping text windows
 - `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and

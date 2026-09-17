@@ -94,7 +94,9 @@ class NewEntityTest(unittest.TestCase):
         ]})
         uri = ENTITY["nameless-thing"]
         self.assertEqual(graph.value(uri, ONTO.kind), Literal("Entity"))
-        self.assertIn((uri, RDF.type, CLASS["entity"]), graph)
+        self.assertIn((uri, RDF.type, ONTO.Entity), graph)
+        self.assertFalse(any(CLASS["entity"] in triple for triple in graph))
+        self.assertNotIn((ONTO.Entity, RDFS.subClassOf, ONTO.Entity), graph)
 
 
 class EnrichExistingTest(unittest.TestCase):

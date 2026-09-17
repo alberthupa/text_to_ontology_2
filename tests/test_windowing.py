@@ -52,6 +52,8 @@ class SourceDocumentTest(unittest.TestCase):
     def test_load_reads_a_fixture_from_disk(self):
         document = load_source_document(FIXTURES / "unicode.txt")
         self.assertIn("naïve façade", document.text)
+        self.assertEqual(document.source_path,
+                         (FIXTURES / "unicode.txt").as_posix())
 
 
 class ShortDocumentTest(unittest.TestCase):

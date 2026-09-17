@@ -59,6 +59,16 @@ def issue_codes(result, severity=None):
 class ResultShapeTest(unittest.TestCase):
     """6A.3: the result, issue, and counts field sets are pinned."""
 
+    def test_generic_kind_checks_the_canonical_root_uri_for_collisions(self):
+        graph = Graph()
+        graph.add((ONTO.Entity, RDF.type, OWL.ObjectProperty))
+        result = validate_candidates({
+            "entities": [entity("e1", "A thing", kind="Entity")],
+            "relations": [], "facts": [],
+        }, graph)
+        self.assertFalse(result["valid"])
+        self.assertIn("kind.role_collision", issue_codes(result))
+
     def test_valid_result_has_exactly_the_agreed_fields(self):
         result = validate_candidates(dict(VALID_PACKAGE), Graph())
         self.assertEqual(set(result), RESULT_FIELDS)

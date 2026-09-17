@@ -55,6 +55,7 @@ class SourceDocument:
     text: str
     media_type: str
     digest: str
+    source_path: str = ""
 
 
 @dataclass
@@ -95,7 +96,7 @@ def media_type_for(path):
     return MEDIA_TYPES.get(Path(path).suffix.lower(), "text/plain")
 
 
-def make_source_document(name, raw_text, media_type="text/plain"):
+def make_source_document(name, raw_text, media_type="text/plain", source_path=""):
     """Build a document from already-read text; the ID comes from content."""
     text = normalize_text(raw_text)
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -105,6 +106,7 @@ def make_source_document(name, raw_text, media_type="text/plain"):
         text=text,
         media_type=media_type,
         digest=digest,
+        source_path=source_path,
     )
 
 
@@ -115,6 +117,7 @@ def load_source_document(path):
         name=path.name,
         raw_text=path.read_text(encoding="utf-8", errors="replace"),
         media_type=media_type_for(path),
+        source_path=path.as_posix(),
     )
 
 

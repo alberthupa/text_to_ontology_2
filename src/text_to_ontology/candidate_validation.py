@@ -19,8 +19,8 @@ import unicodedata
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from .entity_lookup import entity_catalog, identity_key
-from .graph_management import CLASS, FACT, ONTO, RELATION
-from .graph_merge import label, slug
+from .graph_management import FACT, ONTO, RELATION
+from .graph_merge import class_uri, label, slug
 
 
 LOCAL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
@@ -603,7 +603,7 @@ def _check_graph_compatibility(entities, relations, facts, graph, state):
     seen_kinds = set()
     for entity in entities:
         kind = entity["kind"]
-        uri = CLASS[slug(kind)]
+        uri = class_uri(kind)
         if uri in seen_kinds:
             continue
         seen_kinds.add(uri)
