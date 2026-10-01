@@ -4,60 +4,55 @@
 > Target audience: another AI/LLM agent that must navigate, modify, or extend this codebase.
 > All facts below are taken directly from the files; function signatures are quoted verbatim.
 
-## M7 current-source update (2026-08-24)
+## Current pipeline (post-M7, windowed document publication)
 
-Final publication is now document-scoped and dataset-native:
+The executable is the packaged CLI; the root scripts `ontology.py` and
+`view_ontology.py` are thin compatibility wrappers that add `src/` to
+`sys.path` and delegate to `text_to_ontology.cli:main` and
+`text_to_ontology.view_ontology:main`.
 
-1. `document_merge.build_document_candidates(...)` collapses overlap records
-   into one complete-document package while retaining the original window
-   candidate graphs as independent evidence.
-2. `document_merge.plan_document_merge(...)` calls the existing safe merge
-   policy exactly once against the union of configured schema, target, and data
-   graphs. Its report maps every source-local IRI to an existing/new/review
-   decision with reason codes.
-3. `document_publication.compile_document_publication(...)` remaps RDF
-   reification and DQV measurements onto the decided canonical statements,
-   builds target/provenance/review replacements, and SHACL-validates the
-   proposed canonical data without mutating the store.
-4. `document_publication.publish_document(...)` makes the one final
-   `store.publish(Publication(...))` call for that source document. Dry-run
-   returns the same plan and validation but skips this call.
+One source file is one *document* with a content-derived ID
+(`doc-<sha256 of normalized text, 16 hex>`). A long document is split into
+reproducible overlapping text windows; a short one stays a single whole-text
+window. The pipeline is fully document-scoped:
 
-The default API/CLI store is `RdflibGraphStore` persisted as TriG; graph roles
-come from `GraphNames`. A `.ttl` CLI output explicitly selects
+1. **Windowing** (`windowing.py`) — splits the document into windows and
+   packs them, preferring block/sentence boundaries, with overlap.
+2. **Source staging** (`source_staging.py`) — one provisional *source staging
+   graph* per document plus one *candidate graph per window*, held in a
+   throwaway `RdflibGraphStore`. Nothing canonical may change while a
+   document's windows are processed (a triple-level snapshot is verified after
+   every window).
+3. **Per-window extraction** (`pipeline._extract_window`) — context is
+   selected from the final ontology *and* from the staging graph (marked
+   `(this document)`), the prompt goes to the LLM, a messy answer is sent back
+   for bounded self-repair (`repair.py`), and the answer must pass
+   `candidate_validation` every time.
+4. **Window admission** (`pipeline._admit_window`) — the validated package is
+   planned against the source staging graph only (provisional IRIs, never
+   canonical identities) and admitted into the staging graph; the candidate RDF
+   is kept alongside as evidence.
+5. **Reconciliation** (`source_reconciliation.py`) — one plain report for the
+   complete source graph: local entities, aliases, overlap duplicates with
+   their independent PROV/DQV supports, unresolved identities, conflicts.
+6. **Source validation** (`source_validation.py`) — pySHACL over the complete
+   source graph with combined configured shapes. Non-conformance raises
+   `SourceValidationError`; the final ontology is untouched.
+7. **Document merge** (`document_merge.py`) — window packages are collapsed
+   into one deduplicated document package and canonical identity is decided
+   **once** against the full configured canonical scope (schema + data
+   graphs), via the same read-only `plan_graph_merge` policy.
+8. **Publication** (`document_publication.py`) — PROV/DQV evidence is remapped
+   onto the decided canonical statements, document/file source records are
+   materialized, the proposed post-merge data is SHACL-validated, and target /
+   provenance / review graphs are replaced in **one atomic**
+   `store.publish(Publication(...))` call. `dry_run` returns the same plan
+   without the call.
+
+The default store is `RdflibGraphStore` persisted as TriG; graph roles come
+from `GraphNames`. A `.ttl` output path explicitly selects
 `LegacyTurtleDatasetStore`, which runs the same named-graph orchestration and
-atomically exports the role union for compatibility. The default command output
-is now `ontology.trig`.
-
-`RunRequest` includes `graph_names` and `dry_run`. Each `DocumentResult` includes
-the publication plan and proposed-data SHACL result. `RunResult.dry_run` states
-whether the returned final size is proposed rather than persisted.
-
----
-
-## M6 current-source update (2026-08-24)
-
-The active pipeline now has two complete-document gates between window
-admission and the existing final merge planner:
-
-1. `source_reconciliation.reconcile_document(...)` reads the completed source
-   graph, its window candidate graphs, and local admission plans. It returns a
-   plain report covering local entities, aliases, overlap duplicates with every
-   independent PROV/DQV support, unresolved identities, and conflicts.
-2. `source_validation.validate_source_graph(...)` combines every configured
-   SHACL graph and runs pySHACL once against the complete source graph. With no
-   explicit `ValidationConfig.shape_graphs`, shapes embedded in the legacy
-   Turtle graph are copied into the validation input.
-
-Only a conformant source reaches document-level final planning. Non-conformance raises
-`SourceValidationError`, whose standard SHACL report, reconciliation report,
-and deterministic source artifact remain inspectable. The artifact contains
-canonical N-Triples plus the document digest, window-strategy version,
-candidate-mapping version, extractor identities, and graph digest.
-
-`RunRequest` now includes `ValidationConfig`; successful `RunResult.documents`
-contains one `DocumentResult` per non-blank source. M7 supersedes the interim
-per-window final publication described by older sections below.
+atomically exports the role union for compatibility.
 
 ---
 
@@ -65,21 +60,25 @@ per-window final publication described by older sections below.
 
 Reads text files (or a directory of text-like files), asks an LLM to extract
 **entities**, **relations**, and literal **facts**, and publishes them into a
-named-graph RDF dataset (`ontology.trig` by default). Re-running against the
-same dataset adds knowledge; entity resolution prevents duplicates.
+named-graph RDF dataset (`ontology.trig` by default: schema, shapes, target
+data, provenance, and review graphs). Re-running against the same dataset adds
+knowledge; identity resolution runs document-scoped and prevents duplicates.
 
-The codebase has three layers:
+The codebase has three applied layers plus the packaged viewer:
 
-1. **Write pipeline** — actually executed by `ontology.py`; builds the graph.
-2. **Read-only derivation layer** — three modules that generalize an existing graph
-   (`graph_partition`, `graph_skeleton`, `graph_patterns`). Since proposal 05 phase
-   5D these are reached by the pipeline, through the façade in §5.4.
-3. **Context selection layer** (proposal 05) — five modules that pick, render, and
-   budget the part of the current graph one source text needs, and put that in the
-   extraction prompt. Nothing in this layer writes to the graph.
+1. **Write pipeline** — package modules that build and publish the dataset.
+2. **Context selection layer** — modules that pick, render, and budget the part
+   of the graph one source text needs, and put that into the extraction prompt.
+   Nothing in this layer writes to the graph.
+3. **Read-only derivation layer** — modules that generalize an existing graph
+   (`graph_partition`, `graph_skeleton`, `graph_patterns`, plus the
+   `ontology_views` façade) used by the context layer and the viewer.
+4. **Viewer** — `view_ontology` / `view_report` / `view_html` render the same
+   read-only views to the terminal or one self-contained HTML page.
 
-The prompt no longer carries the whole entity catalog or every property label. It
-carries a per-source selection, capped by a token ceiling (§10).
+The prompt no longer carries the whole entity catalog or every property label.
+It carries a layered selection (canonical + `(this document)` source-local)
+capped by a token ceiling (§10).
 
 ---
 
@@ -87,977 +86,736 @@ carries a per-source selection, capped by a token ceiling (§10).
 
 ```
 text_to_ontology_2/
-├── ontology.py              # entry point: CLI + run loop
-├── ingest_sources.py        # source discovery + reading
-├── source_parse.py          # prompt builder
-├── candidate_validation.py  # [read-only] validate + normalize candidates before merge
-├── merge_policy.py          # [read-only] identity/acceptance/conflict planning + provenance
-├── llm.py                   # OpenRouter HTTP client (stdlib only)
-├── entity_lookup.py         # entity resolution (local fallback)
-├── graph_merge.py           # write parsed results into graph
-├── graph_management.py      # open / seed / bind / save graph; owns namespaces
-├── graph_partition.py       # [read-only] split graph into schema/instance/support
-├── graph_skeleton.py        # [read-only] compact declared structural core
-├── graph_patterns.py        # [read-only] empirical usage patterns
-├── ontology_views.py        # [read-only] façade: the five derived views as one record
-├── source_concepts.py       # [read-only] what one text mentions (no RDF, no LLM)
-├── task_context.py          # [read-only] select the context one source needs
-├── context_render.py        # [read-only] render + assemble + budget that context
-├── prompt_budget.py         # [read-only] token estimate, allowance, packing
-├── ontology.trig            # output named-graph dataset (data, not code)
-├── requirements.txt         # rdflib>=7,<8
-├── .env                     # OPENROUTER_API_KEY, OPENROUTER_MODEL
-├── README.md / next_steps.md# notes (not architecture source)
-└── tests/                   # one unittest file per module + pipeline
-    ├── test_pipeline.py
-    ├── test_ingest_sources.py
-    ├── test_source_parse.py
-    ├── test_candidate_validation.py
-    ├── test_merge_policy.py
-    ├── test_entity_lookup.py
-    ├── test_graph_merge.py
-    ├── test_graph_management.py
-    ├── test_graph_partition.py
-    ├── test_graph_skeleton.py
-    ├── test_graph_patterns.py
-    ├── test_ontology_views.py
-    ├── test_source_concepts.py
-    ├── test_task_context.py
-    ├── test_context_render.py
-    └── test_prompt_budget.py
+├── pyproject.toml              # package metadata + deps (rdflib, pyshacl)
+├── uv.lock                     # locked dependency versions
+├── ontology.py                 # compatibility wrapper → text_to_ontology.cli
+├── view_ontology.py            # compatibility wrapper → text_to_ontology.view_ontology
+├── trig_to_ttl.py              # export the data graph of a .trig file as .ttl
+├── ontology.trig               # default named-graph dataset (data, not code)
+├── ontology.ttl                # legacy Turtle export of the data graph
+├── reports/runs/               # --report Markdown output (git-ignored)
+├── docs/                       # this map + app_map.html + data_flow.html
+├── src/text_to_ontology/       # the importable package (35 .py files)
+└── tests/                      # unittest: one file per module + pipeline
+    ├── store_contract.py       # shared GraphStore contract test base
+    ├── fixtures/
+    │   ├── miniature_repository.ttl   # frozen graph for partition/skeleton/pattern pins
+    │   ├── documents/                 # windowing fixtures (crlf, long, unicode, …)
+    │   └── shacl/                     # SHACL shape fixtures for source validation
+    └── test_*.py               # 31 test modules
 ```
 
-Dependency: only `rdflib` (`requirements.txt`: `rdflib>=7,<8`).
+Dependency: `rdflib>=7,<8` and `pyshacl>=0.30,<1` (pyproject.toml), Python 3.12+.
 
 ---
 
-## 3. Entry point — `ontology.py`
+## 3. Entry point — `cli.py` → `api.py` → `pipeline.py`
 
-### 3.1 Imports
-
-- stdlib: `argparse`, `sys`, `time`, `pathlib.Path`
-- project:
-  - `candidate_validation.format_validation_failure, validate_candidates`
-  - `context_render.prepare_prompt_context`
-  - `graph_management.open_graph, save_graph`
-  - `graph_merge.merge_into_graph`
-  - `ingest_sources.find_text_files, read_source`
-  - `llm.model_name`
-  - `prompt_budget.PROMPT_BUDGET, estimate_tokens`
-  - `source_parse.parse_source`
-  - `task_context.build_task_context`
-
-Two module-level helpers keep `main()` short:
-
-- `budget_for(text)` → `dict(PROMPT_BUDGET, source_tokens=estimate_tokens(text))`
-- `report_context(budget)` → prints items kept, `used/budget` tokens, items dropped
-- `report_validation(validation)` → prints normalized entity/relation/fact counts and the
-  number of duplicates removed
-
-### 3.2 `main()` — control flow
+### 3.1 `cli.py`
 
 ```
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", type=Path, help="a text file or directory")
-    parser.add_argument("graph", type=Path, nargs="?", default=Path("ontology.ttl"))
-    args = parser.parse_args()
-
-    graph  = open_graph(args.graph)
-    files  = find_text_files(args.source, args.graph)
-    if not files:
-        raise RuntimeError("No text-like files found")
-
-    args.graph.parent.mkdir(parents=True, exist_ok=True)
-    for path in files:
-        print(f"Reading {path}", flush=True)
-        text = read_source(path)
-        if not text.strip():
-            continue                          # blank files skipped BEFORE any work
-        # Read only, and rebuilt for every file.
-        context = build_task_context(text, graph)
-        prompt_context = prepare_prompt_context(context, budget_for(text))
-        report_context(prompt_context["budget"])
-        model = model_name()
-        print(f"  Asking {model} (this can take a minute)...", flush=True)
-        started = time.monotonic()
-        extraction = parse_source(text, prompt_context["text"])   # LLM call
-        print(f"  Model replied in {time.monotonic() - started:.1f} seconds", flush=True)
-        validation = validate_candidates(extraction, graph,
-                                         prompt_context["existing_ids"])  # read only
-        report_validation(validation)
-        if not validation["valid"]:
-            raise RuntimeError(format_validation_failure(validation))
-        provenance = build_provenance(path, text, model)
-        plan = plan_graph_merge(graph, validation["candidates"],
-                                provenance)      # read only
-        report_plan(plan)
-        updated, counts = apply_merge_plan(graph, plan)   # graph copy
-        save_graph(updated, args.graph)          # atomic, AFTER EACH FILE
-        graph = updated                          # only after a successful save
-        print(f"  {counts['new_entities']} new, "
-              f"{counts['resolved_entities']} resolved, "
-              f"{counts['relation_triples']} relations, "
-              f"{counts['fact_triples']} facts")
-    print(f"Saved {len(graph)} triples to {args.graph}")
+def build_parser():   # argparse; source (required), graph (default ontology.trig),
+                      # -v/--verbose, --report, --dry-run
+def main(argv=None):  # builds adapters, calls run_text_to_graph, exit code 1 on
+                      # RuntimeError/OSError (printed to stderr)
 ```
 
-### 3.3 Entry guard / error handling
+- `graph` default: `Path("ontology.trig")`. If `args.graph.suffix == ".ttl"`,
+  a `LocalTurtleStore` compatibility store is passed; otherwise `None` selects
+  the default `RdflibGraphStore`.
+- `--report`: reporter is verbose and writes to a timestamped Markdown file
+  under `reports/runs/`; a successful run stays silent on the terminal.
+- `-v/--verbose`: the same reporter writes everything to the terminal.
+
+### 3.2 `api.py`
+
+One documented public function plus re-exported types (`__all__`):
 
 ```
-if __name__ == "__main__":
-    try:
-        main()
-    except (RuntimeError, OSError) as error:
-        print(f"Error: {error}", file=sys.stderr)
-        raise SystemExit(1)
+run_text_to_graph(request, graph_store=None, extractor=None, reporter=None) → RunResult
 ```
 
-- Catches only `RuntimeError` and `OSError`; prints to stderr; exit code 1.
-- Other exception types propagate (uncaught).
+The CLI is a thin adapter over it. The core pipeline never parses arguments,
+reads environment variables, or exits the process.
 
-### 3.4 Key behaviors (pipeline-level)
+### 3.3 `pipeline.py` — the run loop
 
-- **Per-file save**: the graph is written to disk after *each* file, so file N+1 sees file N's result both in memory (the `graph` object) and on disk.
-- **Sequential context**: each file's prompt receives context *selected from* everything
-  merged so far — not the whole catalog. A resource merged from file N reaches file N+1's
-  prompt only if file N+1 gives a reason to select it.
-- **Views are never cached across a merge**: `build_task_context()` re-derives the partition,
-  skeleton, and patterns per file, because the graph changed.
-- **Blank file skip**: whitespace-only sources never reach the LLM, and no context is built
-  for them.
-- **Context construction is read only**: no selection, score, or diagnostic is written into
-  the graph, and a failed LLM call leaves the saved graph byte-identical.
-- **Validation gate (phase 06)**: each non-empty source's answer is validated and normalized
-  *before* any merge planning. Any validation error rejects the whole candidate package
-  for that source — planning, materialization, provenance, and `save_graph()` never run, the
-  in-memory graph and the on-disk file are unchanged, and the CLI exits on the `RuntimeError`.
-  Only `existing_id` values actually rendered as `id:` in the final budgeted prompt (and still
-  present in the native catalog) may be trusted as LLM-directed identities. Every entity,
-  relation, and fact record must carry a numeric `confidence` in `[0, 1]`.
-- **Merge policy gate (phase 07)**: after validation, `plan_graph_merge()` decides every
-  identity (`existing`/`new`/`review` with reason codes), every assertion outcome
-  (`accept`/`duplicate`/`review`), and builds deterministic audit triples — all read only.
-  Close spellings never auto-merge; new assertions below `AUTO_ACCEPT_MIN_CONFIDENCE` (0.80)
-  go to review; exact existing triples corroborate without re-adding; explicit functional /
-  inverse-functional conflicts go to review; existing labels, descriptions, and canonical
-  triples are never overwritten. `apply_merge_plan()` then materializes the completed plan
-  into a **graph copy**, and `save_graph()` replaces the file atomically (temp sibling +
-  `os.replace`). The returned graph becomes the next file's active graph only after a
-  successful save.
+Request dataclasses (all in `pipeline.py`):
+
+- `WindowingConfig` — `target_tokens=800`, `overlap_tokens=100`,
+  `strategy_version=2`, `count_tokens=estimate_tokens`.
+- `ContextConfig` — `budget=dict(PROMPT_BUDGET)`.
+- `ExtractionConfig` — `model=None`, `repair_attempts=2`.
+- `MergeConfig` — `min_auto_accept_confidence=0.80`.
+- `ProcessingConfig` — `retain_staging_on_failure=False`.
+- `ValidationConfig` — `shape_graphs=()` (explicit SHACL graphs; empty keeps
+  role shapes / legacy embedded shapes).
+- `RunRequest` — `source`, `graph_path=Path("ontology.trig")`, the five configs,
+  `graph_names=GraphNames()`, `dry_run=False`.
+
+Result dataclasses:
+
+- `DocumentResult` — `path`, `document_id`, `source_artifact`,
+  `reconciliation_report`, `source_validation`, `publication_plan`,
+  `publication_validation`.
+- `RunResult` — `graph_path`, `triples`, `files_total`, `files_saved`,
+  `files_blank`, `windows_processed`, `documents`, `dry_run`.
+
+Adapters (Protocols, replaceable): `Extractor` (`model()`, `extract(prompt)`),
+`Reporter` (one method per checkpoint, see `run_report.RunReporter`). The
+concrete extractor is `llm.OpenRouterExtractor`; a fake is used in tests. Check
+the store boundaries in `graph_store.GraphStore` / `graph_management.GraphStore`.
+
+`run_text_to_graph` control flow:
+
+```
+extractor = extractor or OpenRouterExtractor(model=request.extraction.model)
+reporter  = reporter or RunReporter()
+store     = _final_store(graph_store, request)      # RdflibGraphStore or LegacyTurtleDatasetStore
+roles     = initial_role_graphs(store, names)        # read schema/shapes/data/provenance/review; seed if empty
+graph     = union_graphs(roles.values())
+files     = find_text_files(request.source, request.graph_path)
+if not files: raise RuntimeError("No text-like files found")
+for index, path in enumerate(files, start=1):
+    raw_text = read_source(path)
+    if not raw_text.strip(): reporter.blank_source(); blank_files += 1; continue
+    document = make_source_document(path.name, raw_text, source_path=path.as_posix())
+    before_snapshot = final_graphs_snapshot(graph)
+    staged = _process_document(document, request, graph, extractor, reporter)  # windows → staging
+    reconciliation = reconcile_document(document.document_id, staged.source_graph,
+                                        staged.candidate_graphs, staged.admission_plans)
+    artifact = build_source_artifact(document, staged.source_graph, request.windowing, models)
+    validation = validate_source_graph(staged.source_graph, _source_shape_graphs(...))
+    if not validation.conforms: raise SourceValidationError(validation, artifact, reconciliation, sidecar)
+    assert final graph snapshot unchanged
+    document_merge = plan_document_merge(canonical_graph(roles, names), document,
+                                         staged.packages, staged.admission_plans, conf, planner=plan_graph_merge)
+    publication_plan = compile_document_publication(document, document_merge, staged.candidate_graphs,
+                                                    staged.packages, staged.admission_plans, roles, names, shapes)
+    if not publication_plan.proposed_validation.conforms: raise PublicationValidationError(publication_plan)
+    if request.dry_run: reporter.dry_run(...)
+    else: publish_document(store, publication_plan); reporter.saved(...)
+    roles.update(publication_plan.publication.graphs); graph = union_graphs(roles.values())
+return RunResult(...)
+```
+
+`_process_document` (per document):
+
+```
+windows = plan_windows(document, request.windowing)
+staging = RdflibGraphStore()
+staging.put(staging_name, Graph())          # source_staging_graph_name(document_id)
+source_graph = staging.get(staging_name)
+snapshot = final_graphs_snapshot(final_graph)
+for number, window in enumerate(windows, start=1):
+    model, candidates = _extract_window(window, ...)   # context → LLM → repair → validate
+    source_graph, counts, plan = _admit_window(window, candidates, ...)
+    if final_graphs_snapshot(final_graph) != snapshot: raise RuntimeError(...)
+    staging.put(staging_name, source_graph)
+    packages.append((window, model, candidates)); admission_plans.append({window_id, plan})
+on BaseException: if retain_staging_on_failure → retain_staging(...) sidecar; reporter.staging_failed; raise
+```
+
+`_extract_window`: builds canonical + source-local context via
+`_window_context` → `layered_context_text` → `make_prompt` →
+`extract_validated(extractor, prompt, validator, max_repair_attempts=...)` →
+`RuntimeError(repair/validation failure)` on failure.
+
+`_admit_window`: `build_provenance(Path(document.name), window.text, model)`
++ `window_id` ∈ provenance → `plan_window_admission(source_graph, candidates,
+provenance, document_id, min_new_confidence)` (read-only, provisional
+allocator) → `build_candidate_graph(...)` → `staging.put(window_candidate_graph_name(...))`
+→ `apply_merge_plan(source_graph, plan)` → updated staging graph.
+
+`_final_store`: store with `get`/`graph_names`/`publish` is used directly;
+`None` → `RdflibGraphStore(path=...)`; a legacy store (`LocalTurtleStore`)
+is wrapped in `LegacyTurtleDatasetStore(store, path, names, save_graph)`.
 
 ---
 
 ## 4. Module reference (write pipeline)
 
-### 4.1 `graph_management.py` — graph lifecycle + namespaces
+### 4.1 `graph_management.py` — legacy Turtle lifecycle + namespaces
 
-Imports (rdflib): `BNode, Graph, Literal, Namespace`; `OWL, RDF, RDFS, SH, SKOS`.
+Named-graph *dataset* roles live in `graph_store.py`; this module keeps the
+compatibility single-Turtle path (used by `save_graph` in the `.ttl` adapter,
+by the viewer for Turtle files, and by `open_graph`/`LocalTurtleStore`).
 
-**Constants** (URI namespaces):
+Namespaces (constants): `BASE = "http://example.org/text-ontology/"`,
+`ONTO`, `ENTITY` (`entity/`), `CLASS` (`class/`), `RELATION` (`relation/`),
+`FACT` (`fact/`).
 
-| Name | Value |
-|---|---|
-| `BASE` | `http://example.org/text-ontology/` |
-| `ONTO` | `Namespace(BASE)` |
-| `ENTITY` | `Namespace(BASE + "entity/")` |
-| `CLASS` | `Namespace(BASE + "class/")` |
-| `RELATION` | `Namespace(BASE + "relation/")` |
-| `FACT` | `Namespace(BASE + "fact/")` |
+- `bind(graph)` — binds `onto, entity, class, relation, fact, owl, rdf, rdfs, sh, skos`.
+- `open_graph(path)` — parse existing Turtle, else `seed_graph()`.
+- `seed_graph()` — 8 triples: `onto:ontology owl:Ontology`, `onto:Entity
+  owl:Class` + `rdfs:label "Entity"`, `onto:EntityShape sh:NodeShape`,
+  `sh:targetClass onto:Entity`, one blank-node `sh:property` rule
+  (`sh:path skos:prefLabel`, `sh:minCount 1`).
+- `save_graph(graph, path)` — serialize to `<path>.tmp`, then atomic
+  `os.replace`; a failure removes the temp file and leaves the old file intact.
+- `GraphStore` Protocol + `LocalTurtleStore` (`load`/`save`) — the legacy
+  adapter the CLI hands to `LegacyTurtleDatasetStore` for `.ttl` output.
 
-**Functions**:
+### 4.2 `graph_store.py` — the named-graph boundary
 
-- `bind(graph)` — binds prefixes `onto, entity, class, relation, fact, owl, rdf, rdfs, sh, skos`.
-- `open_graph(path)`:
-  - Creates `Graph()`, calls `bind`.
-  - If `path.exists()`: `graph.parse(path, format="turtle")` and return (existing graph is **never reseeded**).
-  - Else seed 8 triples and return:
-    1. `(ONTO.ontology, RDF.type, OWL.Ontology)`
-    2. `(ONTO.Entity, RDF.type, OWL.Class)`
-    3. `(ONTO.Entity, RDFS.label, Literal("Entity"))`
-    4. `rule = BNode()`
-    5. `(ONTO.EntityShape, RDF.type, SH.NodeShape)`
-    6. `(ONTO.EntityShape, SH.targetClass, ONTO.Entity)`
-    7. `(ONTO.EntityShape, SH.property, rule)`
-    8. `(rule, SH.path, SKOS.prefLabel)`
-    9. `(rule, SH.minCount, Literal(1))`
-  - Opening a missing path does **not** write to disk (only `save_graph` writes).
-- `save_graph(graph, path)` — serializes to a temporary sibling file
-  (`<path>.tmp`) and atomically replaces the target with `os.replace` only after
-  serialization succeeds. A failed save leaves the previous file byte-identical
-  and never leaves a stale temporary file.
+The boundary domain modules see. `GraphStore` Protocol: `get(name)`,
+`put(name, graph)`, `delete(name)`, `graph_names()`, `query(sparql, **)`,
+`update(sparql, **)`, `publish(publication=None)`.
 
----
+- `Publication` — dataclass `{graphs: dict name→Graph, deletions: tuple}`.
+  `graphs` replaces complete named graphs; anything not mentioned is untouched.
+  `_apply(dataset, publication)` removes each named graph's triples, adds the
+  new ones, and `remove_graph` for deletions.
+- `RdflibGraphStore` — `Dataset(default_union=True)` in memory; optional
+  `path` parsed as TriG. `publish` serializes a **clone** to `<path>.tmp` and
+  `os.replace`s it, then applies the publication in memory — a failed write
+  changes neither the file nor the dataset.
+- `ReadOnlyGraphStore` — exposes only `get`/`graph_names`/`query` (the viewer
+  wraps stores in it so viewing can never write).
+- `GraphNames` — role names (defaults): `schema_graphs=[.../graphs/schema]`,
+  `shape_graphs=[.../graphs/shapes]`, `data_graphs=[]`, `target_graph=
+  .../graphs/data`, `provenance_graph=.../graphs/provenance`, `review_graph=
+  .../graphs/review`, `staging_namespace=.../staging/`. `validate()` fails on
+  duplicate roles or a staging namespace not ending in `/` or `#`.
+  `source_staging_graph(document_id)` derives a document's staging name.
+- Migration/export helpers: `import_legacy_turtle(store, path, names)` (split a
+  legacy Turtle union into schema/target/provenance via `partition_graph`),
+  `export_graph_turtle(store, name)`, `export_dataset(store, fmt=...)`.
 
-### 4.2 `ingest_sources.py` — source discovery + reading
+### 4.3 `ingest_sources.py` — source discovery + reading
 
-No project imports.
+Identical contract to the earlier version; `TEXT_FILES` is unchanged.
+`find_text_files(source, graph_path)` accepts a directly-named file regardless
+of extension, or recursively sorted, extension-filtered, graph-excluded files.
+`read_source(path)` reads UTF-8 with `errors="replace"`.
 
-**Constant**:
+### 4.4 `windowing.py` — stable documents and reproducible windows
 
-```
-TEXT_FILES = {".txt", ".md", ".rst", ".csv", ".json", ".jsonl", ".yaml", ".yml",
-              ".xml", ".html", ".log"}
-```
+Source-only module: knows text, digests, offsets — never RDF/LLM/graph files.
 
-**Functions**:
+Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
+`DEFAULT_OVERLAP_TOKENS = 100`, `MEDIA_TYPES` (`.txt/.md/.rst/.html/.htm/
+.csv/.json/.xml` → media types).
 
-- `find_text_files(source, graph_path)`:
-  - If `source.is_file()`: return `[source]` (a directly-named file is accepted **regardless of extension**).
-  - If not `source.is_dir()`: `raise RuntimeError(f"Source does not exist: {source}")`.
-  - Else: resolve `graph_path`; return `sorted(...)` of recursive `source.rglob("*")` results where `path.is_file()`, `path.resolve() != graph_path` (excludes the output graph), and `path.suffix.lower() in TEXT_FILES`.
-- `read_source(path)` — `path.read_text(encoding="utf-8", errors="replace")` (invalid bytes become `U+FFFD`).
+- `normalize_text(raw_text)` — CRLF/CR → LF (the only normalization).
+- `media_type_for(path)` — suffix → media type, default `text/plain`.
+- `make_source_document(name, raw_text, media_type="text/plain", source_path="")`
+  — `document_id = "doc-" + sha256(normalized text)[:16]`.
+- `load_source_document(path)` — read + build one document.
+- `plan_windows(document, config=None)` — blank (whitespace-only) documents
+  yield `[]`; otherwise unit spans (blocks → sentences → hard chunks) are
+  packed greedily with shared token overlap. Short documents get one
+  `(0, len(text))` window. Window IDs are SHA-256 digests over strategy
+  version, target/overlap, tokenizer name, document ID, index, start, end.
 
----
+### 4.5 `source_parse.py` — prompt builder
 
-### 4.3 `llm.py` — OpenRouter client (stdlib only)
+- `context_block(context_text)` — headed context + `CONTEXT_RULES`, `""` when
+  empty.
+- `make_prompt(text, context_text="")` — instruction, context, entity
+  resolution paragraph, exact JSON contract (entities/relations/facts with
+  per-record `confidence`), and `SOURCE` between `---` delimiters.
+- `parse_source(text, context_text="")` = `parse_prompt(make_prompt(...))`;
+  `parse_prompt(prompt)` = `ask_llm(prompt)`.
 
-Imports (stdlib): `json, os, urllib.error, urllib.request, pathlib.Path`.
+### 4.6 `llm.py` — OpenRouter client (stdlib only)
 
-**Constant**:
+- `DEFAULT_MODEL = "openrouter/pareto-code:nitro"`,
+  `SYSTEM_PROMPT = "Extract knowledge. Return only JSON."`.
+- `InvalidResponseError(RuntimeError)` — the answer is not one parseable JSON
+  object (this is what `repair.py` catches).
+- `load_env(path=Path(".env"))` — `KEY=value` lines, `setdefault`, never
+  overrides existing env vars.
+- `model_name()` — `OPENROUTER_MODEL` or the default.
+- `ask_llm(prompt)` — POSTs `{"model", "temperature": 0, "messages": [
+  {system}, {user}]}` to `https://openrouter.ai/api/v1/chat/completions` with
+  bearer key, JSON content type, and `X-OpenRouter-Title: "Simple Text to
+  Ontology"`, timeout 60 s. Accepts Markdown-fenced JSON; raises
+  `RuntimeError` for HTTP errors, `InvalidResponseError` for non-JSON or
+  `JSONDecodeError`.
+- `OpenRouterExtractor(model=None)` — `model()` → override or `model_name()`;
+  `extract(prompt)` → `ask_llm(prompt)`.
 
-```
-DEFAULT_MODEL = "openrouter/pareto-code:nitro"
-```
+### 4.7 `repair.py` — bounded self-repair
 
-**Functions**:
+- `repair_prompt(original=None, raw_problem=None, issues=())` — the model gets
+  its own original answer back plus the deterministic, sorted issue list and
+  one instruction: return the complete corrected JSON, nothing else.
+- `ExtractionOutcome` — `validation` (None when nothing parsed), `raw_problem`,
+  `repair_attempts`; `.ok` = parsed AND `validation["valid"]`.
+- `extract_validated(extractor, prompt, validate, max_repair_attempts=0)` —
+  extract, validate, and while the answer is unparseable/invalid and attempts
+  remain, send a repair prompt and validate again. **Every** attempt passes the
+  same `validate` gate (the pipeline passes `validate_candidates`).
 
-- `load_env(path=None)`:
-  - Default path: `Path(__file__).with_name(".env")`.
-  - Parses `KEY=value` lines. Skips blank lines, `#` comments, lines without `=`.
-  - Strips leading `export `. Strips matching single/double quotes around values.
-  - `os.environ.setdefault(name, value)` — **never overrides** existing env vars.
-- `model_name()` — `load_env()` then `os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)`.
-- `ask_llm(prompt)`:
-  - `load_env()`; reads `OPENROUTER_API_KEY`; if missing → `raise RuntimeError("Set OPENROUTER_API_KEY first")`.
-  - POSTs JSON to `https://openrouter.ai/api/v1/chat/completions`:
-    ```
-    {"model": model_name(), "temperature": 0,
-     "messages": [
-       {"role": "system", "content": "Extract knowledge. Return only JSON."},
-       {"role": "user",   "content": prompt}]}
-    ```
-  - Headers: `Authorization: Bearer <key>`, `Content-Type: application/json`,
-    `X-OpenRouter-Title: "Simple Text to Ontology"`.
-  - `urlopen(request, timeout=60)`.
-  - Reads `answer = json.load(response)["choices"][0]["message"]["content"]`.
-  - On `urllib.error.HTTPError`: `raise RuntimeError(f"OpenRouter error {code}: {message}")`.
-  - On success: locates `{` (first) to `}` (last) in `answer` (accepts Markdown-fenced JSON);
-    if no `{`/`}` → `raise RuntimeError(f"The model did not return JSON:\n{answer}")`;
-    `json.loads(answer[start:end+1])`; on `JSONDecodeError` →
-    `raise RuntimeError(f"The model returned invalid JSON:\n{answer}")`.
-  - Returns the parsed JSON object.
+### 4.8 `candidate_validation.py` — validate + normalize (unchanged gate)
 
----
+Read-only, fail-closed. Public contract:
 
-### 4.4 `source_parse.py` — prompt builder
+- `validate_candidates(data, graph, allowed_existing_ids=())` →
+  `{valid, candidates|None, issues, counts}`.
+- `format_validation_failure(result)` → deterministic CLI error text.
 
-Imports: `llm.ask_llm`. Nothing else — no `json`, no rdflib, no `entity_lookup`.
-Since phase 5D this module receives context instead of discovering it.
+Normalization is conservative (NFKC, CRLF→LF, controls removed, one-line
+whitespace collapsed, descriptions/facts preserved, dates/numbers never
+coerced, fact JSON type part of the duplicate key). Passes: container →
+entity normalization + confidence (required in `[0,1]`, missing/invalid codes)
+→ relation/fact normalization → reference check → label/role/type collisions →
+exact dedupe (with `duplicate_confidence` lowering the kept value) →
+graph-URI role/type compatibility. Graph-exact assertions are deliberately
+**kept** so merge policy can plan corroboration and provenance. `existing_id`
+is accepted only if it was rendered in the final budgeted prompt and still
+exists in `entity_catalog(graph)` (with a kind-match check).
 
-**Functions**:
+### 4.9 `candidate_graph.py` — one validated package → RDF candidate graph
 
-- `context_block(context_text)` — the selected context, headed
-  `ONTOLOGY CONTEXT - selected for this source, not the whole ontology:` and followed by
-  `CONTEXT_RULES`. Returns `""` for empty or whitespace-only context, so the heading and
-  rules never appear without content.
-- `make_prompt(text, context_text="")` — one f-string: the instruction line, the context
-  block (if any), the unchanged `existing_id` resolution paragraph, the required JSON
-  shape, the endpoint constraint, and `SOURCE` between `---` delimiters.
-- `parse_source(text, context_text="")` — `return ask_llm(make_prompt(text, context_text))`.
-  Takes no graph and cannot mutate one.
+- Constants: `CANDIDATE_MAPPING_VERSION = 2`, `CANDIDATE_BASE`
+  (`http://example.org/text-ontology/`), `PROVISIONAL` namespace,
+  `EXTRACTION_CONFIDENCE_METRIC` (`.../metric/extraction-confidence`), DQV
+  namespace (not in rdflib).
+- `literal_value(value)` — conservative typed literals; real ISO dates become
+  `xsd:date`, booleans/ints/floats typed, everything else a plain string.
+- `provisional_entity_iri(document_id, local_id)` — the stable provisional IRI
+  of one unresolved individual.
+- `build_candidate_graph(candidates, document_id, window_id, activity_id,
+  extractor_model, entity_iris=None, assertion_triples=None)` — deterministic:
+  every record becomes a `prov:Collection`; asserted triples are present AND
+  reified as `rdf:Statement` members; per-record confidence is a
+  `dqv:QualityMeasurement` (xsd:decimal) against the project `dqv:Metric`;
+  PROV-O chain: document → window → activity → `prov:SoftwareAgent`.
+  Entities are typed with their kind class (not a `kind` string) with
+  `skos/definition/altLabel`; relations/facts use `RELATION[slug]` /
+  `FACT[slug]` IRIs. Same response always produces the same graph.
 
-**`CONTEXT_RULES`** (module constant, stated to the model): only an exact `id:` value may
-be reused as `existing_id`; a `uri:` value is context, not an identifier; observed usage is
-evidence about current data, not a rule; the context is a selection, so real things missing
-from it are still worth extracting.
+### 4.10 `source_staging.py` — one document, one provisional graph
 
-**Required JSON contract** (verbatim shape in the prompt):
+- `STAGING_NAMESPACE = CANDIDATE_BASE + "staging/"`.
+- `source_staging_graph_name(document_id)`, `window_candidate_graph_name(doc,
+  window)` — stable graph names.
+- `window_activity_id(document_id, window_id, model, candidates)` — SHA-256
+  PROV activity ID.
+- `provisional_allocator(document_id)` — slug-first `-2, -3, ...` allocation
+  inside `provisional/<doc>/`, so a staged entity can never claim a canonical
+  identity.
+- `plan_window_admission(source_graph, candidates, provenance, document_id,
+  min_new_confidence=0.80)` — `plan_graph_merge` against the source staging
+  graph only, with the provisional allocator.
+- `final_graphs_snapshot(graph)` — `tuple(sorted(graph))` for immutability
+  checks.
+- `layered_context_text(canonical_package, source_package, budget_config,
+  count_tokens)` — renders canonical + source-local items as one block;
+  source-local items are prefixed `(this document)` per line and their
+  resources forced `native: False` (never reusable `existing_id`). One shared
+  budget (`allowance - assembly_overhead`) covers both; items drop whole,
+  least relevant first.
+- `retain_staging(store, document_id, graph_path)` — exports a failed
+  document's staging graphs to `<graph_path>.staging/<document_id>.trig`.
 
-```json
-{
-  "entities": [
-    {"id": "e1", "name": "preferred name", "kind": "Person",
-     "description": "short source-grounded description",
-     "aliases": ["other source name"], "existing_id": null}
-  ],
-  "relations": [
-    {"subject": "e1", "predicate": "works for", "object": "e2"}
-  ],
-  "facts": [
-    {"subject": "e1", "predicate": "birth date", "value": "1950-01-01"}
-  ]
-}
-```
+### 4.11 `source_reconciliation.py` — complete-document report + artifact
 
-Constraints stated to the model: relation endpoints and fact subjects must reference
-entity ids; `existing_id` must be an existing entity's exact id or `null`; every record
-carries a required `confidence` (0.0–1.0) defined as *the model's confidence that the source
-text directly supports this complete record* — not identity confidence, not world truth,
-not source authority; return JSON only.
+- `SourceGraphArtifact` — `document_id`, `document_digest`, `graph_digest`,
+  `window_strategy_version`, `candidate_mapping_version`,
+  `extractor_identities`, `ntriples`.
+- `canonical_ntriples(graph)` — RDF blank-node canonicalized, sorted N-Triples.
+- `build_source_artifact(document, source_graph, windowing, models)` —
+  deterministic export + association metadata.
+- `reconcile_document(document_id, source_graph, candidate_graphs,
+  admission_plans)` → plain report: `local_entities` (uri/name/kind/aliases),
+  `aliases`, `duplicate_assertions` (triple + support_count + the independent
+  candidate-graph/record/confidence supports), `unresolved_identities`
+  (window/local_id/reason_codes/suggestions), `conflicts`, and `counts`.
 
----
+### 4.12 `source_validation.py` — the SHACL gate
 
-### 4.5 `entity_lookup.py` — entity resolution
+- `SourceValidationResult` — `conforms`, `report_graph`, `report_text`,
+  `shape_graphs_checked`.
+- `SourceValidationError(RuntimeError)` — carries `validation`,
+  `source_artifact`, `reconciliation_report`, `sidecar_path`.
+- `embedded_shape_graph(graph)` — copies legacy embedded SHACL shapes
+  (recursively following shape-owned blank nodes).
+- `combine_shape_graphs(shape_graphs)` — one isolated graph, blank nodes
+  renamed per shape graph.
+- `validate_source_graph(source_graph, shape_graphs)` — pySHACL over a copy
+  (`inference="none"`, `abort_on_first=False`).
 
-Imports: `re, unicodedata`; `difflib.SequenceMatcher`; rdflib `URIRef`, `RDF, RDFS, SKOS`;
-`graph_management.ONTO`.
+### 4.13 `merge_policy.py` — read-only merge planning
 
-**Functions**:
+Policy layer, unchanged in role but versioned 2. Constants:
+`MERGE_POLICY_VERSION = 2`, `AUTO_ACCEPT_MIN_CONFIDENCE = 0.80`, `RDF_JSON`
+(`rdf:JSON`), `FUNCTIONAL` / `INVERSE_FUNCTIONAL`.
 
-- `identity_key(text)`:
-  ```
-  text = unicodedata.normalize("NFKD", str(text)).encode("ascii", "ignore").decode()
-  return re.sub(r"[^a-z0-9]", "", text.lower())
-  ```
-  Normalizes case/accents/punctuation. Gotcha: letters with no NFKD decomposition are dropped, not folded.
-- `entity_catalog(graph)` → `list[dict]`, one per `graph.subjects(RDF.type, ONTO.Entity)`:
-  ```
-  {"id": str(uri),
-   "names": sorted({prefLabel, altLabel values}),
-   "kind": str(graph.value(uri, ONTO.kind) or ""),
-   "description": str(graph.value(uri, RDFS.comment) or "")}
-  ```
-  Sorted by URI string. Only explicit `onto:Entity` subjects are listed.
-- `identify_entity(entity, catalog)` → `URIRef | None`. Resolution order:
-  1. **`existing_id`** — if `entity["existing_id"]` is a key in `{item["id"]}` → return that `URIRef`.
-  2. **Exact name+kind** — `new_names = [name, *aliases]`; `new_kind = identity_key(kind)`.
-     Match catalog items where `new_kind` is non-empty, `new_kind == identity_key(item["kind"])`,
-     and normalized name sets intersect. If exactly **one** match → return it.
-  3. **Close spelling** — same kind only; `max(SequenceMatcher(...).ratio())` over catalog names
-     vs `identity_key(entity["name"])` (preferred name only, aliases NOT used). Keep scores ≥ 0.96;
-     sort descending; return the top if unique (`len(close)==1` or strict winner). Else `None`.
-  - Missing/different kind never resolves (steps 2 and 3 both require kind equality).
-
-**Phase 07 addition** — `identity_decision(entity, catalog, planned_catalog=(), *,
-min_new_confidence=0.80, allocate_uri=None, provisional_uri=None)` returns one reasoned
-record `{local_id, status, uri, method, score, suggestions, reason_codes}`:
-`status` ∈ `existing | new | review`; `method` ∈ `explicit_id, exact_name, exact_alias,
-planned_exact, new, ambiguous_exact, kind_collision, close_spelling`. Resolution order:
-explicit id → unique same-kind exact match → ambiguous exact review → cross-kind label
-review → close-spelling review-only suggestion (≥ 0.96, never auto-resolves) → new
-(if confidence ≥ threshold) or below-threshold review with a deterministic provisional URI.
-Read only; deterministic across graph insertion order. `identify_entity()` remains as a
-legacy wrapper for direct callers; the active pipeline uses the rich operation.
-
----
-
-### 4.6 `graph_merge.py` — write results into the graph
-
-Imports: `re, unicodedata`; rdflib `Literal`, `OWL, RDF, RDFS, SKOS`;
-`entity_lookup.entity_catalog, identify_entity`;
-`graph_management.CLASS, ENTITY, FACT, ONTO, RELATION`.
-
-**Functions**:
-
-- `slug(text)` — NFKD→ascii→lower, `re.sub(r"[^a-z0-9]+", "-", ...).strip("-") or "unnamed"`.
-- `label(text)` — `re.sub(r"([a-z])([A-Z])", r"\1 \2")` then `re.sub(r"[_-]+", " ").strip()`.
-  (camelCase/snake_case/kebab → readable.)
-- `new_entity_uri(graph, name)` — `stem = slug(name)`, tries `ENTITY[stem]`, `ENTITY[stem-2]`, …;
-  returns first URI where `(uri, None, None) not in graph`.
-- `merge_into_graph(graph, data)` → `(new_count, resolved_count, relation_count, fact_count)`:
-  - **Entities** (processed in order; `entity_catalog(graph)` is recomputed per entity, so a later
-    entity in the *same* response can resolve to one added just above):
-    - skip if `not entity.get("id") or not entity.get("name")`.
-    - `uri = identify_entity(entity, entity_catalog(graph))`; `None` → `new_entity_uri` (`new_count += 1`), else `resolved_count += 1`.
-    - `local_ids[str(entity["id"])] = uri`.
-    - `kind = label(entity.get("kind") or "Entity")`; `kind_uri = CLASS[slug(kind)]`.
-    - Add class declaration: `(kind_uri, RDF.type, OWL.Class)`, `(kind_uri, RDFS.subClassOf, ONTO.Entity)`, `(kind_uri, RDFS.label, Literal(kind))`.
-    - Add entity typing: `(uri, RDF.type, ONTO.Entity)`, `(uri, RDF.type, OWL.NamedIndividual)`,
-      `(uri, RDF.type, SKOS.Concept)`, `(uri, RDF.type, kind_uri)`, `(uri, ONTO.kind, Literal(kind))`.
-    - Naming: if no `SKOS.prefLabel` → add `prefLabel` + `RDFS.label` = name;
-      elif existing `prefLabel != name` → add `SKOS.altLabel` = name. Then add each alias as `SKOS.altLabel`.
-    - If `description` present and no existing `RDFS.comment` → add `(uri, RDFS.comment, Literal(description))`
-      (existing comment is **not** overwritten).
-  - **Relations**: for each `{subject, predicate, object}`: map endpoints via `local_ids` (str keys);
-    require subject, object, and non-empty predicate. `predicate = RELATION[slug(name)]`;
-    add `(predicate, RDF.type, OWL.ObjectProperty)` + `(predicate, RDFS.label, Literal(label(name)))`;
-    add the triple; count only if `(subject, predicate, object_) not in graph` beforehand.
-  - **Facts**: for each `{subject, predicate, value}`: require subject, non-empty predicate, and
-    `value is not None`. `predicate = FACT[slug(name)]`; `value = Literal(fact["value"])`;
-    add `(predicate, RDF.type, OWL.DatatypeProperty)` + `(predicate, RDFS.label, Literal(label(name)))`;
-    add triple; count only if new.
-  - Returns the 4-tuple of counts.
-
-Semantics: relations become `relation:*` `owl:ObjectProperty`s; facts become `fact:*`
-`owl:DatatypeProperty`s; kinds become `class:*` `owl:Class`es subclassing `onto:Entity`.
-
-**Phase 07 addition** — `apply_merge_plan(source_graph, plan)` materializes an
-already-complete merge plan into a **copy**: it copies namespace bindings and all source
-triples, asserts only the plan's decided domain and audit triples, and reports
-`{new_entities, resolved_entities, relation_triples, fact_triples, metadata_triples,
-duplicates, review, audit_triples}`. It contains no identity or conflict logic; the input
-graph stays triple-identical, including on failure. `merge_into_graph()` remains unchanged
-as a tested compatibility path for direct callers.
-
----
-
-### 4.7 `candidate_validation.py` — validate + normalize before merge
-
-A read-only gate between `parse_source` and `merge_into_graph`. It understands the supported
-response structure, normalizes it deterministically and conservatively, and returns either a
-normalized, deduplicated package or a deterministic failure — it never writes to a graph and
-never calls `identify_entity()`.
-
-Imports: `math, re, unicodedata`; rdflib `Literal, URIRef`, `OWL, RDF, RDFS, SKOS`;
-`entity_lookup.entity_catalog, identity_key`; `graph_management.CLASS, FACT, ONTO, RELATION`;
-`graph_merge.label, slug`.
-
-**Public contract**:
-
-- `validate_candidates(data, graph, allowed_existing_ids=())` → `ValidationResult`:
-  ```
-  {"valid": bool,
-   "candidates": {"entities", "relations", "facts"} | None,
-   "issues": [{"code", "severity", "path", "related_paths", "message"}],
-   "counts": {"input", "normalized", "duplicates_removed",
-              "normalized_fields", "errors", "warnings"}}
-  ```
-  `candidates` is `None` whenever `valid` is false, and keeps the same three-section public
-  shape `merge_into_graph()` already accepts. A valid result may still carry warnings.
-- `format_validation_failure(result)` → a concise deterministic `str` for the CLI (issue count,
-  then one `path [code]: message` line per error). Never includes the raw model response.
-
-**Supported raw shape** (the extraction prompt's JSON; unchanged):
-
-- Top level must be a mapping with **exactly** `entities`, `relations`, `facts` (each a list).
-  Missing/unknown/non-list sections or a non-mapping top level are errors.
-- Entity fields: `id` (required, `^[A-Za-z][A-Za-z0-9_-]*$`), `name` (required), `kind`
-  (optional; empty/missing → `Entity` with a warning), `description` (string|null), `aliases`
-  (list of strings), `existing_id` (string|null, trimmed exact match only).
-- Relation fields: `subject`, `predicate`, `object`. Fact fields: `subject`, `predicate`,
-  `value` (`str | bool | int | finite float`). Unknown record fields are errors.
-
-**Normalization rules** (conservative; never reinterprets):
-
-- Unicode NFKC; CRLF/CR → LF; disallowed controls removed; surrounding whitespace trimmed;
-  internal whitespace collapsed for one-line identifiers/names/kinds/aliases/predicates but
-  preserved in descriptions and fact strings; dates/numbers in strings are never coerced; the
-  JSON scalar type of a fact value is preserved and becomes part of its duplicate key (so
-  `"1"`, `1`, and `true` stay distinct).
-
-**Passes** (deterministic; a sort key `(section, index, field, code, message)` orders issues):
-
-1. container; 2. entity normalization + local-ID index + repeated-id/existing-id detection;
-3. relation/fact normalization (`empty`/`unnamed`/URI-looking predicates rejected);
-4. reference check (relation endpoints and fact subjects must name a *valid* local entity);
-5. exact duplicate removal (entities, relations, facts, aliases — warnings, not errors);
-6. generated-URI compatibility: kind/property role collisions and `object`↔`datatype` type
-   collisions at `class:[slug]` / `relation:[slug]` / `fact:[slug]`, plus two candidate
-   predicate spellings that slug to one URI but to different `label()`s;
-7. graph-exact duplicate removal, only where endpoints carry an explicit `existing_id`;
-8. finalize (sort issues, compute counts, drop `candidates` on any error).
-
-Provable-only checks: no identity search, no inferred domain/range/membership, and two
-differing values are never declared contradictory without an explicit policy.
-
-**Phase 07 changes** — every record now requires a numeric `confidence` in `[0, 1]`
-(Booleans, NaN, ±infinity rejected; integers and floats normalize to one float
-representation; codes `*.missing_confidence` / `*.invalid_confidence`). Intra-package
-duplicates with differing confidence keep the lower value plus a `*.duplicate_confidence`
-warning naming both positions. Graph-exact relation/fact candidates are **no longer
-removed** here: they stay in normalized output so merge policy can plan their
-corroboration and provenance (`relation.graph_duplicate` / `fact.graph_duplicate` are
-gone). All structural, endpoint, existing-ID, role, and collision checks are unchanged,
-and the package-level fail-closed gate is unchanged.
-
----
-
-### 4.8 `merge_policy.py` — read-only merge planning (phase 07)
-
-The policy layer between validation and materialization. It decides identity,
-acceptance, corroboration, and conflict handling against the **complete** graph,
-and builds deterministic provenance — all without mutating anything.
-
-Imports: `hashlib, json, decimal.Decimal`; rdflib `Literal, URIRef`,
-`OWL, RDF, RDFS, SKOS`; `entity_lookup.entity_catalog, identity_decision,
-identity_key`; `graph_management.CLASS, ENTITY, FACT, ONTO, RELATION`;
-`graph_merge.label, slug`.
-
-**Constants**: `MERGE_POLICY_VERSION = 1`, `AUTO_ACCEPT_MIN_CONFIDENCE = 0.80`,
-`RDF_JSON` (the `rdf:JSON` URI; rdflib 7 has no `RDF.json` term).
-
-**Functions**:
-
-- `canonical_json(value)` — UTF-8, sorted keys, compact separators, list order
-  preserved. The serialization every digest depends on.
-- `record_digest(record)` — SHA-256 hex of the canonical JSON.
-- `proposed_entity_uri(entity)` — `onto:merge-proposed-entity/<sha256>`; the
-  deterministic review-only identity of a below-threshold otherwise-new entity.
-- `build_provenance(source_path, source_text, model)` → `{source_path (POSIX
-  text, unresolved), source_sha256, model, policy_version}`.
-- `resolve_entities(candidates, graph)` → `{local_id: decision}`. Ordered;
-  earlier accepted new entities enter a virtual catalog (`planned_exact`);
-  allocated URIs are reserved so two new entities cannot collide pre-mutation.
-- `plan_graph_merge(graph, candidates, provenance)` → the **MergePlan**:
+- `canonical_json(value)` / `record_digest(record)` — the digest base.
+- `proposed_entity_uri(entity)` — `onto:merge-proposed-entity/<sha256>`, a
+  review-only provisional identity (never typed `onto:Entity`).
+- `build_provenance(source_path, source_text, model)` →
+  `{source_path, source_sha256, model, policy_version}`.
+- `resolve_entities(candidates, graph, min_new_confidence=0.80,
+  allocate_uri=None, provisional_uri=None)` — ordered identity decisions with
+  a virtual catalog and URI reservation so two new entities cannot collide;
+  `allocate_uri`/`provisional_uri` are injectable (staging passes the
+  document's provisional allocator).
+- `plan_graph_merge(graph, candidates, provenance, min_new_confidence=0.80,
+  allocate_uri=None, provisional_uri=None)` → MergePlan:
   `{policy_version, provenance, event_uri, package_sha256, identities,
   entities, relations, facts, domain_triples, audit_triples, counts,
-  diagnostics}`. Assertion decisions carry section/index, outcome
-  (`accept`/`duplicate`/`review`), confidence, sorted reason codes, the exact
-  triple when grounded, and conflicting triples. `counts` covers identities
-  (new/resolved/review), assertions (accepted/duplicate/review), entity
-  summaries (accept/duplicate/review/partial_review), and triple totals.
+  diagnostics}`.
 
-**Decision precedence**: validation errors → identity ambiguity review →
-exact-triple duplicate (any confidence) → explicit functional /
-inverse-functional conflict review → below-threshold confidence review →
-accept. Differing values on unmarked properties are ordinary multi-valued RDF
-and coexist. Existing `skos:prefLabel`, `rdfs:comment`, and canonical triples
-are never overwritten; alias ownership by another same-kind entity routes that
-alias (only) to review.
+**Decision precedence** (read only; existing canonical values are never
+overwritten): validation errors → identity ambiguity review → exact-triple
+duplicate (corroboration, any confidence) → explicit functional /
+inverse-functional conflict review → below-`min_new_confidence` review →
+accept (with property declarations). Entity fields plan per-field outcomes
+(`accept`/`duplicate`/`review`/`partial_review`/`none`); an alias claimed by
+another same-kind entity routes only that alias to review.
 
-**Audit vocabulary** (all under `onto:`, never blank nodes, always in the
-support partition): `onto:ExtractionEvent` (typed by `rdf:type`; carries
-`onto:sourcePath`, `onto:sourceSha256`, `onto:modelName`,
-`onto:mergePolicyVersion`, `onto:candidatePackageSha256`) and
-`onto:MergeCandidate` (linked by `onto:wasExtractedIn`; carries
-`onto:candidateSection`, `onto:candidateIndex`, `onto:normalizedCandidate`
-as `rdf:JSON`, `onto:extractionConfidence` as `xsd:decimal`,
-`onto:mergeDecision`, `onto:decisionReason` per code, `onto:fieldDecisions`
-for entities, `onto:resolvedEntity` when canonically resolved,
-`onto:proposedEntity` for review-only provisional identities, and
-`rdf:subject`/`rdf:predicate`/`rdf:object` reification for grounded
-relations/facts). Event URIs: `onto:merge-event/<sha256>` over policy version,
-source path, source digest, model, and package digest; candidate URIs:
-`onto:merge-candidate/<event-sha>/<section>-<index>-<record-sha>`. Exact
-reruns reuse audit resources; no timestamps, no raw source/prompt/response,
-no schema declarations for the audit classes (so they never enter task
-context).
+**Audit vocabulary** (all under `onto:`; support partition; no timestamps, no
+raw source/prompt/response): `onto:ExtractionEvent` (sourcePath, sourceSha256,
+modelName, mergePolicyVersion, candidatePackageSha256) and
+`onto:MergeCandidate` (wasExtractedIn, candidateSection, candidateIndex,
+normalizedCandidate as `rdf:JSON`, extractionConfidence as `xsd:decimal`,
+mergeDecision, decisionReason per code, fieldDecisions for entities,
+resolvedEntity / proposedEntity, reified rdf:subject/predicate/object for
+grounded assertions). Event URIs are SHA-256 digests over policy version,
+source path, source digest, model, window/document/config, and package digest;
+candidate URIs add section/index/record digest, so exact reruns reuse the same
+audit resources.
 
-**Reason codes**: `identity.ambiguous_exact`, `identity.kind_collision`,
-`identity.close_spelling`, `identity.new_below_confidence`,
-`dependency.unresolved_entity`, `confidence.below_auto_accept`,
-`alias.claimed_by_other_entity`, `conflict.existing_description`,
-`conflict.functional_value`, `conflict.inverse_functional_value`,
-`assertion.exact_duplicate`.
+### 4.14 `entity_lookup.py` — identity decisions (unchanged contract)
+
+`CLOSE_SPELLING_THRESHOLD = 0.96`; `identity_key` (lossy NFKD→ascii);
+`entity_catalog(graph)`; `identity_decision(entity, catalog,
+planned_catalog=(), *, min_new_confidence=0.80, allocate_uri=None,
+provisional_uri=None)` → `{local_id, status, uri, method, identity_score,
+suggestions, reason_codes}`. Order: explicit id → unique same-kind exact
+(planned_exact/exact_name/exact_alias) → ambiguous-exact review →
+kind-collision review → close-spelling review-only suggestions → new (≥
+confidence) or below-threshold review with a provisional URI. `identify_entity`
+remains as a legacy wrapper.
+
+### 4.15 `graph_merge.py` — materialize a plan into a copy
+
+- `slug` / `label` / `class_uri` / `class_triples` / `new_entity_uri` helpers.
+- `apply_merge_plan(source_graph, plan)` — copies bindings + all triples,
+  asserts only the plan's decided domain and audit triples, returns
+  `(graph copy, counts)`. Input stays triple-identical. No identity/conflict
+  logic.
+- `merge_into_graph(graph, data)` — legacy direct merger for compatibility.
+
+### 4.16 `document_merge.py` — one complete-document merge plan
+
+- `DOCUMENT_MERGE_VERSION = 1`.
+- `DocumentCandidateBundle` — `candidates`, `source_keys_by_window`,
+  `local_id_by_source`.
+- `build_document_candidates(document_id, packages, admission_plans)` —
+  collapses window packages: safe source-local identities share one record;
+  review-held identities stay separate and are reconsidered against the full
+  canonical scope; exact overlap assertions become one planned assertion (the
+  **strongest** confidence wins); entities combine aliases/descriptions.
+- `plan_document_merge(canonical_graph, document, packages, admission_plans,
+  min_new_confidence, planner=plan_graph_merge)` — resolves the whole
+  reconciled source against the canonical scope **once**; adds
+  `document_merge_version`, `configuration_sha256`, and an `identity_mapping`
+  from source keys to final identity decisions.
+
+### 4.17 `document_publication.py` — compile + atomic publish
+
+- `DocumentPublicationPlan` — `document_id`, `document_merge`,
+  `proposed_validation`, `publication` (a `Publication`), `counts`.
+- `PublicationValidationError` — `plan` + `validation`.
+- `LegacyTurtleDatasetStore` — wraps a legacy `get/load/save` store; splits the
+  loaded Turtle into in-memory roles and persists the union as one Turtle on
+  each `publish` via `save_graph`.
+- `split_legacy_graph(graph, names)` / `initial_role_graphs(store, names)` /
+  `canonical_graph(roles, names)` (schema + data graphs = the identity scope) /
+  `shape_graphs(roles, names)`.
+- `compile_document_publication(document, document_merge, candidate_graphs,
+  packages, admission_plans, roles, names, validation_shapes=None)` — copies
+  the target graph, adds the plan's domain triples, remaps candidate evidence
+  onto decided canonical statements, materializes document/file source links,
+  builds the review graph, and SHACL-validates the proposed data (no mutation).
+- `publish_document(store, plan)` — the one final `store.publish(...)`.
+- `remap_candidate_evidence` / `_copy_evidence` — every PROV/DQV occurrence is
+  kept while reified statements are remapped to their final identity.
+- `build_review_graph(document, document_merge)` — withheld identities and
+  assertions as `prov:Collection` with `rdf:Statement` members and
+  `prov:wasDerivedFrom`.
+
+### 4.18 `publication_sources.py` — document/file source links + summaries
+
+- `source_records(graph, document)` — `onto:document/<id>` and
+  `onto:source-file/<sha>` as `prov:Entity` records with `rdfs:label` and
+  (`onto:sourceFile` / `onto:sourcePath`). Content identity is separate from
+  file identity: identical content in different files shares a document but
+  keeps separate file records.
+- `link_statement_sources(graph, document_uri, file_uri)` — attaches
+  `prov:wasDerivedFrom` + `onto:sourceFile` to evidence statements (skips the
+  app-supplied `onto:Entity` root).
+- `materialize_sources(graph, document, document_merge, canonical)` — for each
+  accepted/corroborated canonical triple, a stable `onto:statement/<sha>`
+  (`rdf:Statement` + `prov:Entity` reification) with derived-from/source-file;
+  domain individuals, classes, and properties receive `onto:sourceDocument` +
+  `onto:sourceFile` summaries.
+- `supported_triples(document_merge, canonical)` — only accepted, duplicate,
+  and corroborated triples (review never gets sources).
+
+### 4.19 `run_report.py` — human-readable reporting
+
+- `REPORT_DIRECTORY = Path("reports/runs")`; `default_report_path(source,
+  started_at=None)` → `<timestamp>_<source>.md`.
+- `RunReporter(verbose=False, stream=None, extra_streams=(),
+  markdown_streams=())` — one reporter object; plain terminal lines, verbose
+  sections, code blocks, and Markdown-safe output. Checkpoints: `run_started`,
+  `source_started`, `blank_source`, `document_staging`, `window_started`,
+  `context_selection`, `prompt_context`, `asking_model`, `llm_input`,
+  `model_replied`, `validation`, `window_admitted`, `reconciliation`,
+  `source_validation`, `publication_validation`, `merge_plan`, `dry_run`,
+  `saved`, `staging_failed`, `finished`, `dry_run_finished`, `failed`.
+- Helpers `skeleton_label` / `skeleton_restriction` are shared with the viewer.
+
+---
 
 ## 5. Module reference (read-only derivation and context layers)
 
-None of these modules writes to a graph. Since phase 5D the pipeline reaches all of them,
-through `task_context.build_task_context()` and `context_render.prepare_prompt_context()`.
-§5.1–5.3 derive general views of a graph; §5.4–5.8 select and shape the part of it one
-source text needs.
+None of these modules writes to a graph. They are reached by the pipeline
+through `task_context.build_task_context()` and
+`context_render.prepare_prompt_context()` (and, for one window,
+`source_staging.layered_context_text()`), and by the viewer through
+`ontology_views.build_ontology_views()`.
 
-### 5.1 `graph_partition.py` — split into 3 views
+### 5.1 `graph_partition.py` — split one graph into 3 views
 
-Imports (rdflib only): `BNode, Graph, Literal`; `OWL, RDF, RDFS, SH, SKOS`.
+Imports (rdflib only). Constants: `SCHEMA_TYPES`, `AUDIT_TYPES`
+(`onto:ExtractionEvent`, `onto:MergeCandidate`), `SOURCE_PREDICATES`
+(`onto:sourceDocument`, `onto:sourceFile`, `onto:sourcePath`), `SUPPORT_TYPES`
+(`OWL.Ontology`, `SH.NodeShape`, `SH.PropertyShape`), `SCHEMA_AXIOMS`,
+`ANNOTATIONS`, `RESTRICTION_TARGETS`.
 
-**Constants** (sets of rdflib terms):
-
-| Name | Members |
-|---|---|
-| `SCHEMA_TYPES` | `OWL.Class, RDFS.Class, RDFS.Datatype, RDF.Property, OWL.ObjectProperty, OWL.DatatypeProperty, OWL.AnnotationProperty` |
-| `SUPPORT_TYPES` | `OWL.Ontology, SH.NodeShape, SH.PropertyShape` |
-| `AUDIT_TYPES` | `onto:ExtractionEvent, onto:MergeCandidate` (phase 07; base namespace restated locally to keep the rdflib-only dependency) |
-| `SCHEMA_AXIOMS` | `RDFS.subClassOf, RDFS.subPropertyOf, RDFS.domain, RDFS.range, OWL.equivalentClass, OWL.equivalentProperty, OWL.disjointWith, OWL.inverseOf` |
-| `ANNOTATIONS` | `RDFS.label, RDFS.comment, SKOS.prefLabel, SKOS.altLabel, SKOS.definition` |
-| `RESTRICTION_TARGETS` | `OWL.onProperty, OWL.someValuesFrom, OWL.allValuesFrom, OWL.onClass, OWL.onDataRange` |
-
-**Functions**:
-
-- `owned_nodes(graph, root)` — `{root}` plus every blank node reachable from `root` via object position (BFS).
-- `support_roles(graph)` — subjects typed with any `SUPPORT_TYPES` or `AUDIT_TYPES` type, plus their `owned_nodes`. Reified `rdf:subject`/`rdf:object` links do not pull domain endpoints into support: only the audit subject's own triples move.
-- `restriction_roles(graph)` — blank nodes typed `OWL.Restriction` that also have `OWL.onProperty`, plus `owned_nodes`.
-- `schema_roles(graph, restrictions)` — set of: subjects of `SCHEMA_TYPES`; subject+object of `SCHEMA_AXIOMS` triples;
-  objects of `RESTRICTION_TARGETS` predicates on restriction nodes. Then filtered to exclude `BNode`/`Literal`.
-- `instance_roles(graph, schema)` — subjects `s` with `(s, RDF.type, t)` where `t` is not in
-  `SCHEMA_TYPES`/`SUPPORT_TYPES` and (`t in {OWL.NamedIndividual, SKOS.Concept}` or `t in schema`).
-- `partition_graph(source_graph)` → `(schema_graph, instance_graph, support_graph)`:
-  1. Compute `support_nodes`, `restrictions`, `schema_nodes`, `instance_nodes`.
-  2. `opaque` = blank nodes not in `support_nodes` and not in `restrictions`.
-  3. Create three empty `Graph()`s; copy every namespace binding from source into each.
-  4. For every triple, call `choose_view(...)` and add to the named view
-     (`"schema"` → schema, `"instance"` → instance, anything else → support).
-  5. Return the 3-tuple.
-- `choose_view(triple, support_nodes, restrictions, schema_nodes, instance_nodes, opaque)` → `"support"|"schema"|"instance"`.
-  Priority (first match wins):
-  1. subject or object in `support_nodes` → `"support"`.
-  2. subject or object in `opaque` → `"support"`.
-  3. `predicate == RDF.type`: object in `SCHEMA_TYPES` or `== OWL.Restriction` → `"schema"`;
-     else `"instance"` if subject in `instance_nodes`, else `"support"`.
-  4. subject in `restrictions` → `"schema"`.
-  5. `predicate in SCHEMA_AXIOMS` → `"schema"` if subject in `schema_nodes`, else `"support"`.
-  6. `predicate in ANNOTATIONS` → `"schema"` if subject in `schema_nodes`;
-     `"instance"` if subject in `instance_nodes`; else `"support"`.
-  7. default → `"instance"` if subject in `instance_nodes`, else `"support"`.
-
-**Invariants (enforced by tests)**:
-- Lossless + disjoint: `schema ∪ instance ∪ support == source`, pairwise intersections empty,
-  `len(schema)+len(instance)+len(support) == len(source)`.
-- Read-only: source graph and the on-disk `ontology.ttl` are unchanged.
-
----
+- `owned_nodes / support_roles / restriction_roles / schema_roles /
+  instance_roles` — role sets.
+- `choose_view(triple, ...)` — priority: source predicates → support; subject
+  or object in support → support; opaque blank nodes → support; `rdf:type`
+  schema/instance; restrictions → schema; schema axioms; annotations follow
+  their subject's role; default = instance if the subject is an instance role
+  else support.
+- `partition_graph(source_graph)` → `(schema, instance, support)`, lossless and
+  disjoint, inputs never mutated.
 
 ### 5.2 `graph_skeleton.py` — compact declared structural core
 
-Imports (rdflib only): `BNode, Graph, Literal, URIRef`; `OWL, RDF, RDFS, SKOS`.
-
-**Constants**:
-
-| Name | Members |
-|---|---|
-| `SKELETON_TYPES` | `OWL.Class, RDFS.Class, OWL.ObjectProperty, OWL.DatatypeProperty` |
-| `NAMED_AXIOMS` | `RDFS.subClassOf, RDFS.domain, RDFS.range` |
-| `ANNOTATIONS` | `RDFS.label, RDFS.comment, SKOS.prefLabel, SKOS.altLabel, SKOS.definition` |
-| `SUPPORTED_CONSTRAINTS` | `OWL.someValuesFrom, OWL.allValuesFrom, OWL.hasValue, OWL.cardinality, OWL.minCardinality, OWL.maxCardinality` |
-
-**Functions**:
-
-- `supported_restriction(schema_graph, node)` → `(triples, {prop, value}) | None`:
-  - Collect `parts[predicate] = [objects]` for all outgoing triples of `node`.
-  - Reject unless exactly three distinct predicates each with exactly one value.
-  - Reject unless `parts[RDF.type] == [OWL.Restriction]` and `OWL.onProperty in parts`.
-  - `constraint = (parts keys − {RDF.type, OWL.onProperty}).pop()`; reject if not in `SUPPORTED_CONSTRAINTS`.
-  - Reject if `onProperty` value or constraint value is a `BNode`.
-  - Cardinality constraints (`cardinality/minCardinality/maxCardinality`) require the value be a `Literal`.
-  - Other constraints (except `hasValue`) require a `URIRef` value.
-  - Returns the 3 triples `[(node,RDF.type,OWL.Restriction),(node,OWL.onProperty,prop),(node,constraint,value)]` and `{prop, value}`.
-- `structural_triples(schema_graph)` → `(triples:set, named:set)`:
-  - `SKELETON_TYPES` declarations with `URIRef` subjects.
-  - `NAMED_AXIOMS` where both subject and object are `URIRef`.
-  - For `(subject, RDFS.subClassOf, node)` where subject is `URIRef` and node is `BNode`:
-    if `supported_restriction` returns a result, keep the subclass link + the restriction's triples;
-    add subject and any `URIRef` in `{prop, value}` to `named`.
-- `create_graph_skeleton(schema_graph)` → `Graph`:
-  1. `triples, named = structural_triples(schema_graph)`.
-  2. For every `resource in named`, copy its `ANNOTATIONS` triples from the schema.
-  3. Build a new `Graph`, copy namespace bindings, add all `triples`, return it.
-
-**Invariants**: skeleton ⊆ schema input (subset, no inference); unsupported/incomplete
-restrictions are omitted **whole** (never half-copied); schema input unchanged.
-
----
+Unchanged contract: `supported_restriction`, `structural_triples`,
+`create_graph_skeleton(schema_graph)` → explicit classes/object/datatype
+properties, named subclass/domain/range axioms, labels, and only complete
+supported restrictions (six forms). No inference; skeleton ⊆ schema input.
 
 ### 5.3 `graph_patterns.py` — empirical usage patterns
 
-Imports: `collections.Counter`, `statistics.median`; rdflib `Literal, URIRef`,
-`OWL, RDF, RDFS, SH, SKOS, XSD`; `graph_management.ONTO`.
+Unchanged contract: `eligible` (excludes `onto:kind` and RDF/RDFS/OWL/SH/SKOS
+namespaces), `usable_classes` (most-specific explicit types), `object_ranges`,
+`class_populations`, `observed_relationships(schema_graph, instance_graph)` →
+sorted pattern records with occurrences/distinct subjects/population/coverage/
+cardinality. Observations only; never written back.
 
-**Constants**:
+### 5.4 `ontology_views.py` — the five views as one record
 
-| Name | Value / meaning |
-|---|---|
-| `METATYPES` | `{OWL.NamedIndividual, SKOS.Concept, OWL.Thing, RDFS.Resource}` — types that say a resource exists, not what it is |
-| `STRUCTURAL` | `tuple(str(ns) for ns in (RDF, RDFS, OWL, SH, SKOS))` — namespace strings treated as modeling, not domain |
-| `EXCLUDED` | `{ONTO.kind}` — project identity metadata excluded |
-
-**Functions**:
-
-- `eligible(predicate)` — `predicate not in EXCLUDED and not str(predicate).startswith(STRUCTURAL)`.
-- `ancestors(schema_graph, class_)` — set of all `URIRef` superclasses reachable via explicit `rdfs:subClassOf` (BFS).
-- `usable_classes(schema_graph, instance_graph, resource, cache)` — cached.
-  `types` = `URIRef` `RDF.type` objects of resource not in `METATYPES`.
-  `specific` = types with no other type in `ancestors(...)` (most-specific; drops superclasses).
-  Returns `tuple(sorted(specific or types, key=str))`. Subclass cycles fall back to all stated types.
-- `subject_classes(schema_graph, instance_graph, resource, cache)` — `usable_classes(...) or (None,)`.
-- `object_ranges(schema_graph, instance_graph, target, cache)` → tuple of `(kind, range)`:
-  - `Literal` → `("datatype", datatype)`; missing datatype → `RDF.langString` if language-tagged else `XSD.string`.
-  - else → per `usable_classes`: `("class", c)`; if none → `(("unknown", None),)`.
-- `class_populations(schema_graph, instance_graph, cache)` — `Counter` of distinct `RDF.type` subjects per usable class.
-- `observed_relationships(schema_graph, instance_graph)` → `list[dict]`:
-  1. `population = class_populations(...)`.
-  2. For each `(subject, predicate, target)` in instance where `eligible(predicate)`:
-     for each subject class × each object range, increment `values_per_subject[(class, predicate, kind, range)][subject]`.
-  3. Build `records = [pattern_record(key, counts, population) ...]`.
-  4. Sort by `(str(subject_class), str(predicate), range_kind, str(range))`.
-  5. Return records.
-- `pattern_record(key, counts, population)` → dict:
-  ```
-  {"subject_class": class_, "predicate": predicate, "range_kind": kind, "range": range_,
-   "occurrences": sum(values),
-   "distinct_subjects": len(values),
-   "class_population": population.get(class_) if class_ is not None else None,
-   "coverage": len(values)/size if size else None,
-   "cardinality_min": min(values),
-   "cardinality_median": float(median(values)),
-   "cardinality_max": max(values)}
-  ```
-
-Notes: observations only (never written back); rare patterns are never dropped; cardinality is
-summarized over *participating* subjects only (class members with no value are captured by `coverage`).
-
----
-
-### 5.4 `ontology_views.py` — the five derived views as one record
-
-Imports: `graph_partition.partition_graph`, `graph_skeleton.create_graph_skeleton`,
-`graph_patterns.observed_relationships`. Nine lines of body, no logic of its own.
-
-- `build_ontology_views(source_graph)` → `{"schema", "instance", "support", "skeleton",
-  "patterns"}`. The first four are `Graph`s of statements the source itself makes; `patterns`
-  is a `list[dict]` of observations. Keeping them in one record names them together; it does
-  not make them the same kind of statement.
+`build_ontology_views(source_graph)` → `{schema, instance, support, skeleton,
+patterns}` (three partitions + skeleton from schema + patterns from
+schema+instance).
 
 ### 5.5 `source_concepts.py` — what one text mentions
 
-Imports: `re`, `unicodedata`. **No rdflib and no `llm`** — asserted by a test, so a future
-NLP/NER/embedding/small-model implementation can replace the body without touching anything
-else.
+No rdflib, no `llm` (asserted by tests). Constants: `MAX_CHARACTERS = 200_000`,
+`MAX_TOKENS = 5_000`, `MAX_CONCEPTS = 40`, `MAX_PHRASE_TOKENS = 3`,
+`MAX_MENTION_TOKENS = 4`, `MAX_MATCH_TOKENS = 6`, `MIN_TOKEN_CHARACTERS = 2`,
+`HEADING_CHARACTERS = 80`, `EARLY_CHARACTERS = 400`; weights: mention 3.0 /
+phrase 2.0 / keyword 1.0, heading +2.0, repeat +0.5 each capped 3.0, early
++1.0.
 
-- `normalize(text)` — NFKC, case folded, words single-spaced. Not ASCII-folding: accents and
-  non-Latin scripts survive (unlike `entity_lookup.identity_key`).
-- `extract_source_concepts(text)` → `list[{"text", "normalized", "kind", "weight", "origin",
-  "position"}]`, sorted by `(-weight, position, normalized)`, capped at `MAX_CONCEPTS`.
-  `kind` ∈ `mention | phrase | keyword`; `origin` ∈ `heading | capitalized-span | frequency`.
-  A capitalized span is a mention *candidate* — never a claimed `Person`/`Organization`.
-- `text_phrases(text, longest)` → `{normalized word run: first position}`. Task matching uses
-  this so names only match whole words (`art` cannot match inside `particle`, and
-  `Berlin, Paris` is not the phrase `Berlin Paris`).
+- `normalize(text)` — NFKC, case folded, words single-spaced (Unicode
+  preserving, unlike `entity_lookup.identity_key`).
+- `extract_source_concepts(text)` → `list[{"text", "normalized", "kind",
+  "weight", "origin", "position"}]`, sorted by `(-weight, position,
+  normalized)`, capped at `MAX_CONCEPTS`. `kind` ∈ mention|phrase|keyword;
+  `origin` ∈ heading|capitalized-span|frequency.
+- `text_phrases(text, longest)` → normalized word-run → first position index.
 
 ### 5.6 `task_context.py` — select the context one source needs
 
-Imports: rdflib terms; `entity_lookup.entity_catalog`; `graph_patterns.STRUCTURAL, eligible`;
-`ontology_views.build_ontology_views`; `source_concepts` (3 helpers).
-
-- `select_task_context(text, concepts, ontology_views, native_entities=None, limits=None)` —
-  the independently testable selector.
-- `build_task_context(text, source_graph, limits=None)` — composition: views + concepts +
-  `entity_catalog(source_graph)`, then the selector.
-
-Returns a **ContextPackage**: `{"concepts", "schema", "patterns", "resources", "examples",
-"labels", "diagnostics"}`. Each item is
-`{"id", "kind", "value", "priority", "reason", "direct"}` with `kind` ∈ `class | property |
-restriction | pattern | resource | example`. Item ids are content-derived and stable
-(a restriction's id never uses its blank-node identifier). `labels` maps every URI the
-surviving items mention to its names, with the decoded local name as fallback, so rendering
-never needs the graph again.
-
-**Priority tiers** (lower is more relevant; ties break on item id):
-
-| Tier | Constant | Meaning |
-|---|---|---|
-| 1 | `DIRECT_NAME` | a resource name or alias occurs in the source |
-| 2 | `DIRECT_LABEL` | a class, property, or predicate label occurs in the source |
-| 3 | `CONCEPT` | an extracted concept equals a name or local name |
-| 4 | `OVERLAP` | the source shares content words with a description |
-| 5 | `DEPENDENCY` | structure a direct match needs (parent/child, domain/range endpoint, restriction, a resource's type) |
-| 6 | `CONNECTED` | an observation about a directly matched class or property |
-| 7 | `NEIGHBOR` | a one-hop assertion, or the resource at its far end |
-| 8 | `INDIRECT` | an observation reached only through a matched resource |
-
-Task relevance outranks empirical frequency by construction: a frequent pattern the source
-gives no reason to see is never selected at all.
-
-**Bounded expansion**: one hierarchy hop, visited sets everywhere (so subclass cycles
-terminate), restrictions copied whole from the skeleton, and an assertion becomes an example
-only when its predicate matters for a reason other than the resource itself (tier < 8) or its
-far endpoint was directly matched — otherwise one hub would drag its whole neighbourhood in.
+Unchanged contract. `DEFAULT_LIMITS`: classes 12, properties 16, restrictions
+8, patterns 20, resources 15, examples 12, hierarchy_hops 1, instance_hops 1,
+match_tokens 8, overlap_tokens 2, concepts 40, direct_matches 40. Tiers 1–8
+(`DIRECT_NAME` → `INDIRECT`); relevance outranks frequency; all bounded
+expansion with visited sets (cycles terminate). Returns a `ContextPackage`
+{concepts, schema, patterns, resources, examples, labels, diagnostics}.
+`build_task_context(text, source_graph, limits=None)` composes views +
+concepts + `entity_catalog`.
 
 ### 5.7 `context_render.py` — render, assemble, budget
 
-Imports: rdflib `BNode, Literal`, `OWL, RDF, RDFS`; `prompt_budget` (3 functions);
-`task_context.TEXT_PREDICATES, datatype_term`.
-
-- `render_context_items(context_package, namespace_manager=None)` →
-  `list[{"id", "section", "priority", "text", "dependencies"}]`, sorted by
-  `(section order, priority, id)`. `section` ∈ `declared | observed | resources | examples`.
-- `assemble_context(rendered_items)` → one string: fixed section order, empty sections
-  omitted.
-- `prepare_prompt_context(context_package, budget_config, count_tokens=estimate_tokens)` →
-  `{"text", "budget", "existing_ids"}`. `existing_ids` is the sorted list of native resource
-  `id:` values whose cards survived budget packing — derived from the structured package and the
-  kept rendered-item ids, never by parsing prompt text. It is what `validate_candidates` takes
-  as `allowed_existing_ids`.
-- `allowance(budget_config)` — a stated `context_tokens` ceiling, the `context_allowance()`
-  arithmetic, or **both, in which case the smaller wins**. Neither present, or incomplete
-  arithmetic, raises `KeyError` rather than inventing a number.
-
-Rendering rules that must not regress: a datatype property points at `literal value (...)`,
-never at an apparent entity; an unknown observed range stays `unknown`; the six
-skeleton-supported restriction forms get careful wording and anything else renders as compact
-RDF (`rdfs:subClassOf [ owl:onProperty ... ]`) rather than invented modality; a generic
-resource shows `uri:` plus `not usable as existing_id` while a native entity shows `id:`;
-labels and descriptions are flattened, control characters removed, and runs of `- = ` # _ * ~`
-collapsed so graph text cannot forge a heading, fence, or source delimiter; long fields are
-cut at a word boundary with `TRUNCATION_MARKER`.
-
-`assembly_overhead()` charges headings and line breaks against the allowance *before*
-packing, for every section the candidates could fill — deliberately pessimistic so the
-assembled text can never overrun the allowance.
+Unchanged contract: `render_context_items(package, namespace_manager=None)`
+(items with section/priority/text/dependencies; sections declared / observed /
+resources / examples), `assemble_context(rendered_items)` (fixed order, empty
+sections omitted), `allowance(budget_config)` (context_tokens ceiling and/or
+total-limit arithmetic; the smaller wins; raises `KeyError` when neither),
+`assembly_overhead(...)` (headings + line breaks charged before packing),
+`prepare_prompt_context(package, budget_config, count_tokens=estimate_tokens)`
+→ `{text, budget, existing_ids}`. Rendering keeps declared vs observed apart;
+datatype properties point at literals; unknown ranges stay `unknown`; only the
+six supported restrictions get words, anything else renders as compact RDF;
+native resources show `id:`, generic show `uri:` + "not usable as existing_id";
+graph text is cleaned/defused/truncated (`MAX_FIELD_CHARACTERS = 240`,
+`TRUNCATION_MARKER`, `GENERIC_NOTE`).
 
 ### 5.8 `prompt_budget.py` — estimate, allowance, packing
 
-Imports: `math.ceil`. Nothing else.
-
-- `estimate_tokens(text, chars_per_token=DEFAULT_CHARS_PER_TOKEN)` — `ceil(len/divisor)`.
-- `context_allowance(total_limit, fixed_prompt_tokens, source_tokens, output_reserve,
-  safety_margin)` — clamped at 0, never negative.
-- `fit_context_items(rendered_items, token_budget, count_tokens=estimate_tokens)` →
-  `{"items", "used_tokens", "budget_tokens", "dropped_ids", "item_costs", "estimator"}`.
-  Considers items in `(priority, id)` order, takes an item only with its transitive
-  `dependencies` and only when the whole bundle fits, and **never slices**: an oversized item
-  is dropped whole and named in `dropped_ids`.
-- `PROMPT_BUDGET` — the approved production numbers (§10).
-
-The counter is a callable argument throughout: an exact model tokenizer can replace it later
-without touching selection or rendering.
+Unchanged contract. `PROMPT_BUDGET` (approved 2026-08-17):
+`total_limit 30_000`, `context_tokens 1_400`, `fixed_prompt_tokens 400`,
+`output_reserve 4_000`, `safety_margin 500`; `DEFAULT_CHARS_PER_TOKEN = 3`.
+`estimate_tokens`, `context_allowance` (clamped ≥ 0), `fit_context_items`
+(with dependency bundles, never slices; `dropped_ids` names the dropped whole
+items).
 
 ---
 
 ## 6. Data contracts & return types (quick reference)
 
-| Producer | Function | Return |
+| Module | Function | Return |
 |---|---|---|
-| `entity_lookup` | `entity_catalog(graph)` | `list[{"id","names","kind","description"}]` |
-| `entity_lookup` | `identify_entity(entity, catalog)` | `URIRef \| None` |
-| `graph_merge` | `merge_into_graph(graph, data)` | `(new, resolved, relations, facts)` ints |
-| `graph_partition` | `partition_graph(graph)` | `(schema:Graph, instance:Graph, support:Graph)` |
-| `graph_skeleton` | `create_graph_skeleton(schema)` | `Graph` |
-| `graph_patterns` | `observed_relationships(schema, instance)` | `list[dict]` (see 5.3) |
-| `llm` | `ask_llm(prompt)` | parsed JSON object |
-| `source_parse` | `parse_source(text, context_text="")` | the LLM's parsed JSON object |
-| `ontology_views` | `build_ontology_views(graph)` | `{"schema","instance","support","skeleton","patterns"}` |
-| `source_concepts` | `extract_source_concepts(text)` | `list[{"text","normalized","kind","weight","origin","position"}]` |
-| `source_concepts` | `text_phrases(text, longest)` | `dict[str, int]` (word run → first position) |
-| `task_context` | `build_task_context(text, graph, limits=None)` | ContextPackage (see 5.6) |
-| `task_context` | `select_task_context(text, concepts, views, native_entities=None, limits=None)` | ContextPackage |
-| `context_render` | `render_context_items(package, namespace_manager=None)` | `list[{"id","section","priority","text","dependencies"}]` |
-| `context_render` | `assemble_context(rendered_items)` | `str` |
-| `context_render` | `prepare_prompt_context(package, budget_config, count_tokens=...)` | `{"text", "budget", "existing_ids"}` |
-| `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=())` | `ValidationResult` (see 4.7) |
-| `candidate_validation` | `format_validation_failure(result)` | `str` |
-| `merge_policy` | `build_provenance(path, text, model)` | `{"source_path","source_sha256","model","policy_version"}` |
-| `merge_policy` | `plan_graph_merge(graph, candidates, provenance)` | MergePlan (see 4.8) |
-| `merge_policy` | `resolve_entities(candidates, graph)` | `{local_id: identity decision}` |
-| `graph_merge` | `apply_merge_plan(source_graph, plan)` | `(new graph, result counts)` |
-| `prompt_budget` | `estimate_tokens(text, chars_per_token=3)` | `int` |
-| `prompt_budget` | `context_allowance(total, fixed, source, reserve, margin)` | `int` (≥ 0) |
-| `prompt_budget` | `fit_context_items(items, budget, count_tokens=...)` | `{"items","used_tokens","budget_tokens","dropped_ids","item_costs","estimator"}` |
+| `windowing` | `make_source_document(name, raw_text, ...)` | `SourceDocument` (`doc-<sha[:16]>`) |
+| `windowing` | `plan_windows(document, config)` | `list[TextWindow]` ([] for blank) |
+| `source_staging` | `layered_context_text(canonical, source, budget, count_tokens)` | `{text, budget, existing_ids}` |
+| `source_staging` | `plan_window_admission(source_graph, candidates, provenance, doc_id, conf)` | MergePlan (provisional URIs) |
+| `repair` | `extract_validated(extractor, prompt, validate, max_repair_attempts)` | `ExtractionOutcome` (`.ok`) |
+| `candidate_graph` | `build_candidate_graph(...)` | deterministic candidate `Graph` (PROV/DQV) |
+| `source_reconciliation` | `reconcile_document(doc_id, source_graph, candidate_graphs, plans)` | plain report dict |
+| `source_reconciliation` | `build_source_artifact(document, source_graph, windowing, models)` | `SourceGraphArtifact` |
+| `source_validation` | `validate_source_graph(source_graph, shapes)` | `SourceValidationResult` |
+| `document_merge` | `plan_document_merge(canonical_graph, document, packages, plans, conf, planner)` | document merge dict + `merge_plan` |
+| `document_publication` | `compile_document_publication(document, merge, candidates, packages, plans, roles, names, shapes)` | `DocumentPublicationPlan` |
+| `graph_store` | `RdflibGraphStore.publish(publication)` | atomic TriG persistence |
+| `merge_policy` | `plan_graph_merge(graph, candidates, provenance, ...)` | MergePlan (see 4.13) |
+| `entity_lookup` | `identity_decision(entity, catalog, ...)` | `{status, uri, method, identity_score, suggestions, reason_codes}` |
+| `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=())` | `ValidationResult` |
+| `publication_sources` | `materialize_sources(graph, document, merge, canonical)` | None (mutates the evidence graph) |
+| `view_report` | `build_report(path, graph, views)` | plain report dict for the HTML page |
+| `view_html` | `write_report(...)` | writes one self-contained HTML page |
 
 ---
 
-## 7. RDF graph model (what gets written, and where)
+## 7. RDF dataset model (the named graphs)
 
-- **Namespaces**: `entity:` (individuals), `class:` (kinds), `relation:` (object properties),
-  `fact:` (datatype properties), `onto:` (ontology + `Entity` + `EntityShape` + `kind`).
-- **Seed**: `onto:ontology` (owl:Ontology), `onto:Entity` (owl:Class), `onto:EntityShape`
-  (sh:NodeShape targeting `onto:Entity`, one `sh:property` requiring `skos:prefLabel` minCount 1).
-- **Each merged entity** is typed: `onto:Entity`, `owl:NamedIndividual`, `skos:Concept`, `class:<Kind>`.
-  It carries `skos:prefLabel`, `rdfs:label`, `onto:kind`, optional `skos:altLabel`(s), optional `rdfs:comment`.
-- **Each Kind class**: `owl:Class`, `rdfs:subClassOf onto:Entity`, `rdfs:label`.
-- **Each relation**: `relation:<slug>` `owl:ObjectProperty` + `rdfs:label`; each assertion `(s,p,o)`.
-- **Each fact**: `fact:<slug>` `owl:DatatypeProperty` + `rdfs:label`; each assertion `(s,p,Literal)`.
-
----
-
-## 8. Cross-module import graph
-
-Arrows = "imports from".
-
-```
-ontology.py ──► candidate_validation.py (validate_candidates, format_validation_failure),
-                context_render.py (prepare_prompt_context), graph_management.py,
-                graph_merge.py (apply_merge_plan), ingest_sources.py, llm.py (model_name),
-                merge_policy.py (build_provenance, plan_graph_merge),
-                prompt_budget.py (PROMPT_BUDGET, estimate_tokens),
-                source_parse.py, task_context.py (build_task_context)
-merge_policy.py ──► entity_lookup.py (entity_catalog, identity_decision, identity_key),
-                    graph_management.py (CLASS, ENTITY, FACT, ONTO, RELATION),
-                    graph_merge.py (label, slug)
-source_parse.py ──► llm.py (ask_llm)
-candidate_validation.py ──► entity_lookup.py (entity_catalog, identity_key),
-                           graph_management.py (CLASS, FACT, ONTO, RELATION),
-                           graph_merge.py (label, slug)
-graph_merge.py ──► entity_lookup.py (entity_catalog, identify_entity),
-                   graph_management.py (CLASS, ENTITY, FACT, ONTO, RELATION)
-entity_lookup.py ──► graph_management.py (ONTO)
-graph_patterns.py ──► graph_management.py (ONTO)
-
-context_render.py ──► prompt_budget.py, task_context.py (TEXT_PREDICATES, datatype_term)
-task_context.py ──► entity_lookup.py (entity_catalog),
-                    graph_patterns.py (STRUCTURAL, eligible),
-                    ontology_views.py, source_concepts.py
-ontology_views.py ──► graph_partition.py, graph_skeleton.py, graph_patterns.py
-
-graph_partition.py ──► (rdflib only)
-graph_skeleton.py ──► (rdflib only)
-graph_management.py ──► (rdflib only)
-prompt_budget.py ──► (stdlib only)
-source_concepts.py ──► (stdlib only)
-llm.py ──► (stdlib only)
-ingest_sources.py ──► (stdlib only)
-```
-
-- The derivation layer is now reached by the pipeline, but only through `ontology_views.py`
-  and only for reading.
-- `graph_partition` and `graph_skeleton` do **not** depend on `graph_management` (they use raw
-  rdflib namespaces). `graph_patterns` depends on `graph_management.ONTO` for the `EXCLUDED` set.
-- `source_parse.py` no longer imports `entity_lookup` or rdflib. `entity_lookup` itself is
-  unchanged and is still used at merge time against the **whole** graph, so a resource left out
-  of the prompt is still available for local resolution.
-- `source_concepts.py` and `prompt_budget.py` are the two deliberate seams for future
-  replacement (NLP/small model; exact tokenizer). Neither imports rdflib or `llm`.
-- `candidate_validation` imports `graph_merge` only for the pure `slug()`/`label()` helpers,
-  and does **not** import `ontology`, `source_parse`, or any graph-saving function — validation
-  stays outside graph mutation.
+- **Roles** (`GraphNames`): `schema` (declared classes/properties), `shapes`
+  (SHACL shape graphs), `data` (target canonical data graph), `provenance`
+  (evidence + source links), `review` (withheld candidates). The Lturtle
+  `entity:`/`class:`/`relation:`/`fact:` namespaces still name the resources
+  inside the data graph.
+- **Seed** (virtual, via `seed_graph` → `split_legacy_graph`): `onto:ontology`,
+  `onto:Entity`, `onto:EntityShape` (targets `onto:Entity`, requires
+  `skos:prefLabel` minCount 1). Applied only when a store is wholly fresh.
+- **Staging** (never canonical, in-memory per document): a document's source
+  graph under `.../staging/<doc>` and per-window candidate graphs under
+  `.../staging/<doc>/<window>`; entities use `provisional/<doc>/...` IRIs.
+- **Each accepted entity** is typed `onto:Entity`, `owl:NamedIndividual`,
+  `skos:Concept`, and `class:<Kind>`; carries `skos:prefLabel`, `rdfs:label`,
+  `onto:kind`, optional aliases/comment.
+- **Each relation/fact** becomes `relation:<slug>`
+  `owl:ObjectProperty` / `fact:<slug>` `owl:DatatypeProperty` with a label.
+- **Evidence** (provenance graph): per-record `prov:Collection` +
+  `rdf:Statement` reification + `dqv:QualityMeasurement` (xsd:decimal) + the
+  PROV chain; plus `onto:statement/<sha>` source links and
+  `onto:sourceDocument` / `onto:sourceFile` summaries (from
+  `publication_sources`).
+- **Audit** (support partition, via merge policy): `onto:ExtractionEvent` and
+  `onto:MergeCandidate` records (`rdf:JSON` normalized candidates, decimal
+  confidence, decision reasons; no timestamps, no raw text).
+- **Review graph**: withheld identities and assertions as `prov:Collection` +
+  reified statements + `prov:wasDerivedFrom` (from `build_review_graph`).
 
 ---
 
-## 9. Two-stage read-only composition (what originates from what)
+## 8. Cross-module import graph (main edges)
 
 ```
-ontology.ttl  (single merged graph — the only origin)
-      │
-      ▼  partition_graph()
-   ┌──────────┬──────────┬──────────┐
-   │ schema   │ instance │ support  │   (disjoint, lossless)
-   │ (TBox)   │ (ABox)   │ (header+ │
-   │          │          │  SHACL)  │
-   └────┬─────┴────┬─────┴──────────┘
-        │          │
-        ▼          ▼
- create_graph_skeleton(schema)          observed_relationships(schema, instance)
-        │          └──────────────┬────────────────┘
-        ▼                         ▼
- declared structural core    empirical usage patterns
- (what ontology claims)      (what data actually does)
+cli.py ──► api.py (RunRequest, run_text_to_graph),
+           graph_management.py (LocalTurtleStore), llm.py (OpenRouterExtractor),
+           run_report.py (RunReporter, default_report_path)
+api.py  ──► pipelines + stores (re-exports; no logic of its own)
+pipeline.py ──► windowing, source_staging, source_parse, llm, repair,
+                candidate_validation, candidate_graph, source_reconciliation,
+                source_validation, document_merge, document_publication,
+                merge_policy, entity_lookup (indirect), graph_merge,
+                graph_store, graph_management, ingest_sources, task_context,
+                prompt_budget, run_report
+document_publication.py ──► graph_store (GraphNames, Publication, RdflibGraphStore),
+                            graph_partition (partition), graph_management (seed_graph),
+                            candidate_graph (PROVISIONAL), publication_sources,
+                            source_validation
+document_merge.py ──► merge_policy, candidate_graph, graph_merge
+source_staging.py ──► merge_policy (plan_graph_merge, canonical_json),
+                      candidate_graph, context_render, prompt_budget, graph_merge
+source_reconciliation.py ──► candidate_graph (DQV), graph_management (ONTO...)
+source_validation.py ──► (pySHACL only, imported lazily)
+merge_policy.py ──► entity_lookup, graph_management, graph_merge
+candidate_validation.py ──► entity_lookup (entity_catalog, identity_key),
+                            graph_management, graph_merge (class_uri, label, slug)
+candidate_graph.py ──► graph_management (FACT, RELATION, bind), graph_merge (class_*)
+graph_store.py ──► graph_partition (for legacy import)
+task_context.py ──► entity_lookup, graph_patterns (STRUCTURAL, eligible), ontology_views, source_concepts
+context_render.py ──► prompt_budget, task_context (TEXT_PREDICATES, datatype_term)
+ontology_views.py ──► graph_partition, graph_skeleton, graph_patterns
+view_report.py ──► graph_management (ONTO), graph_patterns, run_report, task_context
+view_ontology.py ──► graph_management, graph_store (ReadOnlyGraphStore, RdflibGraphStore),
+                     ontology_views, run_report, view_html, task_context
 ```
 
-Since phase 5D one more stage sits on top, per source text:
+Deliberate seams: `source_concepts` / `prompt_budget` have no rdflib or `llm`;
+`graph_partition` / `graph_skeleton` / `graph_management` / `llm` /
+`ingest_sources` / `source_concepts` / `prompt_budget` have no project imports
+(except `graph_patterns` → `graph_management.ONTO`); `windowing` depends on
+`prompt_budget.estimate_tokens` only; pySHACL is imported lazily inside
+`validate_source_graph`.
+
+---
+
+## 9. Composition diagram (what originates from what)
 
 ```
-source text ──► extract_source_concepts()          [no RDF, no LLM]
-                       │
-current graph ──► build_ontology_views()  ─────────┐
-                                                   ▼
-                       select_task_context()  →  ContextPackage
-                       (tiers 1-4 direct, 5-8 bounded expansion)
-                                                   │
-                       render_context_items()  ────┤  declared / observed /
-                                                   │  resources / examples
-                       fit_context_items()  ───────┤  complete items only
-                                                   ▼
-assemble_context()  →  one prompt block
-                                                    │
-                       parse_source(text, block) ──► LLM
-                                                    │
-                       validate_candidates()  ─────► read only;
-                       (normalize, dedupe,          │  any error stops here
-                        refs, roles, confidence)    │
-                                                    ▼
-                       build_provenance() + plan_graph_merge() ──► read only;
-                       (identity, accept/duplicate/ │  any failure stops here
-                        review, audit triples)      │
-                                                    ▼
-                       apply_merge_plan()  ───────► a graph copy
-                                                    │
-                       save_graph() (atomic) ─────► the whole graph again
+source files ──► find_text_files / read_source ──► make_source_document
+                                                          │ (content-derived doc ID)
+                                                          ▼
+                              plan_windows()  →  overlapping TextWindows
+                                                          │
+                 per window:  task_context over final graph  +  task_context over staging graph
+                                                          │
+                          layered_context_text()  →  one budgeted block (source items "(this document)")
+                                                          │
+                          make_prompt() → extract_validated() → [repair ≤ N]
+                                                          │
+                          validate_candidates()  (same gate every attempt; any error → window rejected)
+                                                          │
+                          plan_window_admission(source staging graph only; PROVISIONAL IRIs)
+                                                          │
+                          build_candidate_graph()  →  window candidate graph (evidence, kept)
+                          apply_merge_plan()  →  source staging graph grows
+                                                          │ (all windows)
+                                                          ▼
+              reconcile_document()  →  report (entities, aliases, overlap supports, unresolved, conflicts)
+              build_source_artifact()  →  deterministic N-Triples + metadata
+              validate_source_graph()  →  pySHACL  (non-conformance → SourceValidationError)
+                                                          │
+              plan_document_merge(canonical scope)  →  identity decided ONCE (accept/duplicate/review)
+                                                          │
+              compile_document_publication()  →  proposed target + remapped evidence + review graph
+              validate_source_graph(proposed data)  →  (non-conformance → PublicationValidationError)
+                                                          │
+         publish_document(store, plan)   ←── one atomic store.publish() replacing target/provenance/review
+         (or dry_run: report the same plan, never publish)
 ```
 
-Selection narrows the prompt, never the merge; validation decides admissibility;
-merge policy decides identity, acceptance, corroboration, and conflicts against the
-complete graph; materialization only applies already-made decisions to a copy.
-`identity_decision()` still sees the full catalog. Between them, `candidate_validation`
-treats the LLM reply as an untrusted proposal: it verifies structure, references, and
-confidence, normalizes, removes intra-package duplicates, and rejects provable role/type
-conflicts — still without ever performing identity search or writing to the graph.
-
-- **`support` is consumed by neither tool** — kept apart so metadata/constraints never leak into
-  the class/property view.
-- **Skeleton** needs only `schema`; **patterns** needs *both* `schema` (for class hierarchy/ranges)
-  and `instance` (for actual assertions).
-- Complementarity: a pattern with no matching skeleton axiom indicates a missing `domain`/`range`;
-  high-coverage patterns can later be turned into SHACL shapes and fed back into the schema.
+Identity scope: window admission sees only the source-local staging graph
+(deferred); document merge sees the complete canonical scope. Selection narrows
+the prompt, never the merge; validation decides admissibility; merge policy
+decides identity, acceptance, corroboration, and conflicts; materialization and
+publication only apply already-made decisions.
 
 ---
 
@@ -1066,95 +824,80 @@ conflicts — still without ever performing identity search or writing to the gr
 | Item | Value |
 |---|---|
 | Base namespace | `http://example.org/text-ontology/` |
-| Sub-namespaces | `entity/`, `class/`, `relation/`, `fact/` |
-| Default output graph | `ontology.ttl` |
+| Role / resource namespaces | `entity/ class/ relation/ fact/ graphs/(schema\|shapes\|data\|provenance\|review) provisional/ metric/ staging/ candidate/ document/ source-file/ statement/ review/` |
+| Default output dataset | `ontology.trig` (`.ttl` = explicit legacy Turtle compatibility) |
+| Window target / overlap | `800` / `100` tokens (`WINDOW_STRATEGY_VERSION = 2`) |
+| Document ID / window ID | `doc-<sha256[:16]>` / `win-<sha256[:16]>` |
+| Merge policy version | `2` (`MERGE_POLICY_VERSION`) |
+| Candidate mapping version | `2` (`CANDIDATE_MAPPING_VERSION`) |
+| Document merge version | `1` (`DOCUMENT_MERGE_VERSION`) |
+| Auto-accept confidence | `0.80` (`AUTO_ACCEPT_MIN_CONFIDENCE`) |
+| Close-spelling threshold | `0.96` (`CLOSE_SPELLING_THRESHOLD`, review-only) |
+| Default repair attempts | `2` (`ExtractionConfig.repair_attempts`) |
 | Default LLM model | `openrouter/pareto-code:nitro` |
-| Model env var | `OPENROUTER_MODEL` |
-| API key env var | `OPENROUTER_API_KEY` |
-| LLM endpoint | `https://openrouter.ai/api/v1/chat/completions` |
-| LLM temperature | `0` |
-| LLM system prompt | `"Extract knowledge. Return only JSON."` |
-| LLM timeout | `60` s |
-| Request title header | `"Simple Text to Ontology"` |
+| Env vars | `OPENROUTER_MODEL` / `OPENROUTER_API_KEY` |
+| LLM | `https://openrouter.ai/api/v1/chat/completions`, temperature `0`, timeout `60` s, title `"Simple Text to Ontology"`, system prompt `"Extract knowledge. Return only JSON."` |
 | Accepted source extensions | `.txt .md .rst .csv .json .jsonl .yaml .yml .xml .html .log` |
 | Seed graph size | 8 triples |
-| Close-spelling threshold | `0.96` (SequenceMatcher ratio; review-only since phase 07) |
-| Merge policy version | `1` (`merge_policy.MERGE_POLICY_VERSION`) |
-| Auto-accept confidence | `0.80` (`merge_policy.AUTO_ACCEPT_MIN_CONFIDENCE`) |
-| Dependency | `rdflib>=7,<8` |
+| Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |
+| Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 |
+| Traversal caps | `hierarchy_hops` 1, `instance_hops` 1 |
+| Matching caps | `concepts` 40, `direct_matches` 40, `match_tokens` 8, `overlap_tokens` 2 |
+| Concept caps | `MAX_CHARACTERS` 200 000, `MAX_TOKENS` 5 000, `MAX_CONCEPTS` 40, `MAX_PHRASE_TOKENS` 3, `MAX_MENTION_TOKENS` 4, `MAX_MATCH_TOKENS` 6, `MIN_TOKEN_CHARACTERS` 2, `HEADING_CHARACTERS` 80, `EARLY_CHARACTERS` 400 |
+| Concept weights | mention 3.0, phrase 2.0, keyword 1.0; heading +2.0; repeat +0.5 each (cap 3.0); early +1.0 |
+| Field truncation | `MAX_FIELD_CHARACTERS` 240 (+ `TRUNCATION_MARKER`) |
+| Report directory | `reports/runs/` |
+| Dependencies | `rdflib>=7,<8`, `pyshacl>=0.30,<1`; Python 3.12+ |
 
-Context selection and prompt budget (proposal 05). The budget numbers were approved by the
-user on 2026-08-17 after seeing phase 5C measurements:
-
-| Item | Value | Where |
-|---|---|---|
-| `total_limit` | `30_000` | `prompt_budget.PROMPT_BUDGET` |
-| `context_tokens` (ceiling) | `1_400` | same |
-| `fixed_prompt_tokens` | `400` | same (measured 331) |
-| `output_reserve` | `4_000` | same |
-| `safety_margin` | `500` | same |
-| `DEFAULT_CHARS_PER_TOKEN` | `3` | `prompt_budget` |
-| Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 | `task_context.DEFAULT_LIMITS` |
-| Traversal caps | `hierarchy_hops` 1, `instance_hops` 1 | same |
-| Matching caps | `concepts` 40, `direct_matches` 40, `match_tokens` 8, `overlap_tokens` 2 | same |
-| Concept extraction caps | `MAX_CONCEPTS` 40, `MAX_TOKENS` 5000, `MAX_CHARACTERS` 200 000 | `source_concepts` |
-| Concept weights | mention 3.0, phrase 2.0, keyword 1.0; heading +2.0; repeat +0.5 each, capped 3.0; early +1.0 | same |
-| Field truncation | `MAX_FIELD_CHARACTERS` 240 | `context_render` |
-
-`total_limit` is deliberately high so that it does not bind; **it is not a measured model
-window** and must never be inferred or adjusted from `OPENROUTER_MODEL`, which may name a
-router. `context_tokens` is the intended lever on prompt size, and where both apply the
-smaller wins.
+`total_limit` is deliberately high so that it does not bind; it is not a
+measured model window and must never be inferred or adjusted from
+`OPENROUTER_MODEL`, which may name a router. `context_tokens` is the intended
+lever on prompt size; where both apply the smaller wins.
 
 ---
 
 ## 11. Error handling summary
 
-| Condition | Module | Error |
+| Condition | Where | Error |
 |---|---|---|
-| Missing source path | `ingest_sources` | `RuntimeError("Source does not exist: {source}")` |
-| No text files found | `ontology` | `RuntimeError("No text-like files found")` |
-| Missing API key | `llm` | `RuntimeError("Set OPENROUTER_API_KEY first")` |
-| OpenRouter HTTP error | `llm` | `RuntimeError(f"OpenRouter error {code}: {message}")` |
-| Non-JSON model reply | `llm` | `RuntimeError(f"The model did not return JSON:\n{answer}")` |
-| Invalid JSON reply | `llm` | `RuntimeError(f"The model returned invalid JSON:\n{answer}")` |
-| Invalid candidate package | `ontology` (via `format_validation_failure`) | `RuntimeError(f"{n} validation error(s): ...")` |
-| `main()` catches `RuntimeError`/`OSError` | `ontology` | print to stderr, `SystemExit(1)` |
+| Missing source path | `ingest_sources.find_text_files` | `RuntimeError("Source does not exist: {source}")` |
+| No text-like files | `pipeline.run_text_to_graph` | `RuntimeError("No text-like files found")` |
+| Missing API key | `llm.ask_llm` | `RuntimeError("Set OPENROUTER_API_KEY first")` |
+| OpenRouter HTTP error | `llm.ask_llm` | `RuntimeError(f"OpenRouter error {code}: {message}")` |
+| Non-JSON / invalid JSON answer | `llm.ask_llm` | `InvalidResponseError(...)` (caught by `repair._attempt`) |
+| Invalid candidate package | `pipeline._extract_window` | `RuntimeError(format_validation_failure(...))` |
+| Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
+| Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
+| Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
+| Duplicate role names / bad staging ns | `graph_store.GraphNames.validate` | `ValueError` |
+| Budget without ceiling/arithmetic | `context_render.allowance` | `KeyError` |
+| `main()` catches `RuntimeError`/`OSError` | `cli.main` | print to stderr, `SystemExit(1)` |
+
+Source and publication validation errors leave the final graphs unchanged;
+`--dry-run` never calls `store.publish`.
 
 ---
 
-## 12. Current data snapshot (`ontology.ttl`, as parsed from the file)
+## 12. Current data snapshot (`ontology.trig`, as parsed from the file)
 
-- **Triples**: 82 total → partition: `schema` 44 · `instance` 31 · `support` 7
-  (support = `onto:ontology` + `onto:EntityShape`). `skeleton` == `schema` == 44.
-- **Entities**: 5, one per neutral kind used by the example.
-- **Entity → kind** (exact):
+The dataset holds five roles. Current sizes at the time of writing
+(numbers grow with every run, so the repository tests do **not** pin them):
 
-  | Kind | Entities |
-  |---|---|
-  | Event | launch |
-  | Organization | acme |
-  | Person | alice |
-  | Place | springfield |
-  | Product | widget |
+| Named graph | Current triples |
+|---|---|
+| `graphs/schema` | ~2 (seed ontology structure) |
+| `graphs/shapes` | ~5 (the embedded `EntityShape` from the seed) |
+| `graphs/data` (target) | ~10 900 |
+| `graphs/review` | ~2 700 |
+| `graphs/provenance` | ~111 700 |
+| union of all graphs | ~125 300 |
 
-- **Classes**: 7 `owl:Class` — the root `onto:Entity` plus 6 `class:*` kinds
-  (`action`, `event`, `organization`, `person`, `place`, `product`). These are
-  the neutral building blocks the example starts from.
-- **Properties**: 4 `relation:*` object properties (`employs`, `located-in`,
-  `participates-in`, `produces`), 2 `fact:*` datatype properties (`founded`,
-  `name`), each with an `rdfs:label`.
-- **Patterns**: 6 pattern records derived from the instance view.
-- **Sources**: none. The repository no longer ships topic-specific sample
-  briefs; `ontology.ttl` is a small, neutral example that can be regenerated
-  from any text.
-
-> Note: the repository-graph tests that read `ontology.ttl`
-> (`test_graph_partition.RepositoryGraphTest`,
-> `test_graph_skeleton.RepositoryGraphTest`, parts of `test_graph_patterns`)
-> assert only that it parses and is left untouched, not fixed sizes. The exact
-> partition, skeleton, and pattern numbers are pinned on the frozen miniature
-> in `tests/fixtures/miniature_repository.ttl`.
+Entity kinds currently present include `Person`, `Organization`, `Brand`,
+`Project`, `Place`, `Technology`, `Concept`, `Process`, `Component`, and many
+more; domain properties include ~344 `relation:*` and ~486 `fact:*` predicates
+with ~1 100 relation and ~1 150 fact assertions. Exact partition/skeleton/
+pattern numbers are pinned on the frozen miniature in
+`tests/fixtures/miniature_repository.ttl`, not on the live dataset.
 
 ---
 
@@ -1162,82 +905,114 @@ smaller wins.
 
 | Test file | What it pins down |
 |---|---|
-| `test_pipeline.py` | blank-file skip; per-file save + growing context; graph dir creation; default `ontology.ttl`; progress lines; error paths; rerun resolves (0 new / 1 resolved, name becomes altLabel); **5D**: a mentioned entity reaches the prompt and an unmentioned one does not; the old catalog block is gone; context rebuilt per file; zero allowance still a valid prompt; the budget line is printed; the context stays within the ceiling; an entity absent from the prompt still resolves at merge time; a failed call leaves the saved graph byte-identical; the repository graph is untouched; **6C**: normalized candidates reach the merger; the `Validated:` report and duplicate count; non-mapping / bad-endpoint / hallucinated-`existing_id` responses reject the file; a valid prompt-`existing_id` resolves; no merge or save after a validation error; a rejected source leaves the file byte-identical; prior files stay saved and later files are not processed; duplicate-only warnings still merge; blank files bypass validation/merge/save; **07**: plan → apply → save ordering with `report_plan`; a mixed package reports accepts, duplicates, and reviews; duplicate corroboration is reported and not re-added; a review-only package is saved without domain assertions; a planning failure leaves both graphs unchanged; a save failure leaves the old file usable; the next file resolves an accepted entity but not a proposal |
-| `test_ingest_sources.py` | direct file accepts any extension; directory = recursive+sorted+extension-filtered+graph-excluded; missing source error; utf-8 replace |
-| `test_source_parse.py` | prompt contains source + the given context + JSON contract; the context heading, id/uri rule, and "not a rule" wording; the old catalog block is absent and the module no longer imports `entity_catalog`/rdflib; empty and whitespace-only context omit the block; `parse_source` delegates to `ask_llm` |
-| `test_ontology_views.py` | the five fields; façade equals the direct calls on rich, sparse, and repository graphs; lossless partition; skeleton gains no domain/range; observations never become declared structure; foreign individuals need no `onto:Entity`; prefixes survive on all four graphs; sources unchanged |
-| `test_source_concepts.py` | record fields and vocabularies; blank and punctuation-only input; determinism and tie order; Unicode without accent stripping; caseless scripts; mentions claim no type; comma separation; heading/repetition/early weighting and the repetition cap; deduplication; caps; no rdflib/`llm` import; the phrase index |
-| `test_task_context.py` | package/item/match shapes and diagnostics; label, prefLabel, altLabel, and local-name matching; word boundaries; tier order; declared domain/range and their absence; one hierarchy hop, no second hop, cycles terminate; restriction bundles with blank-node-independent ids; patterns by predicate, subject class, class range, datatype, unknown range; declared vs observed conflict; native vs generic cards; the preferred name; examples and hub protection; unrelated source, empty graph, empty source; every cap; determinism; immutability; the label map |
-| `test_context_render.py` | rendered-item shape and stable ids; classes with/without parents; object vs datatype properties; declared domain/range and their absence; all six supported restriction forms; unsupported forms as RDF with no invented modality; pattern evidence, datatype and unknown ranges, classless subjects; the evidence heading; declared/observed kept apart; native card fields and the duplicate-`kind` rule; generic cards refused as `existing_id`; object and literal assertions; label → prefix → URI; flattened newlines, defused delimiters, stripped controls; field truncation; section order and omission; composition, the allowance never exceeded, both-limits arithmetic, refused configs, injected counters, caps with the token cap, immutability; **6C**: `existing_ids` is returned sorted, empty for a zero budget / generic resources / schema+patterns+examples, and derived only from native resource cards |
-| `test_prompt_budget.py` | estimator on empty/ASCII/Unicode/multiline and a changed divisor; allowance arithmetic clamped at zero; priority order; usage never exceeding the allowance; id tie-breaking; zero allowance; oversized items dropped whole; multiline items all-or-nothing; injected counters and the estimator name; dependency bundles charged once, dropped together, never invented; per-item costs, dropped order, empty result, immutability |
-| `test_entity_lookup.py` | `identity_key` normalization; catalog fields/sorting; `existing_id` precedence; exact name+kind (unique only); 0.96 threshold + tie ambiguity; kind-mismatch never resolves |
-| `test_graph_merge.py` | slug/label; URI suffix uniqueness; full typing; enrich vs overwrite (comment not overwritten, differing name→altLabel); skip invalid records/endpoints; dedup; sequential visibility; count order `(new, resolved, relations, facts)`; **07**: `apply_merge_plan` copies bindings and triples, asserts only plan triples, reports the extended counts, leaves the input triple-identical even on failure |
-| `test_candidate_validation.py` | result/issue/count field sets; container errors; record + field shape; id grammar and no type coercion; NFKC/line-ending/control/whitespace normalization; description internal whitespace; date/number strings not coerced; kind defaulting; alias normalization/dedup; literal types and the typed duplicate key; NaN/inf/collection rejection; empty/`unnamed`/URI-looking predicates; deterministic issue order; invalid result exposes no candidates; input immutability; `existing_id` allowed/present/kind-match rules; duplicate ids and existing ids; unknown references; relation/fact duplicates and kept+removed paths; graph-exact duplicates only with explicit ids; no `identify_entity` import; relation/fact/kind role and type collisions; compatible pre-existing properties; slug-colliding label pairs; new predicates accepted; non-contradiction of differing values; determinism across insertion order; graph immutability; `format_validation_failure`; **07**: required numeric confidence in `[0,1]`, missing/invalid confidence codes, duplicate-confidence warnings keeping the lower value, graph-exact candidates kept for policy corroboration |
-| `test_merge_policy.py` | canonical JSON + record digests; provenance fields; identity decisions (explicit id, exact name/alias, planned exact, ambiguous exact review, kind collision review, close-spelling review-only suggestions, below-threshold provisional URI); URI reservation so two new entities cannot collide; assertion outcomes accept/duplicate/review with reason codes; exact-triple corroboration without re-adding; functional / inverse-functional conflict review; existing labels/descriptions never overwritten; alias claimed by another same-kind entity routes only that alias to review; audit vocabulary (`ExtractionEvent`, `MergeCandidate`, reified assertions, `rdf:JSON` normalized candidate, decimal confidence); event/candidate URI determinism across reruns; no timestamps or raw source/prompt/response in the graph; counts and diagnostics; read-only planning |
-| `test_graph_management.py` | seed structure (isomorphic, 8 triples); no reseed on existing; prefix bindings; save/reload round-trip; **07**: atomic save via temp sibling + `os.replace`; failed serialization leaves the old file byte-identical and no stale temp file |
-| `test_graph_partition.py` | role classification per triple; restrictions; remainder; dual-role; lossless+disjoint+read-only invariants; the repository graph parses and is left untouched (exact sizes are pinned on the frozen miniature, see §12) |
-| `test_graph_skeleton.py` | core retention; exclusion of instances/support; supported vs unsupported restrictions; no inference; skeleton ⊆ input |
-| `test_graph_patterns.py` | class/literal/unknown ranges; counting; coverage/cardinality; most-specific class; exclusions; deterministic ordering; read-only |
+| `test_pipeline.py` | The public end-to-end loop with a fake extractor: blank-file skip, document staging, windows, admission, reconciliation, source validation, one atomic publication per document, dry-run, retention, error paths, result dataclasses. |
+| `test_pipeline_windowing.py` | Long documents split into reproducible overlapping windows; every character accounted for; window IDs stable. |
+| `test_pipeline_m6.py` | The complete-source gates: reconciliation report fields, source SHACL gate, artifact metadata, `SourceValidationError` leaves final graphs unchanged. |
+| `test_pipeline_m7.py` | The document merge/publication stage: `plan_document_merge` once per document, proposed-data validation, `PublicationValidationError`, one `publish` call, dry-run plan. |
+| `test_windowing.py` | Block/sentence/hard-chunk units, packing, overlap, blank documents, normalization, document/window IDs. |
+| `test_source_staging.py` | Staging graph names, provisional allocation, window admission against the staging graph only, layered context marking, retention sidecar. |
+| `test_repair.py` | Bounded self-repair: prompts, attempt limits, unparseable answers become problem text, every attempt re-validated, no bypass. |
+| `test_candidate_graph.py` | PROV/DQV candidate graphs: collections, reification, decimal confidence, mapping version, determinism, typed literals. |
+| `test_source_reconciliation.py` | Local entity/alias/duplicate-support/unresolved/conflict reports and deterministic artifact. |
+| `test_source_validation.py` | pySHACL gate, shape combination, embedded-shape extraction, `SourceValidationResult` / `SourceValidationError`. |
+| `test_graph_store.py` (via `store_contract.py`) | The GraphStore contract: get/put/delete/names/query/update, atomic replace, role graphs, legacy import/export. |
+| `test_candidate_validation.py` | Structure, normalization, references, confidence in `[0,1]`, generated-URI role/type collisions, graph-exact candidates kept, fail-closed, `format_validation_failure`. |
+| `test_merge_policy.py` | Identity decisions, URI reservation, accept/duplicate/review, corroboration, functional conflicts, audit vocabulary + deterministic URIs, read-only planning, counts. |
+| `test_entity_lookup.py` | `identity_key`, catalog fields, resolution order, 0.96 threshold + ambiguity, kind-mismatch never resolves. |
+| `test_graph_merge.py` | Helpers, typing, enrich vs overwrite, `apply_merge_plan` copy semantics, legacy `merge_into_graph`. |
+| `test_graph_management.py` | Seed structure (8 triples), no reseed, prefix bindings, atomic save/round-trip. |
+| `test_ingest_sources.py` | Direct-file acceptance, recursive/sorted/filtered discovery, graph exclusion, missing source, utf-8 replace. |
+| `test_source_parse.py` | Prompt contains source + selected context + JSON contract (per-record confidence); `parse_source` delegates to `ask_llm`. |
+| `test_llm.py` | No dedicated file — `llm` is exercised through the patched boundary. |
+| `test_source_concepts.py` | Record fields/vocabularies, determinism, Unicode preservation, weighting/caps, word-boundary phrases, no rdflib/`llm` import. |
+| `test_ontology_views.py` | The five fields; façade equals direct calls; lossless partition; observations never become declared structure. |
+| `test_task_context.py` | Tier order, name/label/alias matching, bounded expansion, restriction bundles, patterns, native vs generic cards, caps, determinism. |
+| `test_context_render.py` | Section order, declared vs observed, six restriction forms, defused delimiters, truncation, `existing_ids` derivation, allowance never exceeded. |
+| `test_prompt_budget.py` | Estimator, allowance arithmetic, priority order, oversized items dropped whole, dependency bundles charged once, injected counters. |
+| `test_graph_partition.py` | Role rules per triple, source/audit predicates, restrictions, remainder, lossless/disjoint/read-only invariants (sizes pinned on the frozen miniature). |
+| `test_graph_skeleton.py` | Core retention, no inference, supported vs unsupported restrictions, subset invariant. |
+| `test_graph_patterns.py` | Class/literal/unknown ranges, counting, coverage/cardinality, most-specific class, exclusions, ordering, read-only. |
+| `test_publication_sources.py` | Document/file records, statement source links, resource summaries, review never gets sources. |
+| `test_run_report.py` | Reporter streams, Markdown blocks, checkpoint methods. |
+| `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes. |
+| `test_view_html.py` | `view_html.write_report` renders `view_report.build_report` output as one self-contained page. |
+| `test_install_smoke.py` | The package imports and the console script is installed. |
 
 ---
 
-## 14. Gotchas & non-obvious behavior (from tests)
+## 14. Gotchas & non-obvious behavior (from source and tests)
 
-1. **Non-ASCII lossy folding**: `identity_key`/`slug` NFKD→ascii drops characters with no
-   decomposition (e.g. `ł` disappears entirely) instead of transliterating.
-2. **`slug` fallback**: an input that normalizes to empty becomes `"unnamed"`.
-3. **Exact-name match requires equal kind**; a missing kind on either side (parsed or catalog) blocks resolution.
-4. **Two exact matches** (same normalized name + kind) → no resolution (ambiguity), even though step 1 (`existing_id`) would resolve.
-5. **Close-spelling uses only the preferred name** (`entity["name"]`), never aliases.
-6. **Existing `rdfs:comment` is never overwritten**; a later description is dropped.
-7. **Existing `skos:prefLabel` is kept**; a later differing preferred name becomes an `altLabel`.
-8. **Blank text files are skipped before the LLM call**.
-9. **The output graph is excluded from directory ingestion** by resolved-path comparison.
-10. **`.env` loading never overrides** already-set environment variables (`setdefault`).
-11. **Opening a missing graph does not write to disk**; only `save_graph` does.
-12. **`partition`/`skeleton`/`patterns` must never mutate** their inputs or the on-disk graph.
-13. **Skeleton does no inference**: no transitive subclass closure, no inferred domains/ranges,
-    no declarations for range-only resources.
-14. **Unsupported/incomplete OWL restrictions are dropped whole** by the skeleton (never half-copied).
-15. **The prompt is a selection, not the graph**: an entity in the graph reaches the prompt only
-    if the source gives a reason to select it. This is why `test_pipeline` asserts both that a
-    mentioned entity appears *and* that an unmentioned one does not.
-16. **Selection narrows the prompt, not the merge**: `identify_entity()` still runs against the
-    whole catalog, so an entity omitted from the prompt can still be resolved rather than
-    duplicated.
-17. **`onto:Entity` is not required** to be selectable as context, but only entities in
-    `entity_catalog()` are rendered with an `id:` the model may reuse; everything else gets
-    `uri:` and an explicit "not usable as existing_id".
-18. **Two normalizations coexist on purpose**: `entity_lookup.identity_key` (ASCII-folding, for
-    merge-time identity) and `source_concepts.normalize` (Unicode-preserving, for source
-    matching). Do not unify them without deciding what merge identity should mean.
-19. **`source_concepts` uses whole-word runs**, so a hyphenated source term matches a spaced
-    label, and a short label cannot match inside a longer word.
-20. **The context budget is charged pessimistically** (headings for every candidate section, a
-    3-characters-per-token divisor), so the assembled context always fits the stated allowance
-    and usually undershoots it.
-21. **Observations never become axioms**: a pattern record is copied into the package and
-    rendered under an "EVIDENCE, NOT AN ONTOLOGY RULE" heading; nothing writes it back as
-    `rdfs:domain`/`rdfs:range`.
-22. **Tier-8 observations are deliberately weak**: reached only through a matched resource's
-    class, dropped first by the budget, and excluded from the reasons that justify pulling in a
-    hub's neighbouring assertions.
-23. **Validation fails closed**: one error rejects the whole candidate package for that source
-    — there is no partial merge. Duplicates are warnings, not errors.
-24. **`existing_id` must have been shown**: an `existing_id` is accepted only if the id was
-    rendered as `id:` in the *final* budgeted prompt and still exists in `entity_catalog()`.
-    Merge-time name/kind/close-spelling fallback still runs for `existing_id: null`, unchanged.
-25. **The validator never calls `identify_entity()`**: it checks only explicit ids and provable
-    URI-role/type conflicts, and removes graph-exact duplicates only where both endpoints carry
-    an explicit `existing_id`. Identity search stays a point-7 merge concern.
-26. **Fact duplicate keys include the JSON type**: `"1"`, `1`, and `true` are distinct facts;
-    NaN/±infinity and collections are rejected outright.
-27. **`slug` collisions are caught only within one section**: two predicates that slug to one
-    URI but to different `label()`s are an error; existing labels at a generated URI are treated
-    as harmless formatting (the slug/label asymmetry is a known migration, not fixed here).
-28. **Three normalizations coexist on purpose**: `entity_lookup.identity_key` (merge identity),
-    `source_concepts.normalize` (source matching), and `candidate_validation`'s field
-    normalization (stable representation) are deliberately not unified.
+1. **Content identity ≠ file identity**: a document ID is a digest of its
+   normalized text. The same content in two files shares one document but keeps
+   two `onto:source-file` records; changed content creates a new document.
+2. **Windows are reproducible but not content-faithful slices**: they tile the
+   normalized text (spans never drop or duplicate characters), but boundaries
+   can fall mid-sentence; `window_id` depends on strategy version, target/
+   overlap, tokenizer name, document ID, index, and offsets.
+3. **Staging never decides canonical identity**: `plan_window_admission` sees
+   only the source staging graph; new entities get `provisional/<doc>/...`
+   IRIs; canonical resolution happens once at document merge.
+4. **`existing_id` cannot resolve inside a window**: canonical resources are
+   not in the staging graph, and source-local items are marked `native: False`,
+   so nothing source-local can become a reusable `existing_id`.
+5. **The final ontology is invariant during windowing**: a triple-level
+   snapshot is compared after every window and after reconciliation; any change
+   raises `RuntimeError`.
+6. **Repair never bypasses validation**: a repaired answer passes exactly the
+   same `candidate_validation` gate; after `repair_attempts` failures (default
+   2, 0 disables) the window is rejected.
+7. **Candidate graphs are evidence, not assertions**: asserted triples and
+   their `rdf:Statement` reifications are both present, which is what lets
+   reconciliation count independent supports without trusting reification alone.
+8. **pySHACL runs over a copy** with `inference="none"` and no infos/warnings;
+   shapes come from `ValidationConfig.shape_graphs`, else the configured shape
+   roles, else legacy embedded shapes.
+9. **Exact duplicates corroborate**: an existing exact triple is planned as
+   `duplicate` (any confidence) and is never re-added; each window's confidence
+   measurement stays as independent evidence in the provenance graph.
+10. **Confidence semantics**: `confidence` is the model's confidence that the
+    source text directly supports the complete record — not identity
+    confidence, not world truth. New assertions below `0.80` go to review.
+11. **Existing canonical values are never overwritten**: prefLabels/comments
+    survive; a differing later name becomes an `altLabel`; a conflicting
+    description goes to review (`conflict.existing_description`).
+12. **Publication is one atomic store call**: target/provenance/review are
+    replaced together; schema/shapes/data graphs are copied through. Failure
+    leaves both the file and the in-memory dataset byte-identical.
+13. **`--dry-run` computes everything, publishes nothing**: proposed sizes,
+    plan, and validation are reported; `store.publish` is never called.
+14. **`legacy .ttl` output is the same pipeline**: `LegacyTurtleDatasetStore`
+    splits the Turtle into in-memory roles, orchestrates identical named-graph
+    logic, and exports the role union as one Turtle via `save_graph`.
+15. **`retain_staging_on_failure` only writes a sidecar** (`<graph>.staging/
+    <doc>.trig`) when a window or a validation fails; the canonical file is
+    never touched by staging.
+16. **Audit is deterministic and additive**: event/candidate URIs are digests
+    over policy version, source, model, and package, so exact reruns reuse the
+    same resources; no timestamps and no raw source/prompt/response are stored.
+17. **`identity_key`/`slug` folding is lossy** (NFKD→ascii drops characters with
+    no decomposition) while `source_concepts.normalize` is Unicode-preserving —
+    three normalizations coexist on purpose and must not be unified carelessly.
+18. **Close spelling (≥ 0.96) is review-only**: it never auto-resolves and uses
+    only the preferred name, never aliases; kind mismatch blocks resolution.
+19. **Skeleton does no inference** and drops unsupported/incomplete
+    restrictions whole; patterns are observations that never become axioms.
+20. **The context budget is charged pessimistically** (headings for every
+    candidate section, `assembly_overhead` + 3 chars/token), so assembled text
+    never overruns the stated allowance; if no number is configured,
+    `allowance()` raises `KeyError` rather than inventing one.
+21. **Selection narrows the prompt, not the merge**: whole-canonical identity
+    is still resolved at document merge inside the planner.
+22. **An `existing_id` must have actually been shown**: only ids rendered as
+    `id:` in the final budgeted prompt that still exist in `entity_catalog`
+    are accepted by validation.
+23. **Validation fails closed**: one error rejects that window's whole package;
+    duplicates are warnings, not errors. `format_validation_failure` never
+    includes the raw model response.
+24. **Fact duplicate keys include the JSON type**: `"1"`, `1`, and `true` are
+    distinct facts; NaN/±infinity and collections are rejected.
+25. **The viewer reads read-only**: `ReadOnlyGraphStore` wraps a TriG store and
+    every view is built in memory; only `-html` writes a file (the HTML page).
 
 ---
 
