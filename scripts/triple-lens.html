@@ -90,6 +90,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 #zoomctl button:hover{background:var(--hover)}
 #zoomctl button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 #status{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;font:500 12.5px var(--cond);color:var(--muted);background:color-mix(in srgb,var(--bg) 85%,transparent);padding:3px 10px;border-radius:12px;white-space:nowrap;max-width:calc(100% - 330px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+#isohint{position:absolute;left:50%;transform:translateX(-50%);bottom:40px;font-size:12.5px;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:3px 10px;border-radius:12px;white-space:nowrap}
+#notice{left:50%;top:50%;transform:translate(-50%,-50%);padding:18px 20px;width:min(460px,calc(100% - 24px));z-index:2}
+#notice strong{font-size:16px}
+#notice p{margin:6px 0 14px;color:var(--muted)}
+#notice .actions{display:flex;gap:8px;flex-wrap:wrap}
 #focuschip{left:12px;top:12px;padding:5px 6px 5px 10px;display:flex;align-items:center;gap:8px;font-size:13px;max-width:calc(100% - 24px)}
 #focuschip b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:28ch}
 #focuschip select{border:1px solid var(--line);border-radius:5px;background:var(--panel);padding:2px 4px}
@@ -140,6 +145,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .checks{list-style:none;margin:0;padding:0}
 .checks li{display:flex;align-items:center;border-radius:5px}
 .checks li:hover{background:var(--hover)}
+.checks li.zero label{opacity:.45}
 .checks label{flex:1;display:flex;align-items:center;gap:7px;padding:3px 6px;cursor:pointer;min-width:0}
 .checks .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .checks .only{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:2px 6px;opacity:0}
@@ -223,6 +229,8 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
   <div id="focuschip" class="float" hidden></div>
   <aside id="legend" class="float" hidden aria-label="Color legend"></aside>
   <div id="status" hidden></div>
+  <div id="isohint" hidden></div>
+  <div id="notice" class="float" hidden role="status"></div>
   <div id="zoomctl" class="float" hidden>
     <button id="zIn" title="Zoom in" aria-label="Zoom in">+</button>
     <button id="zOut" title="Zoom out" aria-label="Zoom out">−</button>
@@ -1015,6 +1023,7 @@ function filterDefs(model) {
   function afterLoad(res) {
     const t = res.reduce((a, r) => a + r.triples, 0), errs = res.reduce((a, r) => a + r.errors, 0);
     const first = !S.model;
+    if (first) { S.defaultsApplied = false; S.defaultDisabled = null; S.disabled = {}; S.bigDefault = null; S.allowHuge = false; S.lastGood = null; S.store = {}; S.opts.hideIsolated = false; }
     rebuild({ refit: true });
     if (first && S.bigDefault && S.vis.nodes.length <= 4000) toast(`Read ${fmt(t)} triples. Showing the ${fmt(S.vis.nodes.length)} connected entities. Hidden to start with: ${fmt(S.bigDefault.hidden)} provenance and reification nodes, class nodes, rdf:type edges, and nodes with no visible edges (types are shown by color instead). Bring them back with the filters.`, 12000);
     else if (S.mode === 'instances' && S.vis.nodes.length > 4000 && first) { setMode('schema'); toast(`Read ${fmt(t)} triples. That is a large graph, so this opens on the schema summary. Switch to "Full graph" when you have filtered it down.`, 9000); }
@@ -1067,13 +1076,19 @@ function filterDefs(model) {
         S.bigDefault = { hidden: bk.reduce((a, it) => a + it.count, 0) };
       }
     }
+    if (!S.defaultDisabled) S.defaultDisabled = snapshot();
     if (!S.defs.some(d => d.id === S.colorBy)) S.colorBy = 'kind';
     computeColors(); applyFilters({ heat: fresh ? 1 : .3 });
     if (o.refit || all) S.autoFit = true;
     syncChrome(); renderDetails();
   }
   function setMode(mode) {
-    if (mode === S.mode) return; savePositions(); S.mode = mode; S.sel = null; S.focus = null;
+    if (mode === S.mode) return; savePositions();
+    // filters belong to a view: what is hidden in the full graph (for example class nodes) must not carry over to the schema summary
+    S.store = S.store || {}; S.store[S.mode] = { disabled: S.disabled, defaultDisabled: S.defaultDisabled, lastGood: S.lastGood, hideIsolated: S.opts.hideIsolated, colorBy: S.colorBy };
+    const st = S.store[mode] || { disabled: {}, defaultDisabled: null, lastGood: null, hideIsolated: false, colorBy: 'kind' };
+    S.disabled = st.disabled; S.defaultDisabled = st.defaultDisabled; S.lastGood = st.lastGood; S.opts.hideIsolated = st.hideIsolated; S.colorBy = st.colorBy; S.allowHuge = false;
+    S.mode = mode; S.sel = null; S.focus = null;
     document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === mode));
     const had = S.pos[mode].size > 0; S.model = null; rebuild({ refit: !had }); if (had) fit(true);
   }
@@ -1097,19 +1112,29 @@ function filterDefs(model) {
   function applyFilters(o = {}) {
     const m = S.model; if (!m) return;
     const nodeDefs = S.defs.filter(d => d.on !== 'edge'), edgeDefs = S.defs.filter(d => d.on !== 'node');
-    const pass = (x, defs) => { for (const d of defs) { const dis = S.disabled[d.id]; if (!dis || !dis.size) continue; const ks = d.keys(x); let ok = false; for (const k of ks) if (!dis.has(k)) { ok = true; break; } if (!ok) return false; } return true; };
-    for (const n of m.nodes) n.vis = pass(n, nodeDefs);
-    const noLoops = S.opts.hideLoops;
-    for (const e of m.edges) e.vis = e.s.vis && e.t.vis && !(noLoops && e.s === e.t) && pass(e, edgeDefs);
+    // which single filter (if any) hides each item; used both for visibility and for the live counts shown in the filter lists
+    const failOf = (x, defs) => { let fail = '', c = 0; for (const d of defs) { const dis = S.disabled[d.id]; if (!dis || !dis.size) continue; let ok = false; for (const k of d.keys(x)) if (!dis.has(k)) { ok = true; break; } if (!ok) { c++; fail = d.id; } } return c > 1 ? '*' : fail; };
+    const noLoops = S.opts.hideLoops, facet = new Map(S.defs.map(d => [d.id, new Map()]));
+    const bump = (d, x) => { const f = facet.get(d.id); for (const k of d.keys(x)) f.set(k, (f.get(k) || 0) + 1); };
+    for (const n of m.nodes) { const f = failOf(n, nodeDefs); n.vis = f === ''; for (const d of nodeDefs) if (f === '' || f === d.id) bump(d, n); }
+    for (const e of m.edges) {
+      const ends = e.s.vis && e.t.vis, f = failOf(e, edgeDefs); e.vis = ends && f === '' && !(noLoops && e.s === e.t);
+      if (ends) for (const d of edgeDefs) if (d.on === 'edge' && (f === '' || f === d.id)) bump(d, e);
+    }
+    S.facet = facet;
     if (S.focus && S.focus.vis) {
       const keep = new Set([S.focus]); let frontier = [S.focus];
       for (let d = 0; d < S.focusDepth; d++) { const next = []; for (const n of frontier) { for (const e of n.out) if (e.vis && !keep.has(e.t)) { keep.add(e.t); next.push(e.t); } for (const e of n.in) if (e.vis && !keep.has(e.s)) { keep.add(e.s); next.push(e.s); } } frontier = next; }
       for (const n of m.nodes) if (!keep.has(n)) n.vis = false;
       for (const e of m.edges) if (e.vis && !(e.s.vis && e.t.vis)) e.vis = false;
     }
+    S.isoHidden = 0;
     if (S.opts.hideIsolated) {
-      const linked = new Set(); for (const e of m.edges) if (e.vis) { linked.add(e.s); linked.add(e.t); }
-      for (const n of m.nodes) if (n.vis && !linked.has(n) && n !== S.focus) n.vis = false;
+      const linked = new Set(); for (const e of m.edges) if (e.vis && e.s !== e.t) { linked.add(e.s); linked.add(e.t); }
+      let cand = 0; for (const n of m.nodes) if (n.vis) cand++;
+      // a small selection that is mostly unconnected (for example "only Components") is shown in full rather than wiped out
+      const skip = cand <= 400 && linked.size < cand * .5;
+      if (!skip) for (const n of m.nodes) if (n.vis && !linked.has(n) && n !== S.focus) { n.vis = false; S.isoHidden++; }
     }
     const vn = m.nodes.filter(n => n.vis); let ve = m.edges.filter(e => e.vis);
     if (S.opts.bundle) { // more than 3 edges from one node to another become a single bundle edge
@@ -1142,9 +1167,30 @@ function filterDefs(model) {
       else n.r = S.opts.sizeByDegree ? clamp(6 + 2 * Math.sqrt(n.deg), 6, 28) : 9;
       if (n.kind === 'Restriction' || n.kind === 'Blank node') n.r = Math.min(n.r, 6);
     }
-    S.vis = { nodes: vn, edges: ve };
+    S.tooMany = vn.length > 6000 && !S.allowHuge ? vn.length : 0;
+    S.vis = S.tooMany ? { nodes: [], edges: [] } : { nodes: vn, edges: ve };
+    if (!S.tooMany && vn.length) S.lastGood = snapshot();
+    renderNotice(vn.length);
     heat(o.heat == null ? .4 : o.heat); renderStatus(); renderLegend(); syncFilterButtons(); kick();
   }
+
+  const snapshot = () => { const o = {}; for (const k in S.disabled) o[k] = new Set(S.disabled[k]); return o; };
+  function renderNotice(count) {
+    const el = $('#notice'); if (!S.model || (count && !S.tooMany)) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = S.tooMany
+      ? `<strong>${fmt(S.tooMany)} nodes match these filters</strong><p>That is too many to draw usefully, and it would make the page crawl. Narrow the filters, or go back.</p><div class="actions">${S.lastGood ? '<button class="btn primary" data-n="back">Go back to the previous filters</button>' : ''}<button class="btn" data-n="defaults">Reset filters</button><button class="btn" data-n="huge">Draw them anyway</button></div>`
+      : `<strong>Nothing matches these filters</strong><p>${S.isoHidden ? 'No visible edge connects the remaining nodes, and unconnected nodes are hidden.' : 'Every node is switched off by at least one filter.'} The highlighted filter buttons above show where.</p><div class="actions">${S.lastGood ? '<button class="btn primary" data-n="back">Go back to the previous filters</button>' : ''}<button class="btn" data-n="defaults">Reset filters</button></div>`;
+  }
+  function resetFilters() { S.disabled = S.defaultDisabled ? (() => { const o = {}; for (const k in S.defaultDisabled) o[k] = new Set(S.defaultDisabled[k]); return o; })() : {}; S.focus = null; S.allowHuge = false; renderFocus(); filtersChanged(); }
+  function filtersChanged() { closePop(); applyFilters(); refit(); }
+  function refit() { if (S.frozen || S.alpha < .01) fit(true); else S.autoFit = true; }
+  $('#notice').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-n]'); if (!b) return; const a = b.dataset.n;
+    if (a === 'back' && S.lastGood) { S.disabled = S.lastGood; S.lastGood = null; filtersChanged(); }
+    else if (a === 'defaults') resetFilters();
+    else if (a === 'huge') { S.allowHuge = true; S.opts.nodeLabels && (S.opts.declutter = true); applyFilters(); refit(); }
+  });
 
   /* ---------- force layout ---------- */
   function heat(a) { if (S.frozen) return; S.alpha = Math.max(S.alpha, a); kick(); }
@@ -1575,19 +1621,22 @@ function filterDefs(model) {
   }
   function openFilter(btn, def) {
     const dis = S.disabled[def.id] || (S.disabled[def.id] = new Set()); let q = '';
+    const live = (key) => (S.facet.get(def.id) || new Map()).get(key) || 0;
+    const order = def.items.slice().sort((x, y) => live(y.key) - live(x.key) || y.count - x.count || x.name.localeCompare(y.name)); // fixed while the list is open so rows do not jump
+    const match = (it) => !q || it.name.toLowerCase().includes(q) || String(it.key).toLowerCase().includes(q);
     const list = () => {
-      const items = def.items.filter(it => !q || it.name.toLowerCase().includes(q) || String(it.key).toLowerCase().includes(q));
-      return `<ul class="checks">${items.map(it => `<li><label title="${esc(def.full ? it.key || it.name : it.name)}"><input type="checkbox" data-key="${esc(it.key)}"${dis.has(it.key) ? '' : ' checked'}>${swatchFor(def, it.key)}<span class="nm">${esc(it.name)}</span><span class="ct">${fmt(it.count)}</span></label><button class="only" data-only="${esc(it.key)}">only</button></li>`).join('') || '<li style="padding:6px 8px;color:var(--muted)">Nothing matches.</li>'}</ul>`;
+      const items = order.filter(match);
+      return `<ul class="checks">${items.map(it => { const c = live(it.key); return `<li class="${c ? '' : 'zero'}"><label title="${esc((def.full ? it.key || it.name : it.name) + ` (${fmt(it.count)} in the whole file)`)}"><input type="checkbox" data-key="${esc(it.key)}"${dis.has(it.key) ? '' : ' checked'}>${swatchFor(def, it.key)}<span class="nm">${esc(it.name)}</span><span class="ct">${fmt(c)}</span></label><button class="only" data-only="${esc(it.key)}">only</button></li>`; }).join('') || '<li style="padding:6px 8px;color:var(--muted)">Nothing matches.</li>'}</ul>`;
     };
     const unit = def.on === 'edge' ? 'edges' : 'nodes';
-    openPop(btn, `<div class="phead">${def.items.length > 8 ? `<input type="search" placeholder="Search ${esc(def.title.toLowerCase())}" aria-label="Search this list">` : ''}<div class="pactions"><button class="btn" data-act="all">Show all</button><button class="btn" data-act="none">Hide all</button><button class="btn" data-act="invert">Invert</button><span>count of ${unit}, most first</span></div></div><div class="pbody">${list()}</div>`);
-    const body = pop.querySelector('.pbody'), refresh = () => { body.innerHTML = list(); applyFilters(); };
+    openPop(btn, `<div class="phead">${def.items.length > 8 ? `<input type="search" placeholder="Search ${esc(def.title.toLowerCase())}" aria-label="Search this list">` : ''}<div class="pactions"><button class="btn" data-act="all">Show all</button><button class="btn" data-act="none">Hide all</button><button class="btn" data-act="invert">Invert</button><span>${unit} available with the other filters, most first</span></div></div><div class="pbody">${list()}</div>`);
+    const body = pop.querySelector('.pbody'), refresh = () => { body.innerHTML = list(); applyFilters(); refit(); };
     pop.oninput = (ev) => { if (ev.target.type === 'search') { q = ev.target.value.trim().toLowerCase(); body.innerHTML = list(); } };
-    pop.onchange = (ev) => { const k = ev.target.dataset && ev.target.dataset.key; if (k === undefined) return; if (ev.target.checked) dis.delete(k); else dis.add(k); applyFilters(); };
+    pop.onchange = (ev) => { const k = ev.target.dataset && ev.target.dataset.key; if (k === undefined) return; if (ev.target.checked) dis.delete(k); else dis.add(k); applyFilters(); refit(); };
     pop.onclick = (ev) => {
       const o = ev.target.closest('[data-only]'); if (o) { dis.clear(); def.items.forEach(it => { if (it.key !== o.dataset.only) dis.add(it.key); }); return refresh(); }
       const a = ev.target.closest('[data-act]'); if (!a) return; const act = a.dataset.act;
-      const scope = def.items.filter(it => !q || it.name.toLowerCase().includes(q) || String(it.key).toLowerCase().includes(q));
+      const scope = def.items.filter(match);
       if (act === 'all') scope.forEach(it => dis.delete(it.key)); else if (act === 'none') scope.forEach(it => dis.add(it.key)); else scope.forEach(it => dis.has(it.key) ? dis.delete(it.key) : dis.add(it.key));
       refresh();
     };
@@ -1627,7 +1676,7 @@ function filterDefs(model) {
   /* ---------- chrome ---------- */
   function syncChrome() {
     const has = !!S.model; $('#empty').hidden = has; $('#filterbar').hidden = !has;
-    ['#legend', '#zoomctl', '#status'].forEach(s => $(s).hidden = !has); $('#fileCount').textContent = S.files.length;
+    ['#legend', '#zoomctl', '#status'].forEach(s => $(s).hidden = !has); if (!has) { $('#notice').hidden = true; $('#isohint').hidden = true; } $('#fileCount').textContent = S.files.length;
     if (!has) { $('#details').hidden = true; $('#focuschip').hidden = true; return; }
     const bar = $('#filterbar');
     bar.innerHTML = S.defs.map(d => `<button class="btn" data-filter="${d.id}">${esc(d.title)} <span class="badge"></span><span class="caret"></span></button>`).join('') +
@@ -1635,7 +1684,7 @@ function filterDefs(model) {
     bar.querySelectorAll('[data-filter]').forEach(b => b.onclick = () => openFilter(b, S.defs.find(d => d.id === b.dataset.filter)));
     $('#colorBy').onchange = (e) => { S.colorBy = e.target.value; computeColors(); renderLegend(); kick(); };
     $('#btnDisplay').onclick = (e) => openDisplay(e.currentTarget);
-    $('#btnReset').onclick = () => { S.disabled = {}; S.focus = null; renderFocus(); applyFilters(); };
+    $('#btnReset').onclick = resetFilters;
     syncFilterButtons(); renderFocus();
   }
   function syncFilterButtons() {
@@ -1644,24 +1693,29 @@ function filterDefs(model) {
       const d = S.defs.find(x => x.id === b.dataset.filter); if (!d) return; const dis = S.disabled[d.id], off = dis ? d.items.filter(it => dis.has(it.key)).length : 0;
       b.querySelector('.badge').textContent = off ? `${d.items.length - off} of ${d.items.length}` : d.items.length; b.classList.toggle('active', off > 0); if (off) any = true;
     });
-    const r = $('#btnReset'); if (r) r.hidden = !any && !S.focus;
+    const same = (a, b) => { a = a || new Set(); b = b || new Set(); if (a.size !== b.size) return false; for (const k of a) if (!b.has(k)) return false; return true; };
+    const dd = S.defaultDisabled || {}, changed = S.defs.some(d => !same(S.disabled[d.id], dd[d.id]));
+    const r = $('#btnReset'); if (r) r.hidden = !changed && !S.focus;
   }
   function renderStatus() {
     if (!S.model) return; const m = S.model, v = S.vis;
     $('#status').textContent = `${fmt(m.tripleCount)} triples, showing ${fmt(v.nodes.length)} of ${fmt(m.nodes.length)} nodes and ${fmt(v.edges.length)} of ${fmt(m.edges.length)} edges` + (S.labelsHidden ? '. Zoom in to see every name' : '');
+    const ih = $('#isohint'); ih.hidden = !S.isoHidden; if (S.isoHidden) ih.innerHTML = `${fmt(S.isoHidden)} unconnected nodes are hidden. <button class="lnk" id="isoShow">Show them</button>`;
   }
   function renderLegend() {
     const el = $('#legend'), def = S.defs.find(d => d.id === S.colorBy); if (!def || !S.model) return;
-    const dis = S.disabled[def.id] || new Set(), top = def.items.filter(it => !dis.has(it.key)).concat(def.items.filter(it => dis.has(it.key))).slice(0, 12);
+    const dis = S.disabled[def.id] || new Set(), fc = (S.facet && S.facet.get(def.id)) || new Map(), live = (k) => fc.get(k) || 0;
+    const ranked = def.items.filter(it => live(it.key) > 0).sort((x, y) => (dis.has(x.key) - dis.has(y.key)) || live(y.key) - live(x.key)), top = ranked.slice(0, 12);
     el.innerHTML = `<h2><span>${esc({ kind: 'Node kinds', type: 'Node types', ns: 'Namespaces', graph: 'Named graphs', file: 'Files' }[def.id])}</span><span>click to hide</span></h2>` +
-      top.map(it => `<button class="li${dis.has(it.key) ? ' off' : ''}" data-key="${esc(it.key)}" title="${esc(it.key || it.name)}">${sw(nodeCss(S.colorOf.get(it.key) || { h: 215, s: 10 }), def.id === 'kind' ? (KIND[it.key] || {}).shape : '')}<span class="nm">${esc(it.name)}</span><span class="ct">${fmt(it.count)}</span></button>`).join('') +
-      (def.items.length > 12 ? `<button class="more" data-more="1">and ${def.items.length - 12} more in the filter</button>` : '');
+      top.map(it => `<button class="li${dis.has(it.key) ? ' off' : ''}" data-key="${esc(it.key)}" title="${esc(it.key || it.name)}">${sw(nodeCss(S.colorOf.get(it.key) || { h: 215, s: 10 }), def.id === 'kind' ? (KIND[it.key] || {}).shape : '')}<span class="nm">${esc(it.name)}</span><span class="ct">${fmt(live(it.key))}</span></button>`).join('') +
+      (ranked.length > 12 ? `<button class="more" data-more="1">and ${ranked.length - 12} more in the filter</button>` : '');
   }
   $('#legend').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-key]');
-    if (b) { const dis = S.disabled[S.colorBy] || (S.disabled[S.colorBy] = new Set()), k = b.dataset.key; dis.has(k) ? dis.delete(k) : dis.add(k); applyFilters(); return; }
+    if (b) { const dis = S.disabled[S.colorBy] || (S.disabled[S.colorBy] = new Set()), k = b.dataset.key; dis.has(k) ? dis.delete(k) : dis.add(k); applyFilters(); refit(); return; }
     if (ev.target.closest('[data-more]')) { const fb = document.querySelector(`[data-filter="${S.colorBy}"]`); if (fb) fb.click(); }
   });
+  $('#isohint').addEventListener('click', (ev) => { if (ev.target.id === 'isoShow') { S.opts.hideIsolated = false; applyFilters(); refit(); } });
   let toastT; function toast(msg, ms = 3500) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, ms); }
 
   /* ---------- search ---------- */
