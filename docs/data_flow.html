@@ -310,6 +310,7 @@
       </div></article>
       <article class="step-card" id="step-validate"><h3><span class="number">5.</span> Validate and admit one window</h3><p class="purpose"><code>candidate_validation.validate_candidates()</code> is the read-only structural gate; admission happens against the staging graph only.</p><div class="triplet">
         <span class="key">checks</span><span class="value">Containers and fields, local ID grammar, text normalization, endpoint references, allowed <code>existing_id</code>s, numeric confidence in [0,1], duplicates, and generated-URI role/type collisions.</span>
+        <span class="key">data-only</span><span class="value">With <code>vocabulary=read_vocabulary(graph)</code> (CLI <code>--data-only</code>, always on in the studio) an undeclared kind or predicate is an error: the answer is repaired with the declared names, and the starter's classes and relationships can never change.</span>
         <span class="key">admit</span><span class="value"><code>source_staging.plan_window_admission()</code> plans against the staging graph with <code>provisional/&lt;doc&gt;/</code> IRIs for new entities; <code>candidate_graph.build_candidate_graph()</code> builds the PROV/DQV evidence; <code>graph_merge.apply_merge_plan()</code> grows the staging graph.</span>
         <span class="key">invalid</span><span class="value"><code>format_validation_failure()</code> raises a run-stopping error after repairs are exhausted. The final dataset is never touched.</span>
       </div></article>
@@ -408,7 +409,7 @@
       <div class="decision"><b>2 · exact duplicate?</b>An existing triple is corroboration, even when confidence is below 0.80. It is not re-added.</div>
       <div class="decision"><b>3 · explicit conflict?</b>Functional or inverse-functional conflicts go to review. Existing canonical values are never overwritten.</div>
       <div class="decision"><b>4 · confidence ≥ 0.80?</b>New entities, fields, relations, and facts below the threshold go to review.</div>
-      <div class="decision"><b>5 · accept</b>Additive domain triples and deterministic audit triples enter the completed plan; the document stage remaps evidence and publishes once.</div>
+      <div class="decision"><b>5 · accept</b>Additive domain triples and deterministic audit triples enter the completed plan; the document stage remaps evidence and publishes once. In data-only mode no class or property declaration is planned, so only individuals and statements are added.</div>
     </div>
   </section>
 
@@ -426,7 +427,7 @@
     </div>
   </section>
 
-  <section id="files"><h2>Active files and their main methods</h2><p class="lead">This is the transitive execution path of the CLI. Viewer/report-generation files are separate read-only tools (<code>view_ontology.py</code>, <code>view_report.py</code>, <code>view_html.py</code>) and are not called by this command.</p>
+  <section id="files"><h2>Active files and their main methods</h2><p class="lead">This is the transitive execution path of the CLI. Viewer/report-generation files are separate read-only tools (<code>view_ontology.py</code>, <code>view_report.py</code>, <code>view_html.py</code>) and are not called by this command. Two further entry points wrap the same loop: <code>starter.py</code> (paste → checked starter ontology → one atomic publication) and <code>studio.py</code> (local page + API that creates the starter, ingests dropped files data-only, and resets), which read the frozen vocabulary through <code>vocabulary.py</code>.</p>
     <div class="table-wrap"><table><thead><tr><th>File</th><th>Main active methods</th><th>Responsibility in this run</th></tr></thead><tbody>
       <tr><td>ontology.py</td><td>main() <span class="tag">wrapper</span></td><td>Adds <code>src/</code> to <code>sys.path</code> and delegates to <code>text_to_ontology.cli:main</code>.</td></tr>
       <tr><td>cli.py</td><td>build_parser(), main()</td><td>Argument parsing, adapter selection (<code>LocalTurtleStore</code> for <code>.ttl</code>), verbose/report/dry-run wiring, exit codes.</td></tr>

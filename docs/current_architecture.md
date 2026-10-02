@@ -54,6 +54,22 @@ from `GraphNames`. A `.ttl` output path explicitly selects
 `LegacyTurtleDatasetStore`, which runs the same named-graph orchestration and
 atomically exports the role union for compatibility.
 
+Around that pipeline sit two entry paths:
+
+- `text_to_ontology.starter` turns a short pasted description into a starter
+  ontology (classes, relations, facts) and writes it in one atomic
+  publication. It is a *separate* step from ingestion: nothing is extracted
+  from a real source document while it runs.
+- `text_to_ontology.studio` serves `scripts/triple-lens.html` plus a tiny JSON
+  API, so the same page can create the starter, ingest dropped files
+  (always with `require_declared_vocabulary=True`), and reset the dataset. The
+  page works unchanged without the server.
+
+Data-only mode (`MergeConfig(require_declared_vocabulary=True)`, CLI
+`--data-only`) is the lock that keeps the starter fixed: `vocabulary` reads the
+declared classes/relations/facts once per run, the validation gate rejects
+anything else, and merge planning adds no declaration of its own.
+
 ---
 
 ## 1. Purpose
@@ -76,6 +92,11 @@ The codebase has three applied layers plus the packaged viewer:
 4. **Viewer** — `view_ontology` / `view_report` / `view_html` render the same
    read-only views to the terminal or one self-contained HTML page.
 
+Two optional front doors sit in front of that: the **starter**
+(`starter.py`: describe the world once, get the classes and relationships) and
+the **studio** (`studio.py`: the same page plus create/ingest/reset, which is
+the data-only path).
+
 The prompt no longer carries the whole entity catalog or every property label.
 It carries a layered selection (canonical + `(this document)` source-local)
 capped by a token ceiling (§10).
@@ -94,15 +115,17 @@ text_to_ontology_2/
 ├── ontology.trig               # default named-graph dataset (data, not code)
 ├── ontology.ttl                # legacy Turtle export of the data graph
 ├── reports/runs/               # --report Markdown output (git-ignored)
+├── scripts/triple-lens.html    # the viewer page; the studio column lives here too
+├── sources/inbox/              # studio drop zone for source files (git-ignored)
 ├── docs/                       # this map + app_map.html + data_flow.html
-├── src/text_to_ontology/       # the importable package (35 .py files)
+├── src/text_to_ontology/       # the importable package (38 .py files)
 └── tests/                      # unittest: one file per module + pipeline
     ├── store_contract.py       # shared GraphStore contract test base
     ├── fixtures/
     │   ├── miniature_repository.ttl   # frozen graph for partition/skeleton/pattern pins
     │   ├── documents/                 # windowing fixtures (crlf, long, unicode, …)
     │   └── shacl/                     # SHACL shape fixtures for source validation
-    └── test_*.py               # 31 test modules
+    └── test_*.py               # 35 test modules
 ```
 
 Dependency: `rdflib>=7,<8` and `pyshacl>=0.30,<1` (pyproject.toml), Python 3.12+.
@@ -115,7 +138,7 @@ Dependency: `rdflib>=7,<8` and `pyshacl>=0.30,<1` (pyproject.toml), Python 3.12+
 
 ```
 def build_parser():   # argparse; source (required), graph (default ontology.trig),
-                      # -v/--verbose, --report, --dry-run
+                      # -v/--verbose, --report, --dry-run, --data-only
 def main(argv=None):  # builds adapters, calls run_text_to_graph, exit code 1 on
                       # RuntimeError/OSError (printed to stderr)
 ```
@@ -126,6 +149,9 @@ def main(argv=None):  # builds adapters, calls run_text_to_graph, exit code 1 on
 - `--report`: reporter is verbose and writes to a timestamped Markdown file
   under `reports/runs/`; a successful run stays silent on the terminal.
 - `-v/--verbose`: the same reporter writes everything to the terminal.
+- `--data-only`: `MergeConfig(require_declared_vocabulary=True)`; ingestion may
+  only use the vocabulary the starter ontology declares. `text_to_ontology.studio`
+  always runs this way.
 
 ### 3.2 `api.py`
 
@@ -146,13 +172,18 @@ Request dataclasses (all in `pipeline.py`):
   `strategy_version=2`, `count_tokens=estimate_tokens`.
 - `ContextConfig` — `budget=dict(PROMPT_BUDGET)`.
 - `ExtractionConfig` — `model=None`, `repair_attempts=2`.
-- `MergeConfig` — `min_auto_accept_confidence=0.80`.
+- `MergeConfig` — `min_auto_accept_confidence=0.80`,
+  `require_declared_vocabulary=False`. With `require_declared_vocabulary`
+  (data-only ingestion) the run reads the starter vocabulary once
+  (`vocabulary.read_vocabulary`) and passes it to every window's validation
+  gate and to the document planner; classes and relationships the starter does
+  not declare are validation errors, and no plan may declare a class or a
+  property.
 - `ProcessingConfig` — `retain_staging_on_failure=False`.
 - `ValidationConfig` — `shape_graphs=()` (explicit SHACL graphs; empty keeps
   role shapes / legacy embedded shapes).
 - `RunRequest` — `source`, `graph_path=Path("ontology.trig")`, the five configs,
   `graph_names=GraphNames()`, `dry_run=False`.
-
 Result dataclasses:
 
 - `DocumentResult` — `path`, `document_id`, `source_artifact`,
@@ -174,6 +205,7 @@ reporter  = reporter or RunReporter()
 store     = _final_store(graph_store, request)      # RdflibGraphStore or LegacyTurtleDatasetStore
 roles     = initial_role_graphs(store, names)        # read schema/shapes/data/provenance/review; seed if empty
 graph     = union_graphs(roles.values())
+vocabulary = read_vocabulary(graph) if request.merge.require_declared_vocabulary else None
 files     = find_text_files(request.source, request.graph_path)
 if not files: raise RuntimeError("No text-like files found")
 for index, path in enumerate(files, start=1):
@@ -181,7 +213,7 @@ for index, path in enumerate(files, start=1):
     if not raw_text.strip(): reporter.blank_source(); blank_files += 1; continue
     document = make_source_document(path.name, raw_text, source_path=path.as_posix())
     before_snapshot = final_graphs_snapshot(graph)
-    staged = _process_document(document, request, graph, extractor, reporter)  # windows → staging
+    staged = _process_document(document, request, graph, extractor, reporter, vocabulary)
     reconciliation = reconcile_document(document.document_id, staged.source_graph,
                                         staged.candidate_graphs, staged.admission_plans)
     artifact = build_source_artifact(document, staged.source_graph, request.windowing, models)
@@ -189,7 +221,8 @@ for index, path in enumerate(files, start=1):
     if not validation.conforms: raise SourceValidationError(validation, artifact, reconciliation, sidecar)
     assert final graph snapshot unchanged
     document_merge = plan_document_merge(canonical_graph(roles, names), document,
-                                         staged.packages, staged.admission_plans, conf, planner=plan_graph_merge)
+                                         staged.packages, staged.admission_plans, conf,
+                                         planner=plan_graph_merge, vocabulary=vocabulary)
     publication_plan = compile_document_publication(document, document_merge, staged.candidate_graphs,
                                                     staged.packages, staged.admission_plans, roles, names, shapes)
     if not publication_plan.proposed_validation.conforms: raise PublicationValidationError(publication_plan)
@@ -216,7 +249,7 @@ for number, window in enumerate(windows, start=1):
 on BaseException: if retain_staging_on_failure → retain_staging(...) sidecar; reporter.staging_failed; raise
 ```
 
-`_extract_window`: builds canonical + source-local context via
+`_extract_window(..., vocabulary)`: builds canonical + source-local context via
 `_window_context` → `layered_context_text` → `make_prompt` →
 `extract_validated(extractor, prompt, validator, max_repair_attempts=...)` →
 `RuntimeError(repair/validation failure)` on failure.
@@ -266,7 +299,9 @@ The boundary domain modules see. `GraphStore` Protocol: `get(name)`,
   `graphs` replaces complete named graphs; anything not mentioned is untouched.
   `_apply(dataset, publication)` removes each named graph's triples, adds the
   new ones, and `remove_graph` for deletions.
-- `RdflibGraphStore` — `Dataset(default_union=True)` in memory; optional
+- `RdflibGraphStore` — `Dataset(default_union=True)` in memory with the project
+  prefixes bound (`graph_management.bind`) both on the dataset and on the
+  serialization clone, so persisted TriG is readable; optional
   `path` parsed as TriG. `publish` serializes a **clone** to `<path>.tmp` and
   `os.replace`s it, then applies the publication in memory — a failed write
   changes neither the file nor the dataset.
@@ -338,12 +373,16 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 
 ### 4.7 `repair.py` — bounded self-repair
 
-- `repair_prompt(original=None, raw_problem=None, issues=())` — the model gets
-  its own original answer back plus the deterministic, sorted issue list and
-  one instruction: return the complete corrected JSON, nothing else.
+- `repair_prompt(original=None, raw_problem=None, issues=(),
+  shape=EXTRACTION_SHAPE)` — the model gets its own original answer back plus
+  the deterministic, sorted issue list and one instruction: return the
+  complete corrected JSON in the named shape (`EXTRACTION_SHAPE` is
+  `"entities", "relations", "facts"`; `starter.STARTER_SHAPE` is the starter
+  contract).
 - `ExtractionOutcome` — `validation` (None when nothing parsed), `raw_problem`,
   `repair_attempts`; `.ok` = parsed AND `validation["valid"]`.
-- `extract_validated(extractor, prompt, validate, max_repair_attempts=0)` —
+- `extract_validated(extractor, prompt, validate, max_repair_attempts=0,
+  shape=EXTRACTION_SHAPE)` —
   extract, validate, and while the answer is unparseable/invalid and attempts
   remain, send a repair prompt and validate again. **Every** attempt passes the
   same `validate` gate (the pipeline passes `validate_candidates`).
@@ -352,9 +391,14 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 
 Read-only, fail-closed. Public contract:
 
-- `validate_candidates(data, graph, allowed_existing_ids=())` →
-  `{valid, candidates|None, issues, counts}`.
+- `validate_candidates(data, graph, allowed_existing_ids=(),
+  vocabulary=None)` → `{valid, candidates|None, issues, counts}`.
 - `format_validation_failure(result)` → deterministic CLI error text.
+- With a `vocabulary` (data-only ingestion) a kind whose class IRI the starter
+  does not declare is `entity.undeclared_kind`, an undeclared relation is
+  `relation.undeclared_predicate`, and an undeclared fact is
+  `fact.undeclared_predicate`; every message lists the declared names so the
+  model can repair its answer.
 
 Normalization is conservative (NFKC, CRLF→LF, controls removed, one-line
 whitespace collapsed, descriptions/facts preserved, dates/numbers never
@@ -455,7 +499,7 @@ Policy layer, unchanged in role but versioned 2. Constants:
   `allocate_uri`/`provisional_uri` are injectable (staging passes the
   document's provisional allocator).
 - `plan_graph_merge(graph, candidates, provenance, min_new_confidence=0.80,
-  allocate_uri=None, provisional_uri=None)` → MergePlan:
+  allocate_uri=None, provisional_uri=None, vocabulary=None)` → MergePlan:
   `{policy_version, provenance, event_uri, package_sha256, identities,
   entities, relations, facts, domain_triples, audit_triples, counts,
   diagnostics}`.
@@ -467,6 +511,10 @@ inverse-functional conflict review → below-`min_new_confidence` review →
 accept (with property declarations). Entity fields plan per-field outcomes
 (`accept`/`duplicate`/`review`/`partial_review`/`none`); an alias claimed by
 another same-kind entity routes only that alias to review.
+With a `vocabulary`, planning is data-only: `_plan_new_entity` does not emit
+`class_triples(kind)` and `_plan_assertion` emits no property declarations, so
+a plan can only add individuals and statements. Identity decisions and
+conflict handling are unchanged.
 
 **Audit vocabulary** (all under `onto:`; support partition; no timestamps, no
 raw source/prompt/response): `onto:ExtractionEvent` (sourcePath, sourceSha256,
@@ -571,6 +619,78 @@ remains as a legacy wrapper.
   `source_validation`, `publication_validation`, `merge_plan`, `dry_run`,
   `saved`, `staging_failed`, `finished`, `dry_run_finished`, `failed`.
 - Helpers `skeleton_label` / `skeleton_restriction` are shared with the viewer.
+
+### 4.20 `vocabulary.py` — the starter vocabulary lock
+
+Read-only, no writes. `Vocabulary(classes, relations, facts)` holds three
+`{resource IRI: readable name}` dicts. `read_vocabulary(graph)` collects named
+subjects of `owl:Class` / `rdfs:Class`, `owl:ObjectProperty`, and
+`owl:DatatypeProperty` (blank nodes skipped, missing labels fall back to the
+IRI). `declares_class(kind)` / `declares_relation(predicate)` /
+`declares_fact(predicate)` compare the *IRI* the pipeline would generate
+(`class_uri` / `RELATION[slug]` / `FACT[slug]`), so spelling differences that
+fold to the same slug still match. `class_names` / `relation_names` /
+`fact_names` are sorted display names; `is_empty` is the "no starter yet"
+signal the studio shows.
+
+### 4.21 `starter.py` — the starter ontology
+
+Constants: `DEFAULT_GRAPH = Path("ontology.trig")`, `MIN_CLASSES = 2`,
+`MAX_CLASSES = 20`, `MAX_ASSERTIONS = 40`, `XSD_TYPES` (short name → XSD
+datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
+
+- `starter_prompt(text)` — one prompt: JSON with `classes`, `relations`,
+  `facts`; relations carry domain + range class names, facts carry a domain and
+  an optional XSD range; names must not be camelCase.
+- `validate_starter(data)` — the same result shape as
+  `candidate_validation.validate_candidates` (`{valid, candidates, issues,
+  counts}`), so `repair.extract_validated` drives it unchanged. Rejects
+  missing/unknown sections, empty or camelCase names, unknown domain/range
+  classes, unknown literal ranges, duplicates, fewer than `MIN_CLASSES` or more
+  than `MAX_CLASSES` classes, and more than `MAX_ASSERTIONS` relations + facts.
+- `propose_starter(text, extractor, repair_attempts=2)` — prompt → repair →
+  validated proposal, or `RuntimeError` with `format_starter_failure(...)`.
+- `starter_publication(proposal, names=None)` — one `Publication` replacing the
+  schema, shapes, target, provenance, and review roles: the seed's
+  `onto:Entity` root and `EntityShape` shape survive, every class becomes
+  `class:<slug>` (`owl:Class`, label, comment, `rdfs:subClassOf onto:Entity`),
+  every relation `relation:<slug>` (`owl:ObjectProperty`, domain, range), every
+  fact `fact:<slug>` (`owl:DatatypeProperty`, domain, range). Everything else
+  starts empty, so an old dataset is replaced whole.
+- `create_starter(text, graph_path, extractor=None, names=None)` — propose and
+  publish; returns the proposal.
+- `proposal_summary(proposal)` — the short plain-text listing.
+- `build_parser()` / `main(argv)` — `text-to-ontology-starter [INFO|-] [GRAPH]
+  [--model]`; reads a file or standard input.
+
+### 4.22 `studio.py` — the local studio server
+
+- `find_page(explicit=None)` — the `scripts/triple-lens.html` page: the given
+  path, then the working directory, then the repository root next to the
+  package.
+- `Studio(graph_path, sources_dir, page_path, model=None, names=None,
+  extractor=None)` — everything the studio does, with no HTTP in it:
+  `canonical_graph()` (schema + configured data + target), `triple_count()`,
+  `source_names()`, `status()` (graph, triples, `ready`, class/relation/fact
+  names, inbox files), `dataset_text()` (schema + shapes + data + target as one
+  TriG text, prefixes bound, provenance left out), `reset()` (unlink the graph
+  file and every direct child file of the inbox, then re-open an empty store),
+  `create_starter(text)` (propose + publish on the studio's own store),
+  `ingest(files, log)` (write each dropped text into the inbox, then run the
+  pipeline once per file with `MergeConfig(require_declared_vocabulary=True)`,
+  reporting into `log`), and `_write_source(name, text)` (safe name, never
+  overwrites).
+- `StudioHandler` — `GET /` (the page), `GET /api/status`, `GET /api/dataset`,
+  `POST /api/reset`, `POST /api/starter` (`{text}`), `POST /api/ingest`
+  (`{files: [{name, text}]}`). Mutating answers are
+  `{ok, log, status, ...}`; failures answer `{ok: false, error, log, status}`
+  with HTTP 200, so the page can show the run log either way. JSON only — no
+  multipart, no cookies, no state outside the dataset and the inbox.
+- `create_server(studio, host="127.0.0.1", port=8765)` — one plain
+  single-threaded `HTTPServer` with the studio bound to the handler class.
+- `build_parser()` / `main(argv)` — `text-to-ontology-studio [--graph]
+  [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
+  `--reset` cleans up and exits, otherwise it serves and prints the URL.
 
 ---
 
@@ -694,7 +814,14 @@ items).
 | `graph_store` | `RdflibGraphStore.publish(publication)` | atomic TriG persistence |
 | `merge_policy` | `plan_graph_merge(graph, candidates, provenance, ...)` | MergePlan (see 4.13) |
 | `entity_lookup` | `identity_decision(entity, catalog, ...)` | `{status, uri, method, identity_score, suggestions, reason_codes}` |
-| `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=())` | `ValidationResult` |
+| `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=(), vocabulary=None)` | `ValidationResult` |
+| `vocabulary` | `read_vocabulary(graph)` | `Vocabulary` (declared classes/relations/facts) |
+| `starter` | `validate_starter(data)` | `{valid, candidates, issues, counts}` |
+| `starter` | `starter_publication(proposal, names)` | one `Publication` (five roles) |
+| `starter` | `create_starter(text, graph_path, extractor, names)` | the proposal (already published) |
+| `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
+| `studio` | `Studio.ingest(files, log)` | list of saved source names |
+| `studio` | `create_server(studio, host, port)` | `HTTPServer` |
 | `publication_sources` | `materialize_sources(graph, document, merge, canonical)` | None (mutates the evidence graph) |
 | `view_report` | `build_report(path, graph, views)` | plain report dict for the HTML page |
 | `view_html` | `write_report(...)` | writes one self-contained HTML page |
@@ -714,11 +841,21 @@ items).
 - **Staging** (never canonical, in-memory per document): a document's source
   graph under `.../staging/<doc>` and per-window candidate graphs under
   `.../staging/<doc>/<window>`; entities use `provisional/<doc>/...` IRIs.
+- **Starter** (via `starter.starter_publication`, one atomic publication):
+  `class:<slug>` `owl:Class` (+ label, comment, `rdfs:subClassOf onto:Entity`)
+  in the schema graph, `relation:<slug>` `owl:ObjectProperty` and
+  `fact:<slug>` `owl:DatatypeProperty` (+ label, comment, domain, range),
+  the seed's `onto:Entity` root and `EntityShape`, everything else empty.
+  This is the vocabulary data-only ingestion is locked to.
 - **Each accepted entity** is typed `onto:Entity`, `owl:NamedIndividual`,
   `skos:Concept`, and `class:<Kind>`; carries `skos:prefLabel`, `rdfs:label`,
   `onto:kind`, optional aliases/comment.
 - **Each relation/fact** becomes `relation:<slug>`
   `owl:ObjectProperty` / `fact:<slug>` `owl:DatatypeProperty` with a label.
+  In data-only mode the declarations are not written again: the statement
+  itself is the only thing added, and every class/property declaration stays
+  exactly as the starter wrote it (the schema and shapes graphs are copied
+  through unchanged by every publication).
 - **Evidence** (provenance graph): per-record `prov:Collection` +
   `rdf:Statement` reification + `dqv:QualityMeasurement` (xsd:decimal) + the
   PROV chain; plus `onto:statement/<sha>` source links and
@@ -758,7 +895,12 @@ merge_policy.py ──► entity_lookup, graph_management, graph_merge
 candidate_validation.py ──► entity_lookup (entity_catalog, identity_key),
                             graph_management, graph_merge (class_uri, label, slug)
 candidate_graph.py ──► graph_management (FACT, RELATION, bind), graph_merge (class_*)
-graph_store.py ──► graph_partition (for legacy import)
+graph_store.py ──► graph_partition (for legacy import), graph_management (bind)
+vocabulary.py ──► graph_management (FACT, RELATION), graph_merge (class_uri, slug)
+starter.py ──► document_publication (split_legacy_graph), graph_management,
+               graph_merge, graph_store, llm, repair
+studio.py ──► graph_management (bind), graph_store, llm, pipeline, run_report,
+              starter, vocabulary
 task_context.py ──► entity_lookup, graph_patterns (STRUCTURAL, eligible), ontology_views, source_concepts
 context_render.py ──► prompt_budget, task_context (TEXT_PREDICATES, datatype_term)
 ontology_views.py ──► graph_partition, graph_skeleton, graph_patterns
@@ -790,7 +932,8 @@ source files ──► find_text_files / read_source ──► make_source_docum
                                                           │
                           make_prompt() → extract_validated() → [repair ≤ N]
                                                           │
-                          validate_candidates()  (same gate every attempt; any error → window rejected)
+                          validate_candidates(..., vocabulary=...)  (same gate every attempt;
+                                                          undeclared class/predicate under data-only → error → window rejected)
                                                           │
                           plan_window_admission(source staging graph only; PROVISIONAL IRIs)
                                                           │
@@ -802,13 +945,29 @@ source files ──► find_text_files / read_source ──► make_source_docum
               build_source_artifact()  →  deterministic N-Triples + metadata
               validate_source_graph()  →  pySHACL  (non-conformance → SourceValidationError)
                                                           │
-              plan_document_merge(canonical scope)  →  identity decided ONCE (accept/duplicate/review)
+              plan_document_merge(canonical scope, vocabulary)  →  identity decided ONCE
+                                                          (accept/duplicate/review; no declarations in data-only mode)
                                                           │
               compile_document_publication()  →  proposed target + remapped evidence + review graph
               validate_source_graph(proposed data)  →  (non-conformance → PublicationValidationError)
                                                           │
          publish_document(store, plan)   ←── one atomic store.publish() replacing target/provenance/review
          (or dry_run: report the same plan, never publish)
+```
+
+Outside the pipeline, the same store is driven by the starter and the studio:
+
+```
+initial information ──► starter_prompt() → extract_validated() → validate_starter()
+                                                          │
+                          starter_publication()  →  ONE publication replacing all five roles
+                                                          │
+                          schema + shapes graphs  =  the frozen starter vocabulary
+                                                          ▼
+studio page ──► POST /api/starter        (above)          → reload the lens
+            ──► POST /api/ingest  {files} → sources/inbox/ → run_text_to_graph(data_only)
+            ──► POST /api/reset          → unlink dataset + inbox files → empty store
+            ──► GET  /api/status|dataset → sizes, vocabulary, canonical TriG text
 ```
 
 Identity scope: window admission sees only the source-local staging graph
@@ -839,6 +998,12 @@ publication only apply already-made decisions.
 | LLM | `https://openrouter.ai/api/v1/chat/completions`, temperature `0`, timeout `60` s, title `"Simple Text to Ontology"`, system prompt `"Extract knowledge. Return only JSON."` |
 | Accepted source extensions | `.txt .md .rst .csv .json .jsonl .yaml .yml .xml .html .log` |
 | Seed graph size | 8 triples |
+| Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |
+| Starter caps | `MIN_CLASSES` 2, `MAX_CLASSES` 20, `MAX_ASSERTIONS` 40 (`starter.py`) |
+| Starter literal ranges | `XSD_TYPES`: string/text/integer/int/decimal/float/double/boolean/date/datetime/time/anyURI |
+| Studio | `DEFAULT_PORT` 8765, `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox`, page `scripts/triple-lens.html`, host `127.0.0.1`, single-threaded `HTTPServer` |
+| Studio API | `GET /` · `GET /api/status` · `GET /api/dataset` · `POST /api/reset` · `POST /api/starter {text}` · `POST /api/ingest {files:[{name,text}]}` |
+| Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
 | Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |
 | Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 |
 | Traversal caps | `hierarchy_hops` 1, `instance_hops` 1 |
@@ -866,6 +1031,11 @@ lever on prompt size; where both apply the smaller wins.
 | OpenRouter HTTP error | `llm.ask_llm` | `RuntimeError(f"OpenRouter error {code}: {message}")` |
 | Non-JSON / invalid JSON answer | `llm.ask_llm` | `InvalidResponseError(...)` (caught by `repair._attempt`) |
 | Invalid candidate package | `pipeline._extract_window` | `RuntimeError(format_validation_failure(...))` |
+| Undeclared class/relation/fact (data-only) | `candidate_validation.validate_candidates` | validation errors `entity.undeclared_kind`, `relation.undeclared_predicate`, `fact.undeclared_predicate` → repair → rejected window |
+| Rejected starter proposal | `starter.propose_starter` | `RuntimeError(format_starter_failure(...))` |
+| Page file not found | `studio.find_page` | `RuntimeError("Could not find scripts/triple-lens.html…")` |
+| Studio port in use | `studio.main` | `Error: cannot listen on {host}:{port}` + `SystemExit(1)` |
+| Studio API failure | `studio.StudioHandler.do_POST` | `{ok: false, error, log, status}` with HTTP 200 |
 | Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
 | Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
 | Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
@@ -937,6 +1107,10 @@ pattern numbers are pinned on the frozen miniature in
 | `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes. |
 | `test_view_html.py` | `view_html.write_report` renders `view_report.build_report` output as one self-contained page. |
 | `test_install_smoke.py` | The package imports and the console script is installed. |
+| `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
+| `test_starter.py` | Proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, `starter_publication` roles and triples, `proposal_summary`, `create_starter` replacing an old dataset. |
+| `test_data_only.py` | The data-only gate end to end: declared extraction accepted with the schema and shapes unchanged, undeclared kind/predicate rejected and nothing written, no declarations in a data-only plan, and the permissive default still declaring as before. |
+| `test_studio.py` | `Studio` status/dataset/reset/`_write_source` round trips, data-only ingestion, error reporting; the HTTP API (`/`, `/api/status`, `/api/dataset`, `/api/starter`, `/api/ingest`, `/api/reset`, 404). |
 
 ---
 
@@ -1013,6 +1187,29 @@ pattern numbers are pinned on the frozen miniature in
     distinct facts; NaN/±infinity and collections are rejected.
 25. **The viewer reads read-only**: `ReadOnlyGraphStore` wraps a TriG store and
     every view is built in memory; only `-html` writes a file (the HTML page).
+26. **Data-only means no declaration ever**: with a vocabulary the gate refuses
+    an undeclared kind or predicate and the planner emits no class/property
+    declaration triples at all, so the schema, the shapes, and every class and
+    property triple in the data graph are byte-identical before and after
+    ingestion. `class_triples` is skipped for the same reason (it can carry a
+    differently-cased label).
+27. **Vocabulary matching is by generated IRI, not by spelling**: `Person`,
+    `person`, and `PERSON` all fold to `class:person` and are accepted;
+    a starter name in camelCase would fold differently on the way back
+    (`label()` splits it), which is why `starter.validate_starter` refuses
+    camelCase and underscores in proposed names.
+28. **A starter is written in one atomic publication** replacing all five
+    roles, so re-running it replaces the previous starter instead of growing
+    it; the previous data, provenance, and review graphs are gone.
+29. **The studio owns no state of its own** beyond the dataset file and the
+    inbox directory: `reset` unlinks the graph file and the inbox's direct
+    child files (never a directory), and re-opens an empty in-memory store.
+    The in-memory store is shared with the pipeline, so every answered request
+    already sees the new state.
+30. **The studio column is additive**: `scripts/triple-lens.html` still works
+    from `file://` (the connection probe fails and the column stays hidden),
+    and the page-specific column markup lives in its own `<script>` block after
+    the lens IIFE, reaching the lens only through `window.__lens`.
 
 ---
 

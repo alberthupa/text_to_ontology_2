@@ -309,6 +309,19 @@
         </ul>
       </div>
     </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3><span class="badge write">front door</span> starter · studio · the data-only lock</h3>
+      <p class="what">Two optional ways in around the same pipeline. Describe the world once and get the starter ontology; the studio serves the Triple Lens page plus a tiny local API that can create that starter, ingest dropped files, and reset everything. Ingestion is data-only: the starter's classes and relationships are frozen, so a dropped text can add individuals and statements but never a class or a relationship.</p>
+      <ul class="members">
+        <li><span class="fn">vocabulary.py</span><span class="desc">declared classes / relations / facts read back out of a graph</span></li>
+        <li><span class="fn">starter.py</span><span class="desc">paste → one checked proposal → one atomic publication (text-to-ontology-starter)</span></li>
+        <li><span class="fn">studio.py</span><span class="desc">local HTTP: page + status / dataset / reset / starter / ingest (text-to-ontology-studio)</span></li>
+        <li><span class="fn">scripts/triple-lens.html</span><span class="desc">the viewer page; the studio column is one extra script block</span></li>
+        <li><span class="const">--data-only</span><span class="desc">CLI name for MergeConfig(require_declared_vocabulary=True)</span></li>
+        <li><span class="const">studio</span><span class="desc">127.0.0.1:8765 · sources/inbox/ · reset = unlink dataset + inbox</span></li>
+      </ul>
+    </div>
   </section>
 
   <!-- 2. FLOW -->
@@ -499,7 +512,8 @@
         <h3><span class="badge gate">gate</span> candidate_validation.py</h3>
         <p class="what">A read-only gate between the LLM and any planning. Normalizes, dedupes, requires numeric confidence in [0,1], rejects provable conflicts — never calls <code>identify_entity()</code>, never writes.</p>
         <ul class="members">
-          <li><span class="fn">validate_candidates(data, graph, allowed_existing_ids=())</span><span class="desc">→ {valid, candidates, issues, counts}</span></li>
+          <li><span class="fn">validate_candidates(data, graph, allowed_existing_ids=(), vocabulary=None)</span><span class="desc">→ {valid, candidates, issues, counts}</span></li>
+          <li><span class="fn">vocabulary (data-only)</span><span class="desc">undeclared kind / relation / fact → error naming the declared names</span></li>
           <li><span class="fn">format_validation_failure(result)</span><span class="desc">deterministic CLI error (no raw response)</span></li>
         </ul>
         <div class="const-block"><span class="tag">passes</span>
@@ -523,7 +537,8 @@
         <p class="what">Read-only planner between validation and materialization. Decides every identity and assertion outcome against the given graph, and builds deterministic audit/provenance triples — without mutating anything.</p>
         <ul class="members">
           <li><span class="fn">build_provenance(path, text, model)</span><span class="desc">{source_path, source_sha256, model, policy_version}</span></li>
-          <li><span class="fn">plan_graph_merge(graph, candidates, provenance, …)</span><span class="desc">→ the MergePlan</span></li>
+          <li><span class="fn">plan_graph_merge(graph, candidates, provenance, …, vocabulary=None)</span><span class="desc">→ the MergePlan</span></li>
+          <li><span class="fn">vocabulary set</span><span class="desc">data-only: no class or property declaration is planned</span></li>
           <li><span class="fn">resolve_entities(candidates, graph, …)</span><span class="desc">identity decisions via entity_lookup.identity_decision</span></li>
           <li><span class="const">AUTO_ACCEPT_MIN_CONFIDENCE / MERGE_POLICY_VERSION</span><span class="desc">0.80 / 2</span></li>
         </ul>
@@ -644,6 +659,49 @@
           <li><span class="fn">default_report_path(source, started_at)</span><span class="desc"><code>reports/runs/&lt;ts&gt;_&lt;source&gt;.md</code></span></li>
           <li><span class="const">REPORT_DIRECTORY</span><span class="desc">reports/runs (git-ignored)</span></li>
         </ul>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge read">lock</span> vocabulary.py</h3>
+        <p class="what">Read-only. The starter vocabulary read back out of a graph: which classes, relations, and facts ingestion may use. Nothing here writes.</p>
+        <ul class="members">
+          <li><span class="fn">read_vocabulary(graph)</span><span class="desc">→ Vocabulary(classes, relations, facts) keyed by IRI</span></li>
+          <li><span class="fn">declares_class(kind) / declares_relation(p) / declares_fact(p)</span><span class="desc">compare the IRI the pipeline would generate</span></li>
+          <li><span class="fn">class_names / relation_names / fact_names / is_empty</span><span class="desc">display names; "no starter yet" signal</span></li>
+        </ul>
+        <div class="const-block"><span class="tag">frozen</span>
+          With this vocabulary, validation refuses an undeclared kind or predicate and planning emits no declaration triples: the schema, the shapes, and every class/property triple stay byte-identical through ingestion.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">front door</span> starter.py</h3>
+        <p class="what">One short paste → one checked starter ontology → one atomic publication replacing all five roles. Separate from ingestion: no source document is read here.</p>
+        <ul class="members">
+          <li><span class="fn">starter_prompt(text) / STARTER_PROMPT</span><span class="desc">classes + relations (domain/range) + facts (XSD range)</span></li>
+          <li><span class="fn">validate_starter(data)</span><span class="desc">→ {valid, candidates, issues, counts} — same shape the repair loop uses</span></li>
+          <li><span class="fn">propose_starter(text, extractor, repair_attempts=2)</span><span class="desc">prompt → repair → validated proposal</span></li>
+          <li><span class="fn">starter_publication(proposal, names)</span><span class="desc">→ one Publication: schema / shapes / empty target, provenance, review</span></li>
+          <li><span class="fn">create_starter(text, graph_path, …)</span><span class="desc">propose + publish</span></li>
+          <li><span class="const">MIN_CLASSES / MAX_CLASSES / MAX_ASSERTIONS</span><span class="desc">2 / 20 / 40</span></li>
+          <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-starter [INFO|-] [GRAPH] [--model]</span></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3><span class="badge write">studio</span> studio.py</h3>
+        <p class="what">A deliberately plain local server: standard-library HTTP, one request at a time, localhost only. It serves the Triple Lens page and a tiny JSON API for starter, ingestion, and reset. It only ever touches the dataset file and the inbox directory.</p>
+        <ul class="members">
+          <li><span class="fn">Studio(graph_path, sources_dir, page_path, …)</span><span class="desc">status / dataset_text / reset / create_starter / ingest — no HTTP inside</span></li>
+          <li><span class="fn">StudioHandler + create_server(studio, host, port)</span><span class="desc">single-threaded HTTPServer with the studio bound to the handler</span></li>
+          <li><span class="fn">GET / · /api/status · /api/dataset</span><span class="desc">the page; sizes + vocabulary; canonical TriG text (no provenance)</span></li>
+          <li><span class="fn">POST /api/reset · /api/starter {text} · /api/ingest {files}</span><span class="desc">{ok, log, status, …}; failures answer 200 with ok:false</span></li>
+          <li><span class="const">DEFAULT_PORT / DEFAULT_SOURCES / page</span><span class="desc">8765 / sources/inbox / scripts/triple-lens.html</span></li>
+          <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-studio … [--reset] [--no-browser]</span></li>
+        </ul>
+        <div class="outcome"><span class="tag">page</span>
+          <p class="line"><b>triple-lens.html</b>: a right-hand studio column appears only when the server answers <code>api/status</code>. Create starter → drop sources → reset, plus a run log. Opened from disk the page is unchanged: no server, no column, everything read in the browser.</p>
+        </div>
       </div>
     </div>
 
@@ -891,6 +949,10 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_cli.py</h3><p class="what">Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_view_html.py</h3><p class="what">view_html.write_report renders view_report.build_report output as one self-contained page.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_install_smoke.py</h3><p class="what">The package imports and the console script is installed.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_starter.py</h3><p class="what">Starter proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, the five-role publication, the summary, and create_starter replacing an old dataset.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_data_only.py</h3><p class="what">The data-only gate end to end: a declared extraction accepted with the schema and shapes unchanged, an undeclared kind or predicate rejected with nothing written, no declarations in a data-only plan, and the permissive default still declaring as before.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_studio.py</h3><p class="what">Studio status/dataset/reset/safe-name round trips, data-only ingestion and its error, and the HTTP API: page, status, dataset, starter, ingest, reset, 404.</p></div>
     </div>
   </section>
 
@@ -941,14 +1003,17 @@
     ├── <span class="py">view_ontology.py</span>         <span class="comment"># viewer command line (print / -html)</span>
     ├── <span class="py">view_report.py</span>           <span class="comment"># views → plain data (no HTML)</span>
     ├── <span class="py">view_html.py</span>             <span class="comment"># data → one self-contained HTML page</span>
-    └── <span class="py">run_report.py</span>            <span class="comment"># terminal / verbose / Markdown reporting</span>
+    ├── <span class="py">run_report.py</span>            <span class="comment"># terminal / verbose / Markdown reporting</span>
+    ├── <span class="py">vocabulary.py</span>            <span class="comment"># [read-only] declared starter classes / relations / facts</span>
+    ├── <span class="py">starter.py</span>               <span class="comment"># paste → checked starter ontology → one atomic write</span>
+    └── <span class="py">studio.py</span>                <span class="comment"># local server: lens page + reset / starter / ingest</span>
 └── <span class="dir">tests/</span>
     ├── <span class="test">store_contract.py</span>          <span class="comment"># shared GraphStore contract base</span>
     ├── <span class="dir">fixtures/</span>
     │   ├── <span class="test">miniature_repository.ttl</span>    <span class="comment"># frozen pins for partition/skeleton/patterns</span>
     │   ├── <span class="dir">documents/</span>                     <span class="comment"># windowing fixtures (crlf, unicode, long…)</span>
     │   └── <span class="dir">shacl/</span>                          <span class="comment"># SHACL shape fixtures</span>
-    └── <span class="test">test_*.py</span>                     <span class="comment"># 31 unittest modules</span>
+    └── <span class="test">test_*.py</span>                     <span class="comment"># 35 unittest modules</span>
 </pre></div>
   </section>
 

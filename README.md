@@ -21,6 +21,59 @@ an ambiguous or close-spelling match is held for review, and only confident,
 unambiguous records create new entities. The proposed data is SHACL-validated,
 then target, provenance, and review graphs are published in one atomic call.
 
+## Starter ontology, then data only
+
+The quickest way in is the studio: a small local page with the Triple Lens
+graph on the left and three controls on the right — create the starter
+ontology, drop sources to ingest, reset everything.
+
+```bash
+pip install -e .
+text-to-ontology-studio            # prints a localhost URL and opens it
+```
+
+1. **Create the starter ontology.** Paste a few sentences about the world
+   ("We roast coffee, we buy green coffee from farms, we sell bags to cafes").
+   The model proposes the classes, relations, and facts; they are checked and
+   written as the dataset's schema and shapes. The same thing from the command
+   line, reading a file or standard input:
+
+   ```bash
+   text-to-ontology-starter notes.md ontology.trig
+   echo "We roast coffee and sell it to cafes." | text-to-ontology-starter - ontology.trig
+   ```
+
+2. **Ingest.** Drop `.txt` or `.md` files on the studio column. Each file is
+   written into `sources/inbox/` and ingested through the ordinary pipeline.
+   Ingestion is **data-only**: the starter's classes and relationships are
+   frozen, so a dropped text can add individuals and statements but can never
+   add, rename, or retype a class or a relationship. A record that names
+   vocabulary the starter does not declare is refused, and the model is asked
+   to repair its answer using the declared vocabulary.
+
+   The same restriction on the command line is `--data-only`:
+
+   ```bash
+   text-to-ontology sources/inbox/ ontology.trig --data-only
+   ```
+
+   Without `--data-only` the older behaviour is unchanged: a new kind or a new
+   predicate is declared as it is extracted. The studio always uses data-only.
+
+3. **Reset.** The studio's Reset button deletes the dataset file and every
+   source in the inbox. Without the page:
+
+   ```bash
+   text-to-ontology-studio --reset
+   ```
+
+   Deleting `ontology.trig` by hand is the same thing; the next run starts a
+   fresh dataset.
+
+The studio serves `scripts/triple-lens.html` and binds to localhost only.
+Opened straight from disk, that same page behaves exactly as before: it reads
+files in the browser, no server, no studio column.
+
 ## Install
 
 ```bash
@@ -130,7 +183,9 @@ print(result.triples, "triples in", result.graph_path)
 shape graphs), `GraphNames`, `ProcessingConfig`, and `dry_run`
 (`retain_staging_on_failure` exports a failed document's staging graphs to a
 sidecar TriG file next to the output graph for diagnosis; by default they are
-discarded).
+discarded; `require_declared_vocabulary` turns ingestion data-only, so the
+classes and relationships already declared are the only ones the model may
+use).
 When the model's answer is messy — unparseable JSON or a contract violation —
 it is sent back to the model for self-repair up to
 `ExtractionConfig(repair_attempts=...)` times (default 2; 0 disables repair)
@@ -239,6 +294,13 @@ The pipeline that runs when you invoke the program:
   dataclasses, and the extractor/reporter contracts
 - `src/text_to_ontology/cli.py` — the command line: argument parsing, adapters,
   exit codes (also reachable as `python3 -m text_to_ontology`)
+- `src/text_to_ontology/vocabulary.py` — the starter vocabulary read back out
+  of a graph: which classes, relations, and facts ingestion may use
+- `src/text_to_ontology/starter.py` — the starter ontology: one prompt, one
+  checked proposal, one atomic write (`text-to-ontology-starter`)
+- `src/text_to_ontology/studio.py` — the local studio server: the Triple Lens
+  page plus reset, starter, and drag-and-drop ingestion
+  (`text-to-ontology-studio`)
 - `src/text_to_ontology/run_report.py` — normal and verbose run reporting to
   the terminal, a file, or any supplied text stream
 - `src/text_to_ontology/ingest_sources.py` — finding and reading source files
@@ -310,7 +372,11 @@ Read-only tools that derive smaller views of an existing graph:
 
 And the rest:
 
-- `pyproject.toml` — package metadata and the one dependency (`rdflib`)
+- `pyproject.toml` — package metadata and the two dependencies (`rdflib`,
+  `pyshacl`)
+- `scripts/triple-lens.html` — the one self-contained viewer page; with the
+  studio server it also grows the studio column
+- `sources/inbox/` — where the studio keeps the files you drop (git-ignored)
 - `tests/fixtures/miniature_repository.ttl` — the frozen miniature graph the
   exact partition/skeleton/pattern tests run against
 - `ontology.trig` — the named-graph dataset created by the default run
