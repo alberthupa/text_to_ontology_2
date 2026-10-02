@@ -42,7 +42,9 @@ def _status(workspace, payload):
 
 
 def _dataset(workspace, payload):
-    return {"ok": True, "trig": workspace.dataset_text()}
+    """The canonical ontology as TriG, plus the name a viewer should show."""
+    return {"ok": True, "trig": workspace.dataset_text(),
+            "name": workspace.graph_path.name}
 
 
 def _progress(workspace, payload):

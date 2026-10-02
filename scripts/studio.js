@@ -273,8 +273,9 @@
     const data = await op.dataset();
     const lens = window.__lens;
     if (!lens) return;
+    const name = data.name || 'dataset.trig';   // the backend names the file
     const files = data.trig && data.trig.trim()
-      ? [{ name: 'ontology.trig', trig: data.trig }] : [];
+      ? [{ name, trig: data.trig }] : [];
     lens.applyView({ replace: true, files, resetFilters: true });
   }
   function clearView(message) {
