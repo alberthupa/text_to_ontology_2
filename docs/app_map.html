@@ -318,7 +318,7 @@
         <li><span class="fn">vocabulary.py</span><span class="desc">declared classes / relations / facts read back out of a graph</span></li>
         <li><span class="fn">starter.py</span><span class="desc">paste → one checked proposal → one atomic publication (text-to-ontology-starter)</span></li>
         <li><span class="fn">studio.py</span><span class="desc">local HTTP: page + status / dataset / progress / reset / starter / ingest (text-to-ontology-studio)</span></li>
-        <li><span class="fn">scripts/triple-lens.html</span><span class="desc">the viewer page; the studio column is one extra script block</span></li>
+        <li><span class="fn">frontend/triple-lens.html</span><span class="desc">the viewer page; the studio frontend is loaded beside it only when served</span></li>
         <li><span class="const">--data-only</span><span class="desc">CLI name for MergeConfig(require_declared_vocabulary=True)</span></li>
         <li><span class="const">studio</span><span class="desc">127.0.0.1:8765 (next free port when taken) · sources/inbox/ · reset = unlink dataset + inbox</span></li>
         <li><span class="const">studio jobs</span><span class="desc">one background job at a time, watched by a progress bar via the progress operation</span></li>
@@ -335,9 +335,9 @@
         <h3><span class="badge read">frontend</span> pixels and input only</h3>
         <p class="what">Two files the browser runs. They parse RDF to draw it, apply declarative view directives, and call named operations. No model calls, no validation, no writes, no idea which part of the graph matters.</p>
         <ul class="members">
-          <li><span class="fn">scripts/triple-lens.html</span><span class="desc">the viewer: RDF parser, layout, filters, details, and <code>window.__lens</code> (applyView / clearFiles / fileNames)</span></li>
-          <li><span class="fn">scripts/studio.js</span><span class="desc">the panel: builds its own markup, calls <code>api/op/&lt;name&gt;</code>, applies view directives</span></li>
-          <li><span class="fn">scripts/studio.css</span><span class="desc">the panel's styles</span></li>
+          <li><span class="fn">frontend/triple-lens.html</span><span class="desc">the viewer: RDF parser, layout, filters, details, and <code>window.__lens</code> (applyView / clearFiles / fileNames)</span></li>
+          <li><span class="fn">frontend/studio.js</span><span class="desc">the studio frontend: top-bar actions, dialogs, the conversation column; calls <code>api/op/&lt;name&gt;</code>, applies view directives</span></li>
+          <li><span class="fn">frontend/studio.css</span><span class="desc">its styles</span></li>
           <li><span class="const">never</span><span class="desc">a model call, a rule re-implementation, a write, a rendering decision from the backend</span></li>
         </ul>
       </div>
@@ -815,14 +815,14 @@
           <li><span class="fn">GET / · /studio.js · /studio.css</span><span class="desc">the page and the panel beside it; any other file is refused</span></li>
           <li><span class="fn">GET /api/op/&lt;name&gt;?arg=value · POST /api/op/&lt;name&gt;</span><span class="desc">one generic path into operations.call; unknown names are the only 404</span></li>
           <li><span class="fn">Assets(page)</span><span class="desc">page lookup + sibling assets + content types, traversal-proof</span></li>
-          <li><span class="const">DEFAULT_PORT / page / assets</span><span class="desc">8765 (falls back to the next free port) / scripts/triple-lens.html / .js and .css beside it</span></li>
+          <li><span class="const">DEFAULT_PORT / page / assets</span><span class="desc">8765 (falls back to the next free port) / frontend/triple-lens.html / .js and .css beside it</span></li>
           <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-studio … [--reset] [--no-browser]</span></li>
         </ul>
         <div class="outcome"><span class="tag">page</span>
           <p class="line"><b>frontend split</b>: <code>triple-lens.html</code> is the visualization (plus a documented <code>window.__lens</code> view API); <code>studio.js</code> + <code>studio.css</code> are the panel, loaded only when the page is served. The panel holds controls and nothing else: named operations in, view directives out.</p>
-          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; section 1 creates the starter <i>or</i> imports a dropped RDF/Turtle/TriG file (and section 2 refuses RDF with a pointer back); section 4 is the chat with the graph, each answer showing the subgraph it used and any Turtle proposal it made; section 5 edits the data graph (Load, preview diff, Apply, allow-new-vocabulary); plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
+          <p class="line"><b>the studio row</b> in the top bar: dataset status, then one button per action — <b>Starter ontology…</b> (create from a description <i>or</i> import a dropped RDF/Turtle/TriG file), <b>Add sources…</b> (refuses RDF with a pointer back), <b>Prompts…</b>, <b>Edit the graph…</b> (Turtle, preview diff, Apply, allow-new-vocabulary) — then <b>Clear view</b> (unload the view, delete nothing), <b>Reset everything</b>, and <b>Log</b>. Each action is a dialog. The right-hand column is only the conversation with the graph: bubbles, a thinking indicator fed by job progress, Enter to send, each answer showing the subgraph it used and any Turtle proposal it made. Opened from disk the page is the plain viewer: no studio, no server, everything read in the browser.</p>
           <p class="line"><b>the subgraph is visible</b>: after each chat answer the canvas switches to exactly the triples the model was shown (its own file, filters cleared, focus set), and each answer keeps a <b>Show the subgraph</b> / <b>With the full graph</b> button plus a "Show the full graph again" restore. Adding a small scope beside a large dataset was invisible, which is why the default isolates it.</p>
-          <p class="line"><b>progress</b>: one bar pinned under the Studio header, labelled with the running job. Starter: model call 1, 2… (repairs included) then the write step. Ingestion: per file and per window — <code>n2.txt: window 1/1, asking the model</code> → <code>admitted</code> → <code>published</code>. The panel polls <code>progress</code> every 400 ms and the bar only moves forward.</p>
+          <p class="line"><b>progress</b>: one bar under the studio row in the top bar, labelled with the running job (the chat shows the same detail inside its thinking bubble instead). Starter: model call 1, 2… (repairs included) then the write step. Ingestion: per file and per window — <code>n2.txt: window 1/1, asking the model</code> → <code>admitted</code> → <code>published</code>. The panel polls <code>progress</code> every 400 ms and the bar only moves forward.</p>
         </div>
       </div>
     </div>

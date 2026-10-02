@@ -4,8 +4,8 @@ This module only carries things. All state and behaviour live in
 `workspace.Workspace`, and every capability is a named operation in
 `operations.py`. The routes are deliberately generic:
 
-    GET  /                      the lens page
-    GET  /studio.js             the control panel (frontend, visualization side)
+    GET  /                      the lens page (frontend/triple-lens.html)
+    GET  /studio.js             the studio frontend: top-bar actions, dialogs, chat
     GET  /studio.css            its styles
     GET  /api/op/<name>?...     one read-only operation, arguments in the query
     POST /api/op/<name>         one operation, arguments as a JSON body
@@ -13,8 +13,9 @@ This module only carries things. All state and behaviour live in
 The manifest of operation names is itself an operation: `operations.list`.
 Adding a capability therefore never touches this file.
 
-Run it, open the printed address, and the lens grows a control panel for the
-starter ontology, ingestion, reset, and progress.
+Run it, open the printed address, and the lens grows a studio row in its top
+bar (starter ontology, sources, prompts, graph editing, reset) and a
+conversation column on the right.
 
     python3 -m text_to_ontology.studio
     text-to-ontology-studio --graph ontology.trig --reset
@@ -31,8 +32,9 @@ from .operations import UnknownOperation, call
 from .workspace import DEFAULT_GRAPH, DEFAULT_SOURCES, Workspace
 
 DEFAULT_PORT = 8765
-PAGE_NAME = "scripts/triple-lens.html"
-# The frontend assets served next to the page; everything else is refused.
+PAGE_NAME = "frontend/triple-lens.html"
+# The frontend lives in frontend/ beside the page; only these suffixes are
+# served from there, everything else is refused.
 ASSET_TYPES = {".js": "text/javascript; charset=utf-8",
                ".css": "text/css; charset=utf-8"}
 

@@ -24,18 +24,20 @@ then target, provenance, and review graphs are published in one atomic call.
 ## Starter ontology, then data only
 
 The quickest way in is the studio: a small local page with the Triple Lens
-graph on the left and three controls on the right — create the starter
-ontology, drop sources to ingest, reset everything.
+graph in the middle, a studio row in the top bar with one button per action,
+and a conversation with the graph on the right.
 
 ```bash
 pip install -e .
 text-to-ontology-studio            # prints a localhost URL and opens it
 ```
 
-The studio's panel has five parts: **Dataset** (status, Clear view, Reset
-everything), **1 Starter ontology**, **2 Add sources**, **3 Ingestion prompt**,
-and **4 Chat with the graph** (with **Show the subgraph**, **Show the full
-graph again**, and **Clear conversation**) — plus the run log.
+The studio row reads, left to right: the dataset (file name, triples, sources),
+then **Starter ontology…**, **Add sources…**, **Prompts…**, **Edit the graph…**,
+then **Clear view** and **Reset everything**, the last thing the studio said,
+and **Log**. Each "…" button opens a dialog for that one action; the progress
+bar for a long job appears under the row. The right-hand column is only the
+conversation with the graph.
 
 1. **Create the starter ontology.** Paste a few sentences about the world
    ("We roast coffee, we buy green coffee from farms, we sell bags to cafes").
@@ -48,8 +50,8 @@ graph again**, and **Clear conversation**) — plus the run log.
    echo "We roast coffee and sell it to cafes." | text-to-ontology-starter - ontology.trig
    ```
 
-   Already have an ontology? Drop an RDF/Turtle/TriG file on section 1 and it is
-   **imported** instead of asked: its classes and relations become the starter
+   Already have an ontology? Drop an RDF/Turtle/TriG file on the Starter
+   ontology dialog (or choose it there) and it is **imported** instead of asked: its classes and relations become the starter
    vocabulary, its individuals become data, and its own IRIs are kept — after
    the import, ingestion types and links new individuals with *those* names. A
    file that declares no classes or properties is refused, and a failed import
@@ -60,12 +62,13 @@ graph again**, and **Clear conversation**) — plus the run log.
    ```
 
 Both long steps run in the background while the page polls the `progress`
-operation, so the studio shows a progress bar pinned under its header: the
+operation, so the studio shows a progress bar under the studio row: the
 starter counts model calls (including repairs), and ingestion counts files and
 windows (`n2.txt: window 1/1, asking the model` → `admitted` → `published`).
 Only one job runs at a time, so graph writes never interleave.
 
-2. **Ingest.** Drop `.txt` or `.md` files on the studio column. Each file is
+2. **Ingest.** Press **Add sources…** and drop `.txt` or `.md` files on the
+   dialog, or choose them. Each file is
    written into `sources/inbox/` and ingested through the ordinary pipeline.
    Ingestion is **data-only**: the starter's classes and relationships are
    frozen, so a dropped text can add individuals and statements but can never
@@ -82,7 +85,7 @@ Only one job runs at a time, so graph writes never interleave.
    Without `--data-only` the older behaviour is unchanged: a new kind or a new
    predicate is declared as it is extracted. The studio always uses data-only.
 
-3. **Edit the ingestion prompt.** Section 3 holds the prompt sent for every
+3. **Edit the ingestion prompt.** **Prompts…** opens the prompt sent for every
    source window: pick a template (`extraction_user` is the main one,
    `extraction_system` is the system message, `starter` is the starter prompt),
    edit it, and press **Save prompt**. Placeholders stay in the text — the
@@ -94,24 +97,28 @@ Only one job runs at a time, so graph writes never interleave.
    the digest of the templates in force is recorded in every run's
    configuration, so a report always names the prompt that produced it.
 
-4. **Talk to the graph.** Section 4 is a chat. Every question is answered from
+4. **Talk to the graph.** The right-hand column is a chat and nothing else:
+   your questions on the right, the graph's answers on the left, Enter sends
+   (Shift+Enter for a new line), and while an answer is being prepared the
+   graph's bubble shows what the backend is doing. Every question is answered from
    only the relevant part of the graph, and **you see that part**: after each
    answer the canvas switches to exactly the selected triples, with the matched
-   resource focused, and the answer's note says how many triples were selected
+   resource focused, and the answer's footer says how many triples were selected
    and how many were left out for space. Each answer keeps a **Show the
-   subgraph** button (and **With the full graph** if you would rather see it
-   beside everything); **Show the full graph again** restores the dataset.
+   subgraph** link (and **With the full graph** if you would rather see it
+   beside everything); while a subgraph is on the canvas, **Show the full graph
+   again** sits above the question box and restores the dataset.
    The subgraph-size picker trades breadth for tokens: *compact* (2 500
    tokens) for a quick question, *normal* (6 000, the default) which fits a
    whole class listing, or *wide* (12 000) for a big comparison. Each answer
    says how many triples were selected **and how many reached the model**, so
    a partial answer is never a surprise. The "show the subgraph
-   after every answer" checkbox turns the automatic part off, and **Clear
+   after each answer" checkbox turns the automatic part off, and **New
    conversation** forgets the thread.
 
-   <sub>Subgraph controls, exactly as they read: Show the subgraph · With the
-   full graph · Show the full graph again · show the subgraph after every
-   answer.</sub> A follow-up like "and Germany?" keeps the
+   <sub>Chat controls, exactly as they read: Show the subgraph · With the
+   full graph · Show the full graph again · show the subgraph after each
+   answer · New conversation.</sub> A follow-up like "and Germany?" keeps the
    topic because the matched resources are carried over, and when something is
    not in the graph the answer says so and what would have to be added.
 
@@ -119,7 +126,8 @@ Only one job runs at a time, so graph writes never interleave.
    (`chat.ask`, `chat.state`, `chat.reset`), so a script can talk to the graph
    without the page.
 
-5. **Edit the graph.** Section 5 loads the data graph as Turtle. Change it —
+5. **Edit the graph.** **Edit the graph…** opens the data graph as Turtle
+   (it loads on open; **Reload the graph** re-reads it). Change it —
    additions are ordinary statements, a line starting with `- ` removes one —
    then press **Preview changes** to see exactly what would change (additions,
    removals, and any warnings), and **Apply changes** to write precisely what
@@ -129,17 +137,17 @@ Only one job runs at a time, so graph writes never interleave.
    one `prov:Activity` plus a statement record per triple.
 
    A chat answer that proposes a change comes back with the same preview
-   attached: the panel shows `proposed change: +N −M` with an **Apply this
-   patch** button, and the model's invented identifiers are exactly what the
+   attached: the answer's footer shows `proposed change: +N −M` with an **Apply
+   this patch** link, and the model's invented identifiers are exactly what the
    checks catch before anything is written. Nothing a model writes is ever
    applied on its own.
 
-   <sub>Buttons in the panel read exactly: Preview changes, Apply changes,
-   Apply this patch, allow new classes and relations.</sub>
+   <sub>Controls read exactly: Reload the graph, Preview changes, Apply
+   changes, Apply this patch, allow new classes and relations.</sub>
 
-6. **Reset.** The studio's **Reset everything** button deletes the dataset file
-   and every source in the inbox; **Clear view** only unloads the dataset from
-   the graph view and deletes nothing. Without the page:
+6. **Reset.** **Reset everything** in the top bar deletes the dataset file
+   and every source in the inbox; **Clear view** next to it only unloads the
+   dataset from the graph view and deletes nothing. Without the page:
 
    ```bash
    text-to-ontology-studio --reset
@@ -148,15 +156,15 @@ Only one job runs at a time, so graph writes never interleave.
    Deleting `ontology.trig` by hand is the same thing; the next run starts a
    fresh dataset.
 
-The studio serves `scripts/triple-lens.html`, the panel beside it
-(`studio.js`, `studio.css`), and one generic JSON path over a registry of named
+The studio serves `frontend/triple-lens.html`, the studio frontend beside it
+(`frontend/studio.js`, `frontend/studio.css`), and one generic JSON path over a registry of named
 operations, and binds to localhost only. `GET /api/op/operations.list` lists
 everything a client may ask for; adding a capability is one small function in
 `src/text_to_ontology/operations.py`, never a new route. The state and the two
 long jobs live in `src/text_to_ontology/workspace.py`; the transport carries and
 nothing else.
 Opened straight from disk, the same page is exactly the standalone viewer: no
-server, no panel, everything read in the browser.
+server, no studio, everything read in the browser.
 
 ## Frontend and backend
 
@@ -173,8 +181,8 @@ markup or cares which button exists.
 | prompts and their validation | backend | `src/text_to_ontology/prompts.py` |
 | patch parse/check/preview/apply, provenance | backend | `src/text_to_ontology/graph_edit.py` |
 | HTTP routes, page + assets | transport | `src/text_to_ontology/studio.py` |
-| RDF parsing for display, layout, filters, details | frontend | `scripts/triple-lens.html` |
-| controls, transcript, diff view | frontend | `scripts/studio.js`, `scripts/studio.css` |
+| RDF parsing for display, layout, filters, details | frontend | `frontend/triple-lens.html` |
+| top-bar actions, dialogs, the conversation, diff view | frontend | `frontend/studio.js`, `frontend/studio.css` |
 
 The two boundaries:
 
@@ -187,7 +195,7 @@ The two boundaries:
    *what* to show; the lens decides how to draw it.
 
 Adding a capability is one function plus one `Operation(...)` line in
-`operations.py`, and a button in the panel. `studio.py` does not change, and if
+`operations.py`, and a button in the studio frontend. `studio.py` does not change, and if
 the capability should change the picture it just returns a view directive.
 `docs/current_architecture.md` §1.1 is the detailed version of this map.
 
@@ -503,10 +511,12 @@ And the rest:
 
 - `pyproject.toml` — package metadata and the two dependencies (`rdflib`,
   `pyshacl`)
-- `scripts/triple-lens.html` — the one self-contained viewer page (it also
-  exposes the `window.__lens` view API a panel draws through)
-- `scripts/studio.js` / `scripts/studio.css` — the control panel, loaded only
-  when the page is served; controls and view directives, no domain logic
+- `frontend/triple-lens.html` — the one self-contained viewer page (it also
+  exposes the `window.__lens` view API the studio draws through)
+- `frontend/studio.js` / `frontend/studio.css` — the studio frontend (top-bar
+  actions, dialogs, the conversation), loaded only when the page is served;
+  controls and view directives, no domain logic
+- `scripts/install_smoke.sh` — the wheel-into-a-clean-venv smoke test
 - `sources/inbox/` — where the studio keeps the files you drop (git-ignored)
 - `tests/fixtures/miniature_repository.ttl` — the frozen miniature graph the
   exact partition/skeleton/pattern tests run against

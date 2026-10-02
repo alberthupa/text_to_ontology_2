@@ -29,6 +29,7 @@ packages = ["src/text_to_ontology"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src/text_to_ontology",
+    "frontend",
     "tests",
     "README.md",
 ]

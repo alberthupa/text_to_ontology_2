@@ -1,0 +1,103 @@
+/* The studio frontend: the studio row in the top bar, its dialogs, and the
+   conversation column. Loaded only when the page is served by
+   text_to_ontology.studio; the page itself owns the #workspace layout so it
+   still renders standalone. */
+
+/* ---------- the studio row in the top bar ---------- */
+#studiobar{font-size:13px}
+#studiobar .sdataset{flex:none;max-width:280px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#studiobar .sdataset b{color:var(--ink);font-weight:600}
+#studiobar .btn.danger{border-color:var(--warn);color:var(--warn)}
+#studiobar .btn.danger:hover{background:color-mix(in srgb,var(--warn) 12%,transparent)}
+#studiobar .snote{flex:1 1 120px;min-width:0;border:0;background:none;padding:0 4px;text-align:left;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#studiobar .snote:hover{color:var(--ink)}
+
+#stProgress{flex:none;padding:8px 12px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+#stProgress .sptop{display:flex;gap:8px;align-items:baseline;font-size:12.5px;font-weight:600}
+#stProgress .sptop span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stProgress .sptop b{font:500 12px var(--cond);color:var(--muted)}
+#stProgress .spdetail{margin-top:3px;color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stProgress .sptrack{margin-top:6px;height:6px;border-radius:4px;background:var(--chip);overflow:hidden}
+#stProgress .spfill{height:100%;width:0;border-radius:4px;background:var(--accent);transition:width .3s ease}
+#stProgress.running .spfill{background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.4) 0 6px,transparent 6px 12px);background-size:24px 100%;animation:spmove .9s linear infinite}
+@keyframes spmove{from{background-position:0 0}to{background-position:24px 0}}
+
+/* ---------- the dialogs ---------- */
+.sdlg{width:min(600px,calc(100vw - 24px))}
+.sdlg.wide{width:min(860px,calc(100vw - 24px))}
+.sdlg .sdhead{display:flex;align-items:center;gap:8px;padding:14px 12px 0 16px}
+.sdlg .sdhead h2{flex:1;margin:0;font-size:16px}
+.sdlg .sdhead .btn{padding:2px 8px}
+.sdlg .sdbody{display:flex;flex-direction:column;gap:10px;padding:12px 16px 16px;max-height:calc(100vh - 110px);overflow:auto}
+.sdlg p{margin:0}
+.sdlg code{font:400 11.5px var(--mono)}
+.sdlg #stText{height:140px;font:400 13px/1.5 var(--sans)}
+.sdlg textarea.scode{height:min(50vh,380px);font:400 11.5px/1.45 var(--mono);white-space:pre;overflow:auto}
+.sdlg select{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;color:var(--ink);font:inherit;flex:1;min-width:0}
+.smuted{color:var(--muted);font-size:12.5px}
+.swarn:empty{display:none}
+.srow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sactions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sor{color:var(--muted);font-size:12px;text-align:center;margin-top:4px}
+.sdrop{border:2px dashed var(--line);border-radius:8px;padding:16px 12px;text-align:center;color:var(--muted);font-size:12.5px;display:flex;flex-direction:column;gap:4px;align-items:center}
+.sdrop b{color:var(--ink);font-weight:600}
+.sdrop .btn{margin-top:8px}
+.sdrop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--ink)}
+.sdrop.busy{opacity:.5}
+.svocab{font-size:12.5px;display:flex;flex-direction:column;gap:4px}
+.svocab:empty{display:none}
+.svocab .tagline{color:var(--muted);overflow-wrap:anywhere}
+.scheck{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);cursor:pointer}
+.slog{margin:0;max-height:min(60vh,420px);overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;font:400 11.5px/1.45 var(--mono);white-space:pre-wrap;color:var(--muted)}
+#stPromptPreviewBox{max-height:260px}
+
+/* ---------- the conversation column ---------- */
+#studio{flex:none;width:380px;min-height:0;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);position:relative;z-index:6}
+#studio .shead{flex:none;display:flex;align-items:center;gap:6px;padding:8px 8px 8px 14px;border-bottom:1px solid var(--line)}
+#studio .shead .stitle{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#studio .shead .btn{padding:2px 8px;font-size:12.5px}
+#studio.collapsed{width:40px}
+#studio.collapsed .shead{padding:8px 4px;justify-content:center}
+#studio.collapsed .stitle,#studio.collapsed #stChatReset,#studio.collapsed .schat,#studio.collapsed .scompose{display:none}
+
+.schat{flex:1;min-height:0;overflow:auto;padding:14px 12px;display:flex;flex-direction:column;gap:12px;background:var(--bg)}
+.schat .msg{display:flex;gap:8px;align-items:flex-start}
+.schat .msg.you{justify-content:flex-end}
+.schat .bubble{max-width:86%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.schat .msg.you .bubble{background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:4px}
+.schat .msg.graph .bubble{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:4px}
+.schat .msg.error .bubble{border-color:var(--warn);color:var(--warn)}
+.schat .savatar{flex:none;width:24px;height:24px;border-radius:50%;background:var(--chip);display:flex;align-items:center;justify-content:center;margin-top:3px}
+.schat .savatar svg{width:14px;height:14px;display:block}
+.schat .sfoot{margin-top:6px;padding-top:6px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:11.5px;white-space:normal}
+.schat .smeta{color:var(--muted)}
+.schat .lnk{font-size:11.5px}
+.schips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;white-space:normal}
+.schip{border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--ink);text-align:left}
+.schip:hover{border-color:var(--accent);color:var(--accent)}
+.sdots{display:inline-flex;gap:4px;align-items:center;height:16px;vertical-align:middle}
+.sdots i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:sbounce 1.2s infinite ease-in-out}
+.sdots i:nth-child(2){animation-delay:.15s}
+.sdots i:nth-child(3){animation-delay:.3s}
+@keyframes sbounce{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+.sthink{margin-left:8px;color:var(--muted);font-size:12px}
+.sthink:empty{display:none}
+
+.scompose{flex:none;border-top:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--panel)}
+.sback{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.sback .lnk{font-size:12px}
+.sinput{display:flex;gap:6px;align-items:flex-end;border:1px solid var(--line);border-radius:16px;background:var(--bg);padding:5px 5px 5px 12px}
+.sinput:focus-within{border-color:var(--accent)}
+.sinput textarea{flex:1;min-width:0;border:0;background:none;resize:none;padding:5px 0;font:400 13px/1.45 var(--sans);max-height:160px;outline:none;color:var(--ink)}
+.sinput .ssend{flex:none;width:30px;height:30px;border-radius:50%;padding:0;justify-content:center;font-size:13px}
+.sinput .ssend:disabled{opacity:.5;cursor:default}
+.sopts{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.sopts select{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px;color:var(--ink)}
+.sopts .scheck{font-size:12px}
+
+@media (max-width:1100px){ #studio{width:320px} }
+@media (max-width:820px){
+  #workspace{flex-direction:column}
+  #studio{width:auto;border-left:0;border-top:1px solid var(--line);max-height:50%}
+  #studio.collapsed{width:auto;max-height:none}
+}

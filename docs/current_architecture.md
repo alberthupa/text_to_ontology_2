@@ -66,8 +66,8 @@ Around that pipeline sit two entry paths:
   ontology (classes, relations, facts) and writes it in one atomic
   publication. It is a *separate* step from ingestion: nothing is extracted
   from a real source document while it runs.
-- `text_to_ontology.studio` serves `scripts/triple-lens.html`, its panel
-  (`studio.js` / `studio.css`), and a generic HTTP transport over the named
+- `text_to_ontology.studio` serves `frontend/triple-lens.html`, the studio
+  frontend beside it (`studio.js` / `studio.css`), and a generic HTTP transport over the named
   operations in `operations.py`. The state and the jobs live in
   `workspace.Workspace`; the transport carries and nothing more. The page
   works unchanged without the server.
@@ -119,8 +119,8 @@ capped by a token ceiling (§10).
 | extraction, validation, merge policy, publication, provenance | backend | `pipeline.py` and the modules around it |
 | patch parsing/checking/preview/apply | backend | `graph_edit.py` |
 | HTTP routes, the page and its assets | transport (backend) | `studio.py` |
-| parsing RDF **for display**, layout, filters, focus, details panel | frontend | `scripts/triple-lens.html` |
-| controls, transcript rendering, diff display, view directives applied | frontend | `scripts/studio.js`, `scripts/studio.css` |
+| parsing RDF **for display**, layout, filters, focus, details panel | frontend | `frontend/triple-lens.html` |
+| top-bar actions, dialogs, the conversation, diff display, view directives applied | frontend | `frontend/studio.js`, `frontend/studio.css` |
 
 **Only two boundaries exist.**
 
@@ -147,10 +147,10 @@ capped by a token ceiling (§10).
 
 1. one small `def _thing(workspace, payload)` in `operations.py`;
 2. one `Operation("thing.do", "what it is for", _thing, args=(...))` line;
-3. a button in `scripts/studio.js` that calls `op.thingDo(...)`.
+3. a button in `frontend/studio.js` that calls `op.thingDo(...)`.
 
 `studio.py` does not change. If the new capability should change the picture, it
-returns a view directive and the panel passes it to `applyView`.
+returns a view directive and the studio frontend passes it to `applyView`.
 
 **Changing what is shown** is one step: return a directive. The lens resolves
 IRIs to nodes and filter keys to its internal sets itself, so the backend never
@@ -170,9 +170,10 @@ text_to_ontology_2/
 ├── ontology.trig               # default named-graph dataset (data, not code)
 ├── ontology.ttl                # legacy Turtle export of the data graph
 ├── reports/runs/               # --report Markdown output (git-ignored)
-├── scripts/triple-lens.html    # the viewer page (+ the view API; no panel code)
-├── scripts/studio.js           # the control panel (loaded only when served)
-├── scripts/studio.css          # the panel's styles
+├── frontend/triple-lens.html   # the viewer page (+ the view API; no studio code)
+├── frontend/studio.js          # the studio frontend (loaded only when served)
+├── frontend/studio.css         # its styles
+├── scripts/install_smoke.sh    # wheel-into-a-clean-venv smoke test
 ├── sources/inbox/              # studio drop zone for source files (git-ignored)
 ├── docs/                       # this map + app_map.html + data_flow.html
 ├── src/text_to_ontology/       # the importable package (44 .py files)
@@ -1000,11 +1001,11 @@ HTTP, no objects, no browser.
 
 Carries things and nothing else: no state, no domain logic.
 
-- `find_page(explicit=None)` — the `scripts/triple-lens.html` page: the given
+- `find_page(explicit=None)` — the `frontend/triple-lens.html` page: the given
   path, then the working directory, then the repository root next to the
   package.
 - `Assets(page=None)` — the files served: the page itself, plus `studio.js` and
-  `studio.css` from the same directory. `body(path)` returns `(bytes,
+  `studio.css` from the same `frontend/` directory. `body(path)` returns `(bytes,
   content_type)` for `/`, `/index.html`, and sibling files whose suffix is in
   `ASSET_TYPES` (`.js`, `.css`); anything else returns `(None, None)`, so path
   traversal or arbitrary files are refused.
@@ -1026,12 +1027,13 @@ Carries things and nothing else: no state, no domain logic.
 
 ### 4.29 The frontend split
 
-The page is the visualization; the control panel is a separate file that the
-page loads only when it is served over HTTP. §1.1 has the full ownership map;
+The page is the visualization; the studio frontend is a separate file that the
+page loads only when it is served over HTTP. All three files live in
+`frontend/`, apart from the Python package. §1.1 has the full ownership map;
 this section is the file-level detail of the frontend half.
 
-- `scripts/triple-lens.html` — the viewer: parsing, layout, details, filters,
-  and the **view API** a control panel is allowed to use:
+- `frontend/triple-lens.html` — the viewer: parsing, layout, details, filters,
+  and the **view API** the studio frontend is allowed to use:
   `window.__lens.applyView(view)`, `clearFiles(names)`, `fileNames()`, plus the
   pre-existing `S`, `addText`, `afterLoad`, `setMode`, `tick`, `draw`. A view
   is one declarative record: `{replace, files: [{name, trig}], mode, focus,
@@ -1040,27 +1042,43 @@ this section is the file-level detail of the frontend half.
   is a fresh set of files", so a small scope does not inherit the hiding a big
   dataset needed (the lens re-picks its own defaults). The page also owns the
   `#workspace` flex layout, so it renders standalone.
-- `scripts/studio.js` — the panel: builds its own markup, talks only through
-  named operations (`api/op/<name>`), and changes the picture only through the
-  view API. It contains no domain logic, so a new backend capability needs only
-  a new button here. Its sections are Dataset (status, Clear view, Reset
-  everything), 1 Starter ontology (description box, Create, an RDF/Turtle/TriG
-  drop zone and file picker for import, and the vocabulary in force), 2 Add
-  sources (a source drop zone that refuses RDF with a pointer to section 1),
-  3 Ingestion prompt (template picker, monospace editor, validation and advice
-  note, Preview, Save, Back to default), 4 Chat with the graph (a transcript
-  where each answer shows how many triples were selected and how many were left
-  out, plus **Show the subgraph** — which replaces the canvas with exactly those
-  triples, focused — **With the full graph**, **Show the full graph again**,
-  **Clear conversation**, and a "show the subgraph after every answer" checkbox
-  that is on by default), 5 Edit the graph (Load the graph, the Turtle editor, **allow
-  new classes and relations**, Preview changes with a `+`/`-` diff and the
-  warnings, then Apply changes — which is only enabled for the exact patch that
-  was previewed), and the Run log. A chat answer that contains a Turtle block
-  also shows `proposed change: +N −M` with **Apply this patch**, which goes
-  through the same preview id.
-- `scripts/studio.css` — the panel's styles, injected as a `<link>` by the
-  loader in the page when it is not opened from `file://`.
+- `frontend/studio.js` — the studio frontend: builds its own markup, talks
+  only through named operations (`api/op/<name>`), and changes the picture only
+  through the view API. It contains no domain logic, so a new backend
+  capability needs only a new button here. It adds three things to the page:
+  - a **studio row** in the top bar (`#studiobar`, under the lens's own row):
+    the dataset status (file name, triples, sources), then one button per
+    action — **Starter ontology…**, **Add sources…**, **Prompts…**, **Edit the
+    graph…** — then **Clear view**, **Reset everything**, the last line the
+    studio said (click it for the log), and **Log**; the progress bar for a
+    long job sits directly under the row;
+  - one **dialog** per action (`<dialog>` elements appended to the body):
+    Starter ontology (description box, Create, an RDF/Turtle/TriG drop zone and
+    file picker for import, the vocabulary in force), Add sources (a drop zone
+    and picker that refuse RDF with a pointer to the starter dialog), Prompts
+    (template picker, monospace editor, validation and advice note, Preview,
+    Save, Back to default), Edit the graph (loads the Turtle on open; Reload the
+    graph, **allow new classes and relations**, Preview changes with a `+`/`-`
+    diff and the warnings, then Apply changes — only enabled for the exact
+    patch that was previewed), and the Run log;
+  - the **conversation column** (`#studio`), which holds nothing but the chat:
+    a transcript of bubbles (questions right, answers left with a small mark),
+    a welcome message with suggested questions when the thread is empty, a
+    "thinking" bubble that shows the job's progress detail while an answer is
+    prepared, and a composer where Enter sends and Shift+Enter breaks a line.
+    Each answer's footer says how many triples were selected, how many were
+    beyond the limit, how many reached the model, and the focus, with **Show
+    the subgraph** (replaces the canvas with exactly those triples, focused)
+    and **With the full graph**; while a subgraph is on the canvas, **Show the
+    full graph again** appears above the composer. The options under the
+    composer are the subgraph size and the "show the subgraph after each
+    answer" checkbox (on by default); **New conversation** in the column's
+    header forgets the thread. A chat answer that contains a Turtle block also
+    shows `proposed change: +N −M` with **Apply this patch**, which goes
+    through the same preview id. A failed question stays in the transcript
+    above the error bubble.
+- `frontend/studio.css` — the studio frontend's styles, injected as a
+  `<link>` by the loader in the page when it is not opened from `file://`.
 
 ---
 
@@ -1405,7 +1423,7 @@ publication only apply already-made decisions.
 | Starter literal ranges | `XSD_TYPES`: string/text/integer/int/decimal/float/double/boolean/date/datetime/time/anyURI |
 | Starter RDF import | `RDF_SUFFIXES` (`.ttl .turtle .trig .nt .n3 .nq .rdf .owl .jsonld .json`), `RDF_FORMATS` (`turtle trig nt nquads xml json-ld n3`), `RDF_SIGNS` (the content sniff) |
 | Workspace | `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox` (`workspace.py`) |
-| Studio transport | `DEFAULT_PORT` 8765 (next free port when taken), page `scripts/triple-lens.html`, assets `.js`/`.css` beside it, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
+| Studio transport | `DEFAULT_PORT` 8765 (next free port when taken), page `frontend/triple-lens.html`, assets `.js`/`.css` beside it, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
 | Transport routes | `GET /` · `GET /studio.js` · `GET /studio.css` · `GET /api/op/<name>?arg=value` · `POST /api/op/<name>` |
 | Operations | `status` · `dataset` · `progress {job}` · `reset` · `starter.create {text}` → `{job_id}` · `ingest {files:[{name,text}]}` → `{job_id}` · `operations.list` |
 | Studio jobs | starter: `model call N` (10 %, +25 % per call) → `writing the schema and shapes` (88 %) → 100 %; ingestion: per file (1/8 of the bar per file, half of it per window) with `starting`, `window k/n, asking the model`, `model replied`, `admitted`, `published` |
@@ -1447,7 +1465,7 @@ lever on prompt size; where both apply the smaller wins.
 | Rejected starter proposal | `starter.propose_starter` | `RuntimeError(format_starter_failure(...))` |
 | Unparseable RDF import | `starter.parse_rdf` | `ValueError` listing the formats tried |
 | RDF import without vocabulary | `starter.import_publication` | `ValueError` naming the triple count |
-| Page file not found | `studio.find_page` | `RuntimeError("Could not find scripts/triple-lens.html…")` |
+| Page file not found | `studio.find_page` | `RuntimeError("Could not find frontend/triple-lens.html…")` |
 | Studio port in use | `studio.main` | `Error: cannot listen on {host}:{port}` + `SystemExit(1)` |
 | Unknown operation | `operations.call` / `StudioHandler` | `UnknownOperation` / `{ok: false, error}` with HTTP 404 |
 | Operation failure | `operations.call` | `{ok: false, error}` with HTTP 200 (only unknown names are 404) |
@@ -1634,10 +1652,11 @@ pattern numbers are pinned on the frozen miniature in
     child files (never a directory), and re-opens an empty in-memory store.
     The in-memory store is shared with the pipeline, so every answered request
     already sees the new state.
-30. **The studio column is additive**: `scripts/triple-lens.html` still works
-    from `file://` (the connection probe fails and the column stays hidden),
-    and the page-specific column markup lives in its own `<script>` block after
-    the lens IIFE, reaching the lens only through `window.__lens`.
+30. **The studio is additive**: `frontend/triple-lens.html` still works
+    from `file://` (the studio script is not even loaded, and when it is served
+    without a backend the connection probe fails and the studio row and column
+    stay hidden); the studio markup lives in `studio.js`, reaching the lens
+    only through `window.__lens`.
 31. **Studio progress is real, not a spinner**: the starter counts model calls
     (a repair attempt shows as `model call 2 (repairing the answer)`), and
     ingestion moves per file and per window from the pipeline's own reporter
@@ -1710,7 +1729,7 @@ pattern numbers are pinned on the frozen miniature in
     line in `operations.py` — `studio.py` does not change, and an unknown name
     is the only 404. `GET` carries arguments in the query string (as strings;
     the operation coerces), `POST` carries a JSON body.
-43. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+43. **The studio is not in the page**: `frontend/triple-lens.html` holds no studio
     markup, style, or logic, and loads `studio.js` / `studio.css` only when it
     is not opened from `file://`. The page owns `#workspace` layout so it still
     renders standalone, and the only contract between the two files is the

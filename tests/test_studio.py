@@ -18,7 +18,7 @@ from text_to_ontology.operations import REGISTRY, UnknownOperation, call, descri
 from text_to_ontology.studio import Assets, create_server
 from text_to_ontology.workspace import Workspace
 
-PAGE = Path(__file__).resolve().parents[1] / "scripts" / "triple-lens.html"
+PAGE = Path(__file__).resolve().parents[1] / "frontend" / "triple-lens.html"
 
 PROPOSAL = {
     "classes": [{"name": "Person"}, {"name": "Organization"}],
@@ -417,8 +417,12 @@ class AssetsTest(unittest.TestCase):
         self.assertNotIn(b'id="studio"', html)     # the panel is not in the page
         script, script_type = assets.body("/studio.js")
         self.assertEqual(script_type, "text/javascript; charset=utf-8")
-        for control in (b'id="stProgress"', b'id="stClear"', b'id="stReset"',
-                        b'id="stCreate"', b'id="stDrop"', b'id="stLog"'):
+        # The top-bar actions, the dialogs behind them, and the chat column.
+        for control in (b"stProgress", b'id="stClear"', b'id="stReset"',
+                        b'id="stOpenStarter"', b'id="stCreate"',
+                        b'id="stOpenSources"', b'id="stDrop"',
+                        b'id="stOpenPrompts"', b'id="stOpenEdit"',
+                        b'id="stLog"', b'id="stChatText"', b'id="stChatSend"'):
             self.assertIn(control, script, control)
         _css, css_type = assets.body("/studio.css")
         self.assertEqual(css_type, "text/css; charset=utf-8")
