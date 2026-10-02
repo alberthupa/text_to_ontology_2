@@ -96,11 +96,14 @@ class ChatSession:
             }, library=self.library),
             prompts.render("chat_system", library=self.library),
         )
-        self.turns.append(Turn("graph", str(answer), scope.summary(), index,
+        summary = scope.summary()
+        summary["rendered"] = rendered["triples"]
+        summary["dropped_for_space"] = rendered["dropped"]
+        self.turns.append(Turn("graph", str(answer), summary, index,
                                view=scope.view()))
         self._remember(scope)
         self.turns = self.turns[-MAX_TURNS:]
-        return {"answer": str(answer), "scope": scope}
+        return {"answer": str(answer), "scope": scope, "summary": summary}
 
     def _remember(self, scope):
         """What the next question may still be about: newest matched first."""

@@ -52,7 +52,7 @@
     promptSave: (name, text) => call('prompts.save', { name, text }),
     promptReset: (name) => call('prompts.reset', { name }),
     promptPreview: (name) => call('prompts.preview', { name }),
-    chat: (message) => call('chat.ask', { message }),
+    chat: (message, budget) => call('chat.ask', { message, budget }),
     chatState: () => call('chat.state'),
     chatReset: () => call('chat.reset', {}),
     editCurrent: () => call('edit.current'),
@@ -117,9 +117,15 @@
       <textarea id="stChatText" class="schatbox" spellcheck="false" placeholder="What do we know about Poland and its population?"></textarea>
       <div class="sactions">
         <button class="btn primary" id="stChatSend">Ask</button>
+        <select id="stChatBudget" title="How much of the subgraph the model may see">
+          <option value="2500">compact subgraph</option>
+          <option value="6000" selected>normal subgraph</option>
+          <option value="12000">wide subgraph</option>
+        </select>
         <button class="btn" id="stChatEverything" hidden>Show the full graph again</button>
         <button class="btn" id="stChatReset">Clear conversation</button>
       </div>
+      <p class="smuted" id="stChatNote"></p>
       <label class="scheck"><input type="checkbox" id="stChatAuto" checked> show the subgraph after every answer</label>
     </section>
     <section>
@@ -163,6 +169,7 @@
   const importDrop = $('#stImportDrop'), importFiles = $('#stImportFiles');
   const chatLog = $('#stChatLog'), chatText = $('#stChatText');
   const chatEverything = $('#stChatEverything'), chatAuto = $('#stChatAuto');
+  const chatBudget = $('#stChatBudget'), chatNote = $('#stChatNote');
   const editText = $('#stEditText'), editNote = $('#stEditNote');
   const editDiff = $('#stEditDiff'), editAllow = $('#stEditAllow');
   const editApply = $('#stEditApply');
@@ -423,7 +430,9 @@
         + `<button class="btn primary" data-scope="${turn.index}">Show the subgraph</button>`
         + `<button class="btn" data-scope-full="${turn.index}">With the full graph</button>`
         + `</div>` : '';
-    return `<div class="smeta">${scope.triples} triples selected${dropped}${focus}`
+    const seen = (scope && scope.rendered)
+      ? ` \u00b7 ${scope.rendered} of them reached the model` : '';
+    return `<div class="smeta">${scope.triples} triples selected${dropped}${focus}${seen}`
       + `<br>what the answer was based on${buttons ? '' : ' (no subgraph stored)'}${buttons}</div>`;
   }
 
@@ -518,7 +527,7 @@
     const message = chatText.value.trim();
     if (!message) { logEl.textContent = 'Type a question first.'; return; }
     chatText.value = '';
-    run(() => op.chat(message), 'Selecting the relevant subgraph\u2026',
+    run(() => op.chat(message, chatBudget.value), 'Selecting the relevant subgraph\u2026',
       (result) => {
         if (!result.turns) return;
         renderChat(result.turns);
@@ -632,6 +641,9 @@
       await refreshPrompts();
       const chat = await op.chatState();
       if (chat && chat.turns) renderChat(chat.turns);
+      chatNote.textContent = 'A wider subgraph means a more complete answer and more tokens '
+        + 'per question. The answer always says how many triples were selected and how '
+        + 'many reached the model.';
       logEl.textContent = status.triples > 0
         ? `Loaded ${status.graph} with ${fmt(status.triples)} triples.\n`
           + 'To start from scratch: Reset everything, paste a starter description, then drop sources.\n'

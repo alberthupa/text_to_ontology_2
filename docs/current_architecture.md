@@ -741,9 +741,10 @@ should never have to escape.
 
 Read-only. Turns one topic text into a small, deterministic subgraph, with three
 faces: TriG for a viewer, a view directive for a frontend, and compact lines for
-a model. Constants: `MAX_TRIPLES = 300`, `MAX_TOKENS = 2500`, `MAX_FOCUS = 20`,
-`SCOPE_GRAPH` (`.../graphs/scope`), `SCOPE_FILE = "scope.trig"`,
-`DECLARATION_PREDICATES`, `DEFAULT_LIMITS`.
+a model. Constants: `MAX_TRIPLES = 300`, `MAX_TOKENS = 6000` (the token ceiling
+for one question's subgraph, overridable per question), `MAX_FOCUS = 20`,
+`MAX_NAMES = 60`, `SCOPE_GRAPH` (`.../graphs/scope`),
+`SCOPE_FILE = "scope.trig"`, `DECLARATION_PREDICATES`, `DEFAULT_LIMITS`.
 
 - `select(text, graph, carry_over=(), limits=None)` → `Scope`. It reuses
   `task_context.build_task_context` for relevance, so the same read-only
@@ -766,12 +767,25 @@ a model. Constants: `MAX_TRIPLES = 300`, `MAX_TOKENS = 2500`, `MAX_FOCUS = 20`,
 - `_statements(graph, node)` — a node's statements in a stable and useful order:
   `rdf:type` and labels first, then the rest, then what points at the node.
 - `Scope` — frozen dataclass with `question`, `nodes`, `triples`, `dropped`,
-  `focus_source` (`matched` / `carried` / `empty`), `diagnostics`, and the three
-  faces: `trig_text()` (one named graph), `view(file_name=SCOPE_FILE)`
+  `focus_source` (`matched` / `loose` / `carried` / `empty`), `diagnostics`, and
+  the three faces: `trig_text()` (one named graph), `view(file_name=SCOPE_FILE)`
   (`{replace, files, mode, clearFilters, hideIsolated, focus}`), and
-  `render_for_model(budget=None, graph=None)` (labelled lines, whole triples,
-  `{text, triples, dropped, tokens}`). `summary()` is the plain record the
-  transcript keeps.
+  `render_for_model(budget=None, graph=None)`.
+- `render_for_model` writes two blocks before the statements, both charged to
+  the budget first: `PREFIXES` (from `_namespace_map`, so a model can write an
+  edit proposal with real IRIs) and `NAMES` (`_header`, one quoted label per
+  name, at most `MAX_NAMES`). The statements below use
+  `statement(triple, prefixes)`: `a` for `rdf:type`, prefixed names, whole
+  triples dropped when the budget runs out. It returns
+  `{text, triples, dropped, tokens, named, names_dropped, prefixes}`.
+  Repeating a full IRI and a label on every line used to cost about three
+  quarters of the ceiling: on the reference graph the old renderer fitted 43 of
+  199 triples at 2500 tokens, the compact one fits 69, and all 199 by 6000.
+- `_namespace_map(triples, graph)` names only the namespaces these triples use:
+  the graph's own prefix where it has a real one, a name derived from the
+  namespace (`.../geo#` -> `geo`) when rdflib auto-bound `ns1`, and `ns1`,
+  `ns2`... only as a last resort. Collisions are resolved among the rendered
+  namespaces only, so an unrelated default binding cannot force `ns1`.
 - `describe(triple, graph)` / `_term` / `label_of` / `_short` — the line
   renderer: qnames plus the preferred label where there is one.
 - `parse_trig(text)` — reads a scope document back to one graph (tests,
@@ -785,7 +799,10 @@ is injected, so this module never touches a network. Constants:
 `HISTORY_TURNS = 6`, `MAX_TURNS = 200`, `TRANSCRIPT_VIEWS = 20`, `MAX_FOCUS`.
 
 - `Turn(role, text, scope, index, view)` — one thing said; `role` is `you` or
-  `graph`, `scope` is the summary, `view` the directive that draws it.
+  `graph`, `scope` is the summary (for an answer it also carries `rendered`, how
+  many triples reached the model, and `dropped_for_space`), `view` the directive
+  that draws it. `ask` returns `{answer, scope, summary}` so a frontend can show
+  both the subgraph and how much of it was sent.
 - `ChatSession(library=None, history_turns=6, turns=(), focus=())` —
   `transcript()` (the newest `TRANSCRIPT_VIEWS` turns also carry their `view`,
   so a long conversation does not grow without bound), `recent()` (the last few

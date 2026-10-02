@@ -720,10 +720,11 @@
           <li><span class="fn">Scope.trig_text() · view() · render_for_model()</span><span class="desc">the three faces: for a viewer, for a frontend directive, for a model</span></li>
           <li><span class="fn">ChatSession.ask(message, graph, ask, on_step)</span><span class="desc">one turn; asking is injected, so no network in here</span></li>
           <li><span class="fn">transcript() · recent() · reset() · _remember()</span><span class="desc">each answer keeps its subgraph (newest 20 keep the view text); the focus carries over</span></li>
-          <li><span class="const">MAX_TRIPLES 300 · MAX_TOKENS 2500 · MAX_FOCUS 20</span><span class="desc">scope caps; HISTORY_TURNS 6 · MAX_TURNS 200 · TRANSCRIPT_VIEWS 20</span></li>
+          <li><span class="fn">render_for_model(budget, graph)</span><span class="desc">PREFIXES + NAMES once, then short statements; whole triples dropped and counted</span></li>
+          <li><span class="const">MAX_TRIPLES 300 · MAX_TOKENS 6000 · MAX_FOCUS 20 · MAX_NAMES 60</span><span class="desc">scope caps, the token ceiling per question; HISTORY_TURNS 6 · MAX_TURNS 200 · TRANSCRIPT_VIEWS 20</span></li>
         </ul>
         <div class="outcome"><span class="tag">page</span>
-          <p class="line">Each answer shows <code>N triples selected</code> (and what was left out) with a <b>Show the subgraph</b> button that puts exactly those triples on the canvas, focused; <b>With the full graph</b> adds them beside the dataset instead, and <b>Show the full graph again</b> restores it.</p>
+          <p class="line">Each answer shows <code>N triples selected</code>, <code>M of them reached the model</code> (and what was left out) with a <b>Show the subgraph</b> button that puts exactly those triples on the canvas, focused; <b>With the full graph</b> adds them beside the dataset instead, and <b>Show the full graph again</b> restores it.</p>
         </div>
       </div>
 

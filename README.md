@@ -101,8 +101,13 @@ Only one job runs at a time, so graph writes never interleave.
    and how many were left out for space. Each answer keeps a **Show the
    subgraph** button (and **With the full graph** if you would rather see it
    beside everything); **Show the full graph again** restores the dataset.
-   The "show the subgraph after every answer" checkbox turns the automatic
-   part off, and **Clear conversation** forgets the thread.
+   The subgraph-size picker trades breadth for tokens: *compact* (2 500
+   tokens) for a quick question, *normal* (6 000, the default) which fits a
+   whole class listing, or *wide* (12 000) for a big comparison. Each answer
+   says how many triples were selected **and how many reached the model**, so
+   a partial answer is never a surprise. The "show the subgraph
+   after every answer" checkbox turns the automatic part off, and **Clear
+   conversation** forgets the thread.
 
    <sub>Subgraph controls, exactly as they read: Show the subgraph · With the
    full graph · Show the full graph again · show the subgraph after every

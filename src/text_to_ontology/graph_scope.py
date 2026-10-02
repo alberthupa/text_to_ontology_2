@@ -29,8 +29,11 @@ from .prompt_budget import estimate_tokens
 from .task_context import build_task_context
 
 # One scope is meant to be read by a person and by a model, so it stays small.
+# The token ceiling is what a model is handed: at 2500 tokens the compact
+# renderer fits about 69 triples, which was not enough to list the twelve
+# instances of one class in the reference graph. 6000 fits that whole scope.
 MAX_TRIPLES = 300
-MAX_TOKENS = 2500
+MAX_TOKENS = 6000
 MAX_FOCUS = 20
 SCOPE_GRAPH = URIRef(BASE + "graphs/scope")
 SCOPE_FILE = "scope.trig"
@@ -77,19 +80,35 @@ class Scope:
     # ---------- for a model or a transcript ----------
 
     def render_for_model(self, budget=None, graph=None):
-        """Compact, labelled lines, capped by whole triples."""
+        """Compact lines for a model: prefixes and names once, then statements.
+
+        Two things were throwing away most of the budget: every URI written out
+        in full, and every subject's label repeated on every line. So the
+        renderer first writes a small PREFIXES block and a NAMES block (each
+        name once, quoted), and the statements below use short prefixed names.
+        The header is charged to the budget first; whole triples are dropped
+        when it runs out, and the count is reported.
+        """
         budget = budget or MAX_TOKENS
-        lines, used, dropped = [], 0, 0
+        prefixes = _namespace_map(self.triples, graph)
+        header, named, names_dropped = _header(
+            self.triples, graph, prefixes)
+        used = estimate_tokens(header) if header else 0
+        lines, dropped = [], 0
         for triple in self.triples:
-            line = describe(triple, graph)
+            line = statement(triple, prefixes)
             cost = estimate_tokens(line)
             if used + cost > budget:
                 dropped += 1
                 continue
             lines.append(line)
             used += cost
-        return {"text": "\n".join(lines), "triples": len(lines),
-                "dropped": dropped + self.dropped, "tokens": used}
+        body = "\n".join(lines)
+        text = f"{header}\n\n{body}" if header else body
+        return {"text": text, "triples": len(lines),
+                "dropped": dropped + self.dropped, "tokens": used,
+                "named": named, "names_dropped": names_dropped,
+                "prefixes": len(prefixes)}
 
     def summary(self):
         """One line a frontend can show next to the answer."""
@@ -314,11 +333,132 @@ def _statements(graph, node):
             + [(subject, predicate, node) for subject, predicate in inward])
 
 
+MAX_NAMES = 60
+
+
+def _header(triples, graph, prefixes, limit=MAX_NAMES):
+    """The PREFIXES and NAMES blocks, charged to the budget before statements.
+
+    The prefixes are what let a model write an edit proposal with real IRIs;
+    the names are what keep every statement short.
+    """
+    blocks = []
+    if prefixes:
+        blocks.append("PREFIXES\n" + "\n".join(
+            f"{prefix} = <{namespace}>"
+            for namespace, prefix in sorted(prefixes.items())))
+    named, seen = [], set()
+    for triple in triples:
+        for term in (triple[0], triple[2]):
+            if not isinstance(term, URIRef) or term in seen:
+                continue
+            seen.add(term)
+            label = label_of(term, graph)
+            if label and label != _qname(term, prefixes):
+                named.append(f'{_qname(term, prefixes)} = "{label}"')
+    named.sort()
+    dropped = max(0, len(named) - limit)
+    names = named[:limit]
+    if names:
+        blocks.append("NAMES\n" + "\n".join(names))
+    return "\n\n".join(blocks), len(names), dropped
+
+
+def _namespace_map(triples, graph=None):
+    """{namespace IRI: prefix} for exactly the namespaces these triples use.
+
+    The graph's own prefixes are used where it has them (so an imported
+    ontology keeps `lib:`), and a stable `ns1`, `ns2`, ... otherwise, assigned
+    in sorted namespace order so the same subgraph always renders the same way.
+    """
+    known = {}
+    if graph is not None:
+        try:
+            for prefix, namespace in graph.namespaces():
+                known.setdefault(str(namespace), prefix or None)
+        except Exception:                                    # noqa: BLE001
+            pass
+    for prefix, namespace in _prefixes():
+        known.setdefault(str(namespace), prefix)
+    used = {prefix for prefix in known.values() if prefix}
+    found = sorted({_namespace_of(term) for triple in triples for term in triple
+                    if isinstance(term, URIRef) and _namespace_of(term)})
+    # Decide a name for each namespace first, then resolve collisions among
+    # those names only: a default binding for a namespace that is not in this
+    # subgraph (say an unrelated `geo` for OpenGIS) must not force `ns1`.
+    intended = {}
+    for namespace in found:
+        prefix = known.get(namespace) or ""
+        if not prefix or re.fullmatch(r"ns\d+", prefix):
+            prefix = _prefix_candidate(namespace) or ""
+        intended[namespace] = prefix
+    prefixes, chosen = {}, set()
+    for index, namespace in enumerate(found, start=1):
+        prefix = intended[namespace]
+        if not prefix or prefix in chosen:
+            prefix = f"ns{index}"
+            while prefix in chosen:
+                prefix += "x"
+        chosen.add(prefix)
+        prefixes[namespace] = prefix
+    return prefixes
+
+
+def _prefix_candidate(namespace):
+    """A readable prefix from a namespace nobody named: `.../geo#` -> `geo`."""
+    stem = str(namespace).rstrip("#/").rpartition("/")[2]
+    stem = re.sub(r"[^A-Za-z0-9_-]", "", stem)
+    if not stem or not stem[0].isalpha() or stem.lower() in ("http", "https",
+                                                             "www"):
+        return ""
+    return stem.lower()
+
+
+def _namespace_of(uri):
+    """The namespace half of an IRI: up to the last # or /."""
+    text = str(uri)
+    for separator in ("#", "/"):
+        if separator in text:
+            head, _, tail = text.rpartition(separator)
+            if tail:
+                return head + separator
+    return ""
+
+
+def _qname(uri, prefixes):
+    """One IRI as prefix:local, or in angle brackets when nothing fits."""
+    namespace = _namespace_of(uri)
+    prefix = prefixes.get(namespace)
+    if prefix:
+        return f"{prefix}:{str(uri)[len(namespace):]}"
+    return f"<{uri}>"
+
+
+def statement(triple, prefixes):
+    """One short line for one triple: prefixed names, a literal as written."""
+    subject, predicate, object_ = triple
+    if predicate == RDF.type:
+        return f"{_qname(subject, prefixes)} a {_qname(object_, prefixes)}"
+    return " ".join((_qname(subject, prefixes), _qname(predicate, prefixes),
+                     _literal_text(object_, prefixes)))
+
+
 def describe(triple, graph=None):
-    """One readable line for one triple: qnames plus labels where there are any."""
+    """One readable line for one triple, for a human rather than a budget."""
     subject, predicate, object_ = triple
     return " ".join((_term(subject, graph), _term(predicate, graph),
                      _term(object_, graph)))
+
+
+def _literal_text(term, prefixes=None):
+    if isinstance(term, Literal):
+        text = str(term).replace("\n", " ")
+        if term.language:
+            return f'"{text}"@{term.language}'
+        return f'"{text}"'
+    if isinstance(term, BNode):
+        return f"_:{term}"
+    return _qname(term, prefixes or {})
 
 
 def _term(term, graph=None):
@@ -348,12 +488,25 @@ def label_of(uri, graph):
 
 
 def _short(uri, graph=None):
-    if graph is None:
-        return str(uri)
-    try:
-        return graph.namespace_manager.normalizeUri(uri)
-    except Exception:                                        # noqa: BLE001
-        return str(uri)
+    """A prefixed name for one IRI, from the graph or from the project's own.
+
+    The graph's own prefixes win; the project namespaces are the fallback, so a
+    graph nobody bound (a test fixture, a plain parsed file) still renders
+    `class:threat` instead of the whole IRI.
+    """
+    text = str(uri)
+    if graph is not None:
+        try:
+            short = graph.namespace_manager.normalizeUri(uri)
+            if short != text and not short.startswith("<"):
+                return short
+        except Exception:                                    # noqa: BLE001
+            pass
+    for prefix, namespace in _prefixes():
+        base = str(namespace)
+        if text.startswith(base) and len(text) > len(base):
+            return f"{prefix}:{text[len(base):]}"
+    return f"<{text}>"
 
 
 def _prefixes():

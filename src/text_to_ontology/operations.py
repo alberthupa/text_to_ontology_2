@@ -108,7 +108,8 @@ def _chat_ask(workspace, payload):
     message = str(payload.get("message") or "")
     if not message.strip():
         return {"ok": False, "error": "no question was given"}
-    return _started(workspace, workspace.start_chat(message))
+    return _started(workspace, workspace.start_chat(message, _integer(
+        payload.get("budget"))))
 
 
 def _chat_state(workspace, payload):
@@ -156,7 +157,7 @@ OPERATIONS = (
     Operation("ingest", "ingest dropped texts, data-only",
               _ingest, args=("files",), background=True),
     Operation("chat.ask", "one question about the graph, answered from the "
-              "relevant subgraph", _chat_ask, args=("message",),
+              "relevant subgraph", _chat_ask, args=("message", "budget"),
               background=True),
     Operation("chat.state", "the conversation so far", _chat_state),
     Operation("chat.reset", "forget the conversation", _chat_reset),

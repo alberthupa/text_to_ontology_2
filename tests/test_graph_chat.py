@@ -160,11 +160,42 @@ class SelectTest(unittest.TestCase):
 
     def test_the_model_face_is_labelled_and_capped(self):
         scope = select("population of Poland", self.graph)
-        rendered = scope.render_for_model(budget=40, graph=self.graph)
+        rendered = scope.render_for_model(budget=150, graph=self.graph)
         self.assertGreater(rendered["triples"], 0)
-        self.assertLessEqual(rendered["tokens"], 40)
+        self.assertLessEqual(rendered["tokens"], 150)
         self.assertGreater(rendered["dropped"], 0)
         self.assertIn('"Poland"', rendered["text"])
+
+    def test_naming_comes_once_and_statements_stay_short(self):
+        # The header carries the names; ordinary statements do not repeat them.
+        scope = select("population of Poland", self.graph)
+        text = scope.render_for_model(graph=self.graph)["text"]
+        self.assertTrue(text.startswith("PREFIXES"), text[:40])
+        blocks = text.split("\n\n")
+        prefixes_block, names_block = blocks[0], blocks[1]
+        body = "\n\n".join(blocks[2:])
+        self.assertIn("geo = <http://example.org/geo#>", prefixes_block)
+        self.assertTrue(names_block.startswith("NAMES"), names_block[:20])
+        # two subjects are called Poland (the class and the individual), and
+        # each is named exactly once
+        self.assertEqual(names_block.count('= "Poland"'), 2)
+        statement = [line for line in body.splitlines()
+                     if line.startswith("geo:poland a ")][0]
+        self.assertEqual(statement, "geo:poland a geo:Poland")
+        population = [line for line in body.splitlines()
+                      if line.startswith("geo:poland geo:population")][0]
+        self.assertNotIn("Poland", population)
+        # the label statement itself still carries the literal, as it must
+        self.assertIn('geo:poland rdfs:label "Poland"', body)
+
+    def test_a_wider_budget_shows_more_of_the_same_subgraph(self):
+        scope = select("population of Poland", self.graph)
+        narrow = scope.render_for_model(budget=200, graph=self.graph)
+        wide = scope.render_for_model(budget=2000, graph=self.graph)
+        self.assertGreater(wide["triples"], narrow["triples"])
+        self.assertGreaterEqual(wide["dropped"], 0)
+        self.assertEqual(scope.triples, select("population of Poland",
+                                               self.graph).triples)
 
     def test_the_summary_is_plain_data(self):
         summary = select("population of Poland", self.graph).summary()

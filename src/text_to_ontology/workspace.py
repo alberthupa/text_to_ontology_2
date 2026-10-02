@@ -202,8 +202,14 @@ class Workspace:
     # ---------- reading ----------
 
     def canonical_graph(self):
-        """Schema, configured data graphs, and the target data graph."""
+        """Schema, configured data graphs, and the target data graph.
+
+        The project prefixes are bound, so anything that renders this graph
+        (the chat subgraph, for one) can write `entity:thing` instead of the
+        whole IRI.
+        """
         graph = Graph()
+        bind(graph)
         for name in (*self.names.schema_graphs, *self.names.data_graphs,
                      self.names.target_graph):
             for triple in self.store.get(name):
@@ -459,32 +465,38 @@ class Workspace:
         state = self.chat.reset()
         return {**state, "log": "Conversation cleared.\n"}
 
-    def chat_ask(self, message, on_step=None):
-        """One chat turn: select the relevant subgraph, ask, remember."""
+    def chat_ask(self, message, on_step=None, budget=None):
+        """One chat turn: select the relevant subgraph, ask, remember.
+
+        `budget` is how many tokens of subgraph the model may see; None keeps
+        the default, and a frontend can offer a wider view per question.
+        """
         if not str(message or "").strip():
             return {"ok": False, "error": "no question was given"}
         try:
             outcome = self.chat.ask(message, self.canonical_graph(),
-                                    self.ask_text, on_step=on_step)
+                                    self.ask_text, on_step=on_step,
+                                    budget=budget)
         except (RuntimeError, OSError, ValueError) as error:
             return {"ok": False, "error": str(error),
                     "turns": self.chat.transcript()}
         scope = outcome["scope"]
+        summary = dict(outcome.get("summary") or scope.summary())
         return {"ok": True, "answer": outcome["answer"],
-                "scope": {**scope.summary(), "view": scope.view()},
+                "scope": {**summary, "view": scope.view()},
                 "turns": self._with_proposals(self.chat.transcript())}
 
-    def start_chat(self, message):
+    def start_chat(self, message, budget=None):
         """Run one chat turn in the background; None when a job is running."""
         job = self.progress.claim("Talking to the graph")
         if job is None:
             return None
         self.progress.update(percent=10, detail="selecting the relevant subgraph")
-        threading.Thread(target=self._chat_job, args=(message,),
+        threading.Thread(target=self._chat_job, args=(message, budget),
                          daemon=True).start()
         return job
 
-    def _chat_job(self, message):
+    def _chat_job(self, message, budget=None):
         def note(scope, rendered):
             self.progress.update(
                 percent=40,
@@ -493,7 +505,7 @@ class Workspace:
                           if rendered["dropped"] else "")
                        + "; asking the model")
 
-        result = self.chat_ask(message, on_step=note)
+        result = self.chat_ask(message, on_step=note, budget=budget)
         self.progress.finish(result)
 
     def import_starter(self, name, text):
