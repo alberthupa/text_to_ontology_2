@@ -690,6 +690,23 @@
       </div>
 
       <div class="card">
+        <h3><span class="badge gate">prompts</span> prompts.py</h3>
+        <p class="what">Every prompt the app sends is a named template: defaults in code (the tested wording), overrides in one JSON file beside the dataset. Templates use <code>${context}</code>-style placeholders, so a JSON contract edited by hand needs no brace escaping.</p>
+        <ul class="members">
+          <li><span class="fn">DEFAULT_PROMPTS</span><span class="desc">extraction_system · extraction_user · starter</span></li>
+          <li><span class="fn">PROMPT_FIELDS / REQUIRED_FIELDS</span><span class="desc">what a template may use, and what it must keep</span></li>
+          <li><span class="fn">PromptLibrary.render(name, values)</span><span class="desc">the finished text; a missing value is a clear ValueError</span></li>
+          <li><span class="fn">validate(name, text) / advice(name, text)</span><span class="desc">blocking errors and non-blocking hints for a human editor</span></li>
+          <li><span class="fn">set(name, text) / reset(name) / describe()</span><span class="desc">atomic override file, back to default, the editor's record</span></li>
+          <li><span class="fn">digest(name)</span><span class="desc">12 hex characters, recorded in the run configuration</span></li>
+          <li><span class="const">prompts.local.json</span><span class="desc">git-ignored, beside the dataset; a corrupt file is ignored, not fatal</span></li>
+        </ul>
+        <div class="outcome"><span class="tag">wired</span>
+          <p class="line">An edited template reaches <code>make_prompt</code>, <code>starter_prompt</code>, and the extractor's system message with no other change; the pipeline re-builds the model client per run so an edited system prompt takes effect.</p>
+        </div>
+      </div>
+
+      <div class="card">
         <h3><span class="badge write">state</span> workspace.py + operations.py</h3>
         <p class="what">The application state and its long jobs, plus the one registry that names every capability. No HTTP: the transport, the tests, and any future frontend all call the same names, and the manifest of those names is itself an operation.</p>
         <ul class="members">
@@ -701,7 +718,7 @@
           <li><span class="fn">_ProgressReporter(RunReporter)</span><span class="desc">run log + one progress step per checkpoint, spanning every dropped file</span></li>
           <li><span class="fn">Operation(name, summary, handler, args, background)</span><span class="desc">one capability and its published metadata</span></li>
           <li><span class="fn">REGISTRY · describe() · call(workspace, name, payload)</span><span class="desc">the contract; unknown names raise</span></li>
-          <li><span class="const">operations</span><span class="desc">status · dataset · progress · reset · starter.create · ingest · operations.list</span></li>
+          <li><span class="const">operations</span><span class="desc">status · dataset · progress · reset · starter.create · ingest · prompts.list/save/reset/preview · operations.list</span></li>
         </ul>
         <div class="outcome"><span class="tag">rule</span>
           <p class="line">One route, every capability: adding one means one function plus one <code>Operation</code> line. <code>studio.py</code> and the frontend keep working; only the button that calls it is new.</p>
@@ -972,6 +989,7 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_cli.py</h3><p class="what">Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_view_html.py</h3><p class="what">view_html.write_report renders view_report.build_report output as one self-contained page.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_install_smoke.py</h3><p class="what">The package imports and the console script is installed.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_prompts.py</h3><p class="what">The defaults and their validity; placeholder rules (required, unknown, bare $, escaped $$); the advisory checks; the override file (store, refuse, reload, reset, corrupt, stale); digests; and that an edited template reaches make_prompt, starter_prompt, and parse_source.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_starter.py</h3><p class="what">Starter proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, the five-role publication, the summary, and create_starter replacing an old dataset.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_data_only.py</h3><p class="what">The data-only gate end to end: a declared extraction accepted with the schema and shapes unchanged, an undeclared kind or predicate rejected with nothing written, no declarations in a data-only plan, and the permissive default still declaring as before.</p></div>
@@ -1029,6 +1047,7 @@
     ├── <span class="py">run_report.py</span>            <span class="comment"># terminal / verbose / Markdown reporting</span>
     ├── <span class="py">vocabulary.py</span>            <span class="comment"># [read-only] declared starter classes / relations / facts</span>
     ├── <span class="py">starter.py</span>               <span class="comment"># paste → checked starter ontology → one atomic write</span>
+    ├── <span class="py">prompts.py</span>               <span class="comment"># named editable prompt templates + overrides</span>
     ├── <span class="py">workspace.py</span>             <span class="comment"># state + the two long jobs (no HTTP)</span>
     ├── <span class="py">operations.py</span>            <span class="comment"># every capability as one named operation</span>
     └── <span class="py">studio.py</span>                <span class="comment"># transport: page, assets, /api/op/&lt;name&gt;</span>

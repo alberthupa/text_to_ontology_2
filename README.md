@@ -32,6 +32,10 @@ pip install -e .
 text-to-ontology-studio            # prints a localhost URL and opens it
 ```
 
+The studio's panel has four parts: **Dataset** (status, Clear view, Reset
+everything), **1 Starter ontology**, **2 Add sources**, and **3 Ingestion
+prompt** — plus the run log.
+
 1. **Create the starter ontology.** Paste a few sentences about the world
    ("We roast coffee, we buy green coffee from farms, we sell bags to cafes").
    The model proposes the classes, relations, and facts; they are checked and
@@ -66,7 +70,19 @@ Only one job runs at a time, so graph writes never interleave.
    Without `--data-only` the older behaviour is unchanged: a new kind or a new
    predicate is declared as it is extracted. The studio always uses data-only.
 
-3. **Reset.** The studio's **Reset everything** button deletes the dataset file
+3. **Edit the ingestion prompt.** Section 3 holds the prompt sent for every
+   source window: pick a template (`extraction_user` is the main one,
+   `extraction_system` is the system message, `starter` is the starter prompt),
+   edit it, and press **Save prompt**. Placeholders stay in the text — the
+   panel tells you which ones are required and which are allowed, refuses a
+   template that would break a run, and shows advisory notes (a missing
+   `entities` list, a missing `confidence`). **Preview** renders the template
+   with sample values, and **Back to default** restores the tested wording.
+   Saved edits live in `prompts.local.json` next to the dataset (git-ignored);
+   the digest of the templates in force is recorded in every run's
+   configuration, so a report always names the prompt that produced it.
+
+4. **Reset.** The studio's **Reset everything** button deletes the dataset file
    and every source in the inbox; **Clear view** only unloads the dataset from
    the graph view and deletes nothing. Without the page:
 
@@ -307,6 +323,8 @@ The pipeline that runs when you invoke the program:
   dataclasses, and the extractor/reporter contracts
 - `src/text_to_ontology/cli.py` — the command line: argument parsing, adapters,
   exit codes (also reachable as `python3 -m text_to_ontology`)
+- `src/text_to_ontology/prompts.py` — every model prompt as a named, validated,
+  editable template (defaults in code, overrides in `prompts.local.json`)
 - `src/text_to_ontology/vocabulary.py` — the starter vocabulary read back out
   of a graph: which classes, relations, and facts ingestion may use
 - `src/text_to_ontology/starter.py` — the starter ontology: one prompt, one

@@ -121,7 +121,7 @@ text_to_ontology_2/
 ├── scripts/studio.css          # the panel's styles
 ├── sources/inbox/              # studio drop zone for source files (git-ignored)
 ├── docs/                       # this map + app_map.html + data_flow.html
-├── src/text_to_ontology/       # the importable package (40 .py files)
+├── src/text_to_ontology/       # the importable package (41 .py files)
 └── tests/                      # unittest: one file per module + pipeline
     ├── store_contract.py       # shared GraphStore contract test base
     ├── fixtures/
@@ -186,7 +186,8 @@ Request dataclasses (all in `pipeline.py`):
 - `ValidationConfig` — `shape_graphs=()` (explicit SHACL graphs; empty keeps
   role shapes / legacy embedded shapes).
 - `RunRequest` — `source`, `graph_path=Path("ontology.trig")`, the five configs,
-  `graph_names=GraphNames()`, `dry_run=False`.
+  `graph_names=GraphNames()`, `prompts=None` (a `prompts.PromptLibrary`; None
+  means the tested defaults), `dry_run=False`.
 Result dataclasses:
 
 - `DocumentResult` — `path`, `document_id`, `source_artifact`,
@@ -209,6 +210,7 @@ store     = _final_store(graph_store, request)      # RdflibGraphStore or Legacy
 roles     = initial_role_graphs(store, names)        # read schema/shapes/data/provenance/review; seed if empty
 graph     = union_graphs(roles.values())
 vocabulary = read_vocabulary(graph) if request.merge.require_declared_vocabulary else None
+system_prompt = prompts.render("extraction_system", library=request.prompts)
 files     = find_text_files(request.source, request.graph_path)
 if not files: raise RuntimeError("No text-like files found")
 for index, path in enumerate(files, start=1):
@@ -225,7 +227,8 @@ for index, path in enumerate(files, start=1):
     assert final graph snapshot unchanged
     document_merge = plan_document_merge(canonical_graph(roles, names), document,
                                          staged.packages, staged.admission_plans, conf,
-                                         planner=plan_graph_merge, vocabulary=vocabulary)
+                                         planner=plan_graph_merge, vocabulary=vocabulary,
+                                         configuration={prompt digests})
     publication_plan = compile_document_publication(document, document_merge, staged.candidate_graphs,
                                                     staged.packages, staged.admission_plans, roles, names, shapes)
     if not publication_plan.proposed_validation.conforms: raise PublicationValidationError(publication_plan)
@@ -350,11 +353,12 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 
 - `context_block(context_text)` — headed context + `CONTEXT_RULES`, `""` when
   empty.
-- `make_prompt(text, context_text="")` — instruction, context, entity
-  resolution paragraph, exact JSON contract (entities/relations/facts with
-  per-record `confidence`), and `SOURCE` between `---` delimiters.
-- `parse_source(text, context_text="")` = `parse_prompt(make_prompt(...))`;
-  `parse_prompt(prompt)` = `ask_llm(prompt)`.
+- `make_prompt(text, context_text="", library=None)` — renders the
+  `extraction_user` template with `context` (the headed, explained context
+  block) and `text`, so an edited prompt is used without this module changing.
+  The default wording is byte-identical to the pre-template version.
+- `parse_source(text, context_text="", library=None)` =
+  `parse_prompt(make_prompt(...))`; `parse_prompt(prompt)` = `ask_llm(prompt)`.
 
 ### 4.6 `llm.py` — OpenRouter client (stdlib only)
 
@@ -365,14 +369,17 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 - `load_env(path=Path(".env"))` — `KEY=value` lines, `setdefault`, never
   overrides existing env vars.
 - `model_name()` — `OPENROUTER_MODEL` or the default.
-- `ask_llm(prompt)` — POSTs `{"model", "temperature": 0, "messages": [
-  {system}, {user}]}` to `https://openrouter.ai/api/v1/chat/completions` with
+- `ask_llm(prompt, system=None)` — POSTs `{"model", "temperature": 0,
+  "messages": [{system}, {user}]}` (`system` defaults to `SYSTEM_PROMPT`) to
+  `https://openrouter.ai/api/v1/chat/completions` with
   bearer key, JSON content type, and `X-OpenRouter-Title: "Simple Text to
   Ontology"`, timeout 60 s. Accepts Markdown-fenced JSON; raises
   `RuntimeError` for HTTP errors, `InvalidResponseError` for non-JSON or
   `JSONDecodeError`.
-- `OpenRouterExtractor(model=None)` — `model()` → override or `model_name()`;
-  `extract(prompt)` → `ask_llm(prompt)`.
+- `OpenRouterExtractor(model=None, system_prompt=None)` — `model()` → override
+  or `model_name()`; `extract(prompt)` → `ask_llm(prompt,
+  system=self.system_prompt)`, so the pipeline can hand it the (possibly
+  edited) `extraction_system` text.
 
 ### 4.7 `repair.py` — bounded self-repair
 
@@ -563,10 +570,13 @@ remains as a legacy wrapper.
   canonical scope; exact overlap assertions become one planned assertion (the
   **strongest** confidence wins); entities combine aliases/descriptions.
 - `plan_document_merge(canonical_graph, document, packages, admission_plans,
-  min_new_confidence, planner=plan_graph_merge)` — resolves the whole
-  reconciled source against the canonical scope **once**; adds
-  `document_merge_version`, `configuration_sha256`, and an `identity_mapping`
-  from source keys to final identity decisions.
+  min_new_confidence, planner=plan_graph_merge, vocabulary=None,
+  configuration=None)` — resolves the whole reconciled source against the
+  canonical scope **once**; adds `document_merge_version`,
+  `configuration_sha256` (over `configuration` plus the version and the
+  confidence floor), and an `identity_mapping` from source keys to final
+  identity decisions. The pipeline passes the two prompt digests here, so a run
+  artifact names the templates that produced it.
 
 ### 4.17 `document_publication.py` — compile + atomic publish
 
@@ -651,8 +661,10 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   missing/unknown sections, empty or camelCase names, unknown domain/range
   classes, unknown literal ranges, duplicates, fewer than `MIN_CLASSES` or more
   than `MAX_CLASSES` classes, and more than `MAX_ASSERTIONS` relations + facts.
-- `propose_starter(text, extractor, repair_attempts=2)` — prompt → repair →
-  validated proposal, or `RuntimeError` with `format_starter_failure(...)`.
+- `propose_starter(text, extractor, repair_attempts=2, library=None)` —
+  prompt → repair → validated proposal, or `RuntimeError` with
+  `format_starter_failure(...)`. `starter_prompt(text, library=None)` renders
+  the `starter` template with the live class and assertion caps.
 - `starter_publication(proposal, names=None)` — one `Publication` replacing the
   schema, shapes, target, provenance, and review roles: the seed's
   `onto:Entity` root and `EntityShape` shape survive, every class becomes
@@ -666,7 +678,37 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
 - `build_parser()` / `main(argv)` — `text-to-ontology-starter [INFO|-] [GRAPH]
   [--model]`; reads a file or standard input.
 
-### 4.22 `workspace.py` — the application state and its long jobs
+### 4.22 `prompts.py` — editable prompt templates
+
+Every prompt the application sends is a named template here: defaults in code
+(the tested wording), overrides in one JSON file beside the dataset. Templates
+use `string.Template` placeholders (`${context}`, `${text}`), not
+`str.format`, because these prompts carry JSON braces a human edits by hand and
+should never have to escape.
+
+- `DEFAULT_PROMPTS` — `extraction_system`, `extraction_user`, `starter`.
+- `PROMPT_FIELDS` / `REQUIRED_FIELDS` — the placeholders a template may use and
+  the ones it must keep (`extraction_user`: `context`, `text`; `starter`:
+  `text` required, the numeric caps optional).
+- `ADVICE` — non-blocking hints for a human editor (a missing `entities` list,
+  a missing `confidence`, ...).
+- `PREVIEW_VALUES` — the small fixed sample values the studio previews with.
+- `PromptLibrary(path=None, defaults=None)` — `names()`, `text(name)`,
+  `is_default(name)`, `fields(name)`, `required(name)`, `digest(name)` (12 hex
+  characters, for run reports), `describe(name=None)` (the record the editor
+  uses), `validate(name, text)` (an error string or None), `advice(name, text)`,
+  `render(name, values)`, `set(name, text)`, `reset(name)`. Overrides live in
+  `{"version": 1, "prompts": {...}}`; a corrupt file, or a stored template that
+  no longer validates, is ignored rather than fatal; writes are atomic
+  (`<file>.tmp` + `os.replace`) and only non-default entries are stored.
+- `DEFAULT_FILE = "prompts.local.json"` — git-ignored, and the file sits next to
+  the dataset it belongs to.
+- Module helpers for callers without a library: `render`, `describe`, `digest`,
+  and `DEFAULT_LIBRARY`.
+- `ValueError` for a template that cannot be rendered (a missing value or an
+  invalid placeholder) and `KeyError` for an unknown prompt name.
+
+### 4.23 `workspace.py` — the application state and its long jobs
 
 The backend state for one dataset, with no HTTP and no argument parsing.
 
@@ -686,7 +728,15 @@ The backend state for one dataset, with no HTTP and no argument parsing.
   file number and count; `_percent(within_file)` makes the bar span the whole
   drop and never move backwards.
 - `Workspace(graph_path="ontology.trig", sources_dir="sources/inbox",
-  model=None, names=None, extractor=None)` — reading: `canonical_graph()`
+  model=None, names=None, extractor=None, prompts_path=None)` — `prompts` is
+  the `PromptLibrary` for this dataset (default
+  `<graph_path>.parent/prompts.local.json`), `extractor_for_run()` returns an
+  injected extractor unchanged or builds an `OpenRouterExtractor` with the
+  current `extraction_system` text, and the prompt methods `prompt_list()`,
+  `prompt_save(name, text)`, `prompt_reset(name)`, `prompt_preview(name)` back
+  the four `prompts.*` operations (an unknown name answers
+  `{ok: false, error}`, never an exception).
+  Reading: `canonical_graph()`
   (schema + configured data + target), `triple_count()`, `source_names()`,
   `status()` (graph, triples, `ready`, class/relation/fact names, inbox files),
   `dataset_text()` (schema + shapes + data + target as one TriG text, prefixes
@@ -707,7 +757,7 @@ The backend state for one dataset, with no HTTP and no argument parsing.
 - Module constants: `DEFAULT_GRAPH = Path("ontology.trig")`,
   `DEFAULT_SOURCES = Path("sources/inbox")`.
 
-### 4.23 `operations.py` — every capability as one named operation
+### 4.24 `operations.py` — every capability as one named operation
 
 The contract between a frontend and the backend: one registry of names, each
 mapping to a small function `(workspace, payload) -> plain JSON record`. No
@@ -723,11 +773,12 @@ HTTP, no objects, no browser.
   name raises `UnknownOperation`.
 - The registry today: `status`, `dataset`, `progress` (`job`), `reset`,
   `starter.create` (`text`, background), `ingest` (`files`, background),
-  `operations.list`.
+  `operations.list`, `prompts.list`, `prompts.save` (`name`, `text`),
+  `prompts.reset` (`name`), `prompts.preview` (`name`).
 - Payload helpers: `_started(workspace, job)` (the background answer, or the
   "a job is already running" refusal), `_integer`, `_files`.
 
-### 4.24 `studio.py` — the HTTP transport (and the page it serves)
+### 4.25 `studio.py` — the HTTP transport (and the page it serves)
 
 Carries things and nothing else: no state, no domain logic.
 
@@ -755,7 +806,7 @@ Carries things and nothing else: no state, no domain logic.
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
 
-### 4.25 The frontend split
+### 4.26 The frontend split
 
 The page is the visualization; the control panel is a separate file that the
 page loads only when it is served over HTTP.
@@ -771,7 +822,10 @@ page loads only when it is served over HTTP.
 - `scripts/studio.js` — the panel: builds its own markup, talks only through
   named operations (`api/op/<name>`), and changes the picture only through the
   view API. It contains no domain logic, so a new backend capability needs only
-  a new button here.
+  a new button here. Its sections are Dataset (status, Clear view, Reset
+  everything), 1 Starter ontology, 2 Add sources, 3 Ingestion prompt (template
+  picker, monospace editor, validation and advice note, Preview, Save, Back to
+  default), and the Run log.
 - `scripts/studio.css` — the panel's styles, injected as a `<link>` by the
   loader in the page when it is not opened from `file://`.
 
@@ -898,6 +952,9 @@ items).
 | `merge_policy` | `plan_graph_merge(graph, candidates, provenance, ...)` | MergePlan (see 4.13) |
 | `entity_lookup` | `identity_decision(entity, catalog, ...)` | `{status, uri, method, identity_score, suggestions, reason_codes}` |
 | `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=(), vocabulary=None)` | `ValidationResult` |
+| `prompts` | `PromptLibrary(path).render(name, values)` | the finished prompt text |
+| `prompts` | `PromptLibrary(path).set(name, text)` | an error string, or None when stored |
+| `prompts` | `PromptLibrary(path).describe()` | `[{name, text, default, required, fields, error, advice}]` |
 | `vocabulary` | `read_vocabulary(graph)` | `Vocabulary` (declared classes/relations/facts) |
 | `starter` | `validate_starter(data)` | `{valid, candidates, issues, counts}` |
 | `starter` | `starter_publication(proposal, names)` | one `Publication` (five roles) |
@@ -988,7 +1045,8 @@ vocabulary.py ──► graph_management (FACT, RELATION), graph_merge (class_ur
 starter.py ──► document_publication (split_legacy_graph), graph_management,
                graph_merge, graph_store, llm, repair
 workspace.py ──► graph_management (bind), graph_store, llm, pipeline,
-                run_report, starter, vocabulary
+                prompts, run_report, starter, vocabulary
+prompts.py ──► (stdlib only: no rdflib, no project imports)
 operations.py ──► (nothing from the package: it only names capabilities)
 studio.py ──► operations, workspace (transport only)
 task_context.py ──► entity_lookup, graph_patterns (STRUCTURAL, eligible), ontology_views, source_concepts
@@ -1104,6 +1162,8 @@ publication only apply already-made decisions.
 | Operations | `status` · `dataset` · `progress {job}` · `reset` · `starter.create {text}` → `{job_id}` · `ingest {files:[{name,text}]}` → `{job_id}` · `operations.list` |
 | Studio jobs | starter: `model call N` (10 %, +25 % per call) → `writing the schema and shapes` (88 %) → 100 %; ingestion: per file (1/8 of the bar per file, half of it per window) with `starting`, `window k/n, asking the model`, `model replied`, `admitted`, `published` |
 | Studio polling | panel polls `progress {job}` (400 ms) while `running` is true |
+| Prompt templates | `extraction_system`, `extraction_user`, `starter`; placeholders `context`, `text`, `min_classes`, `max_classes`, `xsd_names`; digest 12 hex characters |
+| Prompt overrides | `prompts.local.json` beside the dataset (git-ignored); `{"version": 1, "prompts": {...}}`; only non-default entries are stored |
 | Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
 | Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |
 | Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 |
@@ -1139,6 +1199,9 @@ lever on prompt size; where both apply the smaller wins.
 | Unknown operation | `operations.call` / `StudioHandler` | `UnknownOperation` / `{ok: false, error}` with HTTP 404 |
 | Operation failure | `operations.call` | `{ok: false, error}` with HTTP 200 (only unknown names are 404) |
 | Missing operation arguments | the operation itself | `{ok: false, error}` naming what was missing |
+| Template that cannot be used | `prompts.PromptLibrary.validate` | an error string: empty, a missing required placeholder, an unknown placeholder, a bare `$` |
+| Template that cannot be rendered | `prompts.PromptLibrary.render` | `ValueError` naming the missing value |
+| Unknown prompt name | `PromptLibrary._known` → the workspace | `KeyError`, answered as `{ok: false, error}` |
 | Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
 | Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
 | Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
@@ -1210,6 +1273,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes. |
 | `test_view_html.py` | `view_html.write_report` renders `view_report.build_report` output as one self-contained page. |
 | `test_install_smoke.py` | The package imports and the console script is installed. |
+| `test_prompts.py` | The three defaults and their validity, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
 | `test_starter.py` | Proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, `starter_publication` roles and triples, `proposal_summary`, `create_starter` replacing an old dataset. |
 | `test_data_only.py` | The data-only gate end to end: declared extraction accepted with the schema and shapes unchanged, undeclared kind/predicate rejected and nothing written, no declarations in a data-only plan, and the permissive default still declaring as before. |
@@ -1323,17 +1387,25 @@ pattern numbers are pinned on the frozen miniature in
     long jobs even though the HTTP server is threaded, so graph writes never
     interleave; reads a page makes during a job (`progress`) do not touch the
     store.
-33. **One route, every capability**: the transport is a dispatcher over
+33. **Prompts are data, not code**: every model prompt is a named
+    `string.Template` in `prompts.py`. Overrides live in `prompts.local.json`
+    beside the dataset, are validated before they are stored, and are ignored
+    (not fatal) when a stored one stops validating. Because `Template` leaves
+    braces alone, an edited JSON contract needs no escaping, and `$$` is a
+    literal dollar. The two extraction digests join the run configuration, so
+    an artifact names the templates that produced it, and `extractor_for_run()`
+    rebuilds the client per run so an edited system prompt takes effect.
+34. **One route, every capability**: the transport is a dispatcher over
     `operations.call`, so a new capability is one function plus one `Operation`
     line in `operations.py` — `studio.py` does not change, and an unknown name
     is the only 404. `GET` carries arguments in the query string (as strings;
     the operation coerces), `POST` carries a JSON body.
-34. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+35. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
     markup, style, or logic, and loads `studio.js` / `studio.css` only when it
     is not opened from `file://`. The page owns `#workspace` layout so it still
     renders standalone, and the only contract between the two files is the
     `window.__lens` view API.
-35. **A view is data, not code**: `applyView({replace, files, mode, focus,
+36. **A view is data, not code**: `applyView({replace, files, mode, focus,
     filters, hideIsolated, clearFilters})` is the whole picture-changing
     surface; the lens resolves IRIs to nodes and filter keys to internal sets,
     and ignores junk, so a backend bug can mislead the picture but cannot break
