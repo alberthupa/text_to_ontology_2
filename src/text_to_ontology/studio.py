@@ -114,6 +114,7 @@ class Studio:
 
     def reset(self):
         """Delete the dataset file and every source in the inbox."""
+        self._check_reset_target()
         removed = []
         if self.graph_path.exists():
             self.graph_path.unlink()
@@ -125,6 +126,19 @@ class Studio:
                     removed.append(str(path))
         self.store = RdflibGraphStore(path=self.graph_path)
         return removed
+
+    def _check_reset_target(self):
+        """Refuse to empty a directory that also holds the project itself."""
+        inbox = self.sources_dir.resolve()
+        cwd = Path.cwd().resolve()
+        if inbox == cwd or inbox in cwd.parents:
+            raise RuntimeError(
+                f"Refusing to reset {inbox}: it is the working directory or "
+                f"one of its parents. Point --sources at its own folder.")
+        if inbox == self.graph_path.resolve().parent:
+            raise RuntimeError(
+                f"Refusing to reset {inbox}: it also holds {self.graph_path}. "
+                f"Point --sources at its own folder.")
 
     def create_starter(self, text):
         """Propose a starter ontology from pasted text and install it."""

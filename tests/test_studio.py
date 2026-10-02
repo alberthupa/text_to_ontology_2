@@ -135,6 +135,13 @@ class StudioTest(StudioTestBase):
         self.assertIn(str(self.graph), removed)
         self.assertFalse(studio.status()["ready"])
 
+    def test_reset_refuses_a_directory_that_holds_the_project(self):
+        studio = Studio(graph_path=self.graph, sources_dir=Path.cwd(),
+                        page_path=PAGE)
+        with self.assertRaises(RuntimeError) as caught:
+            studio.reset()
+        self.assertIn("Refusing to reset", str(caught.exception))
+
     def test_the_dataset_text_carries_the_starter_and_the_data(self):
         studio = self.studio(PROPOSAL, DECLARED)
         studio.create_starter("people and companies")

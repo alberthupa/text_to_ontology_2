@@ -674,7 +674,9 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   `source_names()`, `status()` (graph, triples, `ready`, class/relation/fact
   names, inbox files), `dataset_text()` (schema + shapes + data + target as one
   TriG text, prefixes bound, provenance left out), `reset()` (unlink the graph
-  file and every direct child file of the inbox, then re-open an empty store),
+  file and every direct child file of the inbox, then re-open an empty store;
+  `_check_reset_target` refuses when the inbox is the working directory, one of
+  its parents, or the dataset's own directory),
   `create_starter(text)` (propose + publish on the studio's own store),
   `ingest(files, log)` (write each dropped text into the inbox, then run the
   pipeline once per file with `MergeConfig(require_declared_vocabulary=True)`,

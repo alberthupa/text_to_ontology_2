@@ -123,7 +123,7 @@ def validate_starter(data):
         return _starter_result(False, None, issues)
 
     classes = _normalize(data["classes"], "classes", issues, "class",
-                         title=True)
+                         is_class=True)
     relations = _normalize(data["relations"], "relations", issues, "relation")
     facts = _normalize(data["facts"], "facts", issues, "fact")
     class_names = {slug(item["name"]) for item in classes}
@@ -131,12 +131,12 @@ def validate_starter(data):
     for section, records in (("relations", relations), ("facts", facts)):
         for index, item in enumerate(records):
             _check_class_field(item, "domain", class_names, section, index,
-                               issues, required=(section == "relations"))
+                               issues, required=True)
             if section == "relations":
                 _check_class_field(item, "range", class_names, section, index,
                                    issues, required=True)
             else:
-                _check_xsd_field(item, section, index, issues)
+                _check_literal_range(item, section, index, issues)
 
     _check_unique(classes, "classes", "class", issues)
     _check_unique(relations, "relations", "relation", issues)
@@ -176,7 +176,7 @@ def _usable_name(name):
         and slug(label(name)) == slug(name)
 
 
-def _normalize(raw, section, issues, word, title=False):
+def _normalize(raw, section, issues, word, is_class=False):
     """Normalize one proposed section, reporting every broken record."""
     records = []
     for index, record in enumerate(raw):
@@ -195,13 +195,13 @@ def _normalize(raw, section, issues, word, title=False):
             continue
         name = name.strip()
         if not _usable_name(name):
-            style = "Title Case words" if title \
+            style = "Title Case words" if is_class \
                 else "lowercase words separated by hyphens"
             issues.append({
                 "code": f"starter.{word}_name_not_usable", "severity": "error",
                 "path": path + ".name", "related_paths": [],
                 "message": f"name {name!r} must be plain {style}, "
-                           f"without camelCase or underscores"})
+                           f"without camelCase"})
             continue
         description = record.get("description") or ""
         if not isinstance(description, str):
@@ -211,7 +211,7 @@ def _normalize(raw, section, issues, word, title=False):
                            "message": "description must be a string"})
             description = ""
         item = {"name": name, "description": description.strip()}
-        if not title:
+        if not is_class:
             for field in ("domain", "range"):
                 value = record.get(field)
                 item[field] = value.strip() if isinstance(value, str) else ""
@@ -238,7 +238,7 @@ def _check_class_field(item, field, class_names, section, index, issues,
                        + ", ".join(sorted(class_names))})
 
 
-def _check_xsd_field(item, section, index, issues):
+def _check_literal_range(item, section, index, issues):
     value = item.get("range", "")
     if value and value.lower() not in XSD_TYPES:
         issues.append({
