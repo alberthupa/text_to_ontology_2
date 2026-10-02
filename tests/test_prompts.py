@@ -17,7 +17,8 @@ class DefaultsTest(unittest.TestCase):
 
     def test_every_prompt_has_a_default_and_a_valid_template(self):
         self.assertEqual(self.library.names(),
-                         ["extraction_system", "extraction_user", "starter"])
+                         ["chat_system", "chat_user", "extraction_system",
+                          "extraction_user", "starter"])
         for name in self.library.names():
             self.assertIsNone(self.library.validate(name, self.library.text(name)),
                               name)

@@ -104,6 +104,21 @@ def _prompts_preview(workspace, payload):
     return workspace.prompt_preview(name)
 
 
+def _chat_ask(workspace, payload):
+    message = str(payload.get("message") or "")
+    if not message.strip():
+        return {"ok": False, "error": "no question was given"}
+    return _started(workspace, workspace.start_chat(message))
+
+
+def _chat_state(workspace, payload):
+    return workspace.chat_state()
+
+
+def _chat_reset(workspace, payload):
+    return workspace.chat_reset()
+
+
 def _operations(workspace, payload):
     return {"ok": True, "operations": describe()}
 
@@ -121,6 +136,11 @@ OPERATIONS = (
               _starter_import, args=("name", "text")),
     Operation("ingest", "ingest dropped texts, data-only",
               _ingest, args=("files",), background=True),
+    Operation("chat.ask", "one question about the graph, answered from the "
+              "relevant subgraph", _chat_ask, args=("message",),
+              background=True),
+    Operation("chat.state", "the conversation so far", _chat_state),
+    Operation("chat.reset", "forget the conversation", _chat_reset),
     Operation("operations.list", "this list of named capabilities", _operations),
     Operation("prompts.list", "the editable prompt templates and their state",
               _prompts_list),

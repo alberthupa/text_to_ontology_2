@@ -294,7 +294,7 @@ class OperationsTest(WorkspaceTestBase):
             self.assertIsInstance(item["background"], bool)
         self.assertEqual(
             {item["name"] for item in describe() if item["background"]},
-            {"ingest", "starter.create"})
+            {"chat.ask", "ingest", "starter.create"})
 
     def test_every_operation_answers_a_plain_record(self):
         workspace = self.workspace(PROPOSAL)
@@ -342,7 +342,8 @@ class PromptOperationsTest(WorkspaceTestBase):
         listed = call(self.workspace(), "prompts.list", {})
         self.assertTrue(listed["ok"])
         names = [item["name"] for item in listed["prompts"]]
-        self.assertEqual(names, ["extraction_system", "extraction_user",
+        self.assertEqual(names, ["chat_system", "chat_user",
+                                 "extraction_system", "extraction_user",
                                  "starter"])
         for item in listed["prompts"]:
             self.assertIn("text", item)

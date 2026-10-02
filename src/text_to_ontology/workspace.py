@@ -18,6 +18,7 @@ from pathlib import Path
 
 from rdflib import Dataset, Graph
 
+from .graph_chat import ChatSession
 from .graph_management import bind
 from .graph_store import GraphNames, RdflibGraphStore
 from .llm import OpenRouterExtractor
@@ -184,6 +185,7 @@ class Workspace:
             prompts_path or self.graph_path.parent / DEFAULT_FILE)
         self.store = RdflibGraphStore(path=self.graph_path)
         self.progress = Progress()
+        self.chat = ChatSession(library=self.prompts)
 
     def extractor_for_run(self):
         """The extractor this run should use, with the prompts in force now."""
@@ -357,6 +359,68 @@ class Workspace:
             )
             log.write(f"\n{path.name}: {result.triples} triples in the dataset\n")
         return [path.name for path in written]
+
+    # ---------- talking to the graph ----------
+
+    def ask_text(self, prompt, system=None):
+        """One text answer from the configured extractor (never JSON).
+
+        The system message comes from the caller (the chat prompt), not from
+        the extractor, whose own message is the JSON extraction contract.
+        """
+        extractor = self.extractor_for_run()
+        answer = getattr(extractor, "extract_text", None)
+        if answer is None:
+            raise RuntimeError(
+                "the configured extractor cannot answer with text, so the "
+                "graph chat cannot run")
+        return answer(prompt, system=system)
+
+    def chat_state(self):
+        """The conversation so far, and what it is currently about."""
+        return self.chat.state()
+
+    def chat_reset(self):
+        """Forget the conversation."""
+        state = self.chat.reset()
+        return {**state, "log": "Conversation cleared.\n"}
+
+    def chat_ask(self, message, on_step=None):
+        """One chat turn: select the relevant subgraph, ask, remember."""
+        if not str(message or "").strip():
+            return {"ok": False, "error": "no question was given"}
+        try:
+            outcome = self.chat.ask(message, self.canonical_graph(),
+                                    self.ask_text, on_step=on_step)
+        except (RuntimeError, OSError, ValueError) as error:
+            return {"ok": False, "error": str(error),
+                    "turns": self.chat.transcript()}
+        scope = outcome["scope"]
+        return {"ok": True, "answer": outcome["answer"],
+                "scope": {**scope.summary(), "view": scope.view()},
+                "turns": self.chat.transcript()}
+
+    def start_chat(self, message):
+        """Run one chat turn in the background; None when a job is running."""
+        job = self.progress.claim("Talking to the graph")
+        if job is None:
+            return None
+        self.progress.update(percent=10, detail="selecting the relevant subgraph")
+        threading.Thread(target=self._chat_job, args=(message,),
+                         daemon=True).start()
+        return job
+
+    def _chat_job(self, message):
+        def note(scope, rendered):
+            self.progress.update(
+                percent=40,
+                detail=f"{rendered['triples']} triples selected"
+                       + (f" ({rendered['dropped']} left out)" 
+                          if rendered["dropped"] else "")
+                       + "; asking the model")
+
+        result = self.chat_ask(message, on_step=note)
+        self.progress.finish(result)
 
     def import_starter(self, name, text):
         """Make a dropped RDF document the starter ontology, in one write."""

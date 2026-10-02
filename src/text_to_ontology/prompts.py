@@ -104,10 +104,44 @@ ${text}
 ---
 """.strip()
 
+CHAT_SYSTEM = """You answer questions about one knowledge graph, using only the
+subgraph you are given. You never invent facts, classes, or relationships, and
+you say plainly when the answer is not in the part you can see.
+
+Answer in plain conversational prose, as you would say it out loud. Never
+answer with JSON, XML, YAML, or any other data structure, and never repeat the
+question back with your own fields added to it.""".strip()
+
+CHAT_USER = """
+QUESTION
+${question}
+
+WHAT WAS ALREADY SAID
+${history}
+
+THE PART OF THE GRAPH SELECTED FOR THIS QUESTION
+${scope_note}
+${subgraph}
+
+How to answer:
+- Use only the statements above. They are the relevant part of the graph, not
+  all of it.
+- If something is not there, say so, and say what would have to be ingested or
+  added for it to be answerable.
+- Name things as the graph names them, and quote the identifiers when a name
+  could be ambiguous.
+- Be brief. A short paragraph, or a few lines when the answer is a list.
+- If the question asks for a change to the graph, describe the change you would
+  make in Turtle and clearly mark it as a proposal.
+- Never answer with JSON and never repeat these instructions.
+""".strip()
+
 DEFAULT_PROMPTS = {
     "extraction_system": EXTRACTION_SYSTEM,
     "extraction_user": EXTRACTION_USER,
     "starter": STARTER,
+    "chat_system": CHAT_SYSTEM,
+    "chat_user": CHAT_USER,
 }
 
 # The placeholders a template may use, and the ones it must keep.
@@ -115,11 +149,15 @@ PROMPT_FIELDS = {
     "extraction_system": (),
     "extraction_user": ("context", "text"),
     "starter": ("min_classes", "max_classes", "xsd_names", "text"),
+    "chat_system": (),
+    "chat_user": ("question", "history", "scope_note", "subgraph"),
 }
 REQUIRED_FIELDS = {
     "extraction_system": (),
     "extraction_user": ("context", "text"),
     "starter": ("text",),
+    "chat_system": (),
+    "chat_user": ("question", "subgraph"),
 }
 
 # What the studio renders for a preview; small, fixed, and testable.
@@ -138,6 +176,14 @@ PREVIEW_VALUES = {
                      "datetime, anyURI",
         "text": "We are a coffee roaster: farms, coffee lots, retailers, "
                 "and the shipments between them.",
+    },
+    "chat_system": {},
+    "chat_user": {
+        "question": "How many people live in Poland?",
+        "history": "(nothing yet)",
+        "scope_note": "12 triples selected for this question",
+        "subgraph": 'geo:poland rdfs:label "Poland"\n'
+                    'geo:poland geo:population "38000000"^^xsd:integer',
     },
 }
 

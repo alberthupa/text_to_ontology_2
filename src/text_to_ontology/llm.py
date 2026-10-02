@@ -38,6 +38,42 @@ def model_name():
     return os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)
 
 
+def ask_llm_text(prompt, system=None):
+    """Send one prompt and return the answer as plain text.
+
+    The graph chat needs prose, not the extraction contract's JSON, so this is
+    the same request without the JSON parse.
+    """
+    load_env()
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise RuntimeError("Set OPENROUTER_API_KEY first")
+    body = json.dumps({
+        "model": model_name(),
+        "temperature": 0,
+        "messages": [
+            {"role": "system", "content": system or SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+    }).encode()
+    request = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "X-OpenRouter-Title": "Simple Text to Ontology",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            answer = json.load(response)["choices"][0]["message"]["content"]
+    except urllib.error.HTTPError as error:
+        message = error.read().decode(errors="replace")
+        raise RuntimeError(f"OpenRouter error {error.code}: {message}") from error
+    return str(answer).strip()
+
+
 def ask_llm(prompt, system=None):
     """Send one prompt to OpenRouter and return its JSON object.
 
@@ -102,3 +138,12 @@ class OpenRouterExtractor:
     def extract(self, prompt):
         """Send one prompt and return its parsed JSON answer."""
         return ask_llm(prompt, system=self.system_prompt)
+
+    def extract_text(self, prompt, system=None):
+        """Send one prompt and return the answer as plain text.
+
+        `system` wins over this extractor's own system message, so the graph
+        chat can use the chat prompt even though the same client also extracts
+        JSON for ingestion.
+        """
+        return ask_llm_text(prompt, system=system or self.system_prompt)

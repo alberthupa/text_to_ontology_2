@@ -52,6 +52,9 @@
     promptSave: (name, text) => call('prompts.save', { name, text }),
     promptReset: (name) => call('prompts.reset', { name }),
     promptPreview: (name) => call('prompts.preview', { name }),
+    chat: (message) => call('chat.ask', { message }),
+    chatState: () => call('chat.state'),
+    chatReset: () => call('chat.reset', {}),
   };
 
   /* ---------- the panel ---------- */
@@ -104,6 +107,17 @@
       <pre class="slog" id="stPromptPreviewBox" hidden></pre>
     </section>
     <section>
+      <h3>4 \u00b7 Chat with the graph</h3>
+      <p class="smuted">Ask about the graph. Each question gets only the relevant subgraph, and the note under an answer says how much was shown. <b>Show scope</b> draws exactly that part next to the full dataset.</p>
+      <div id="stChatLog" class="schat"></div>
+      <textarea id="stChatText" class="schatbox" spellcheck="false" placeholder="What do we know about Poland and its population?"></textarea>
+      <div class="sactions">
+        <button class="btn primary" id="stChatSend">Ask</button>
+        <button class="btn" id="stChatEverything" hidden>Show everything</button>
+        <button class="btn" id="stChatReset">Clear conversation</button>
+      </div>
+    </section>
+    <section>
       <h3>Run log</h3>
       <pre class="slog" id="stLog">Nothing yet.</pre>
     </section>
@@ -129,11 +143,13 @@
   const statusEl = $('#stStatus'), logEl = $('#stLog'), vocabEl = $('#stVocab');
   const warnEl = $('#stWarn'), readyEl = $('#stReady'), dropEl = $('#stDrop');
   const importDrop = $('#stImportDrop'), importFiles = $('#stImportFiles');
+  const chatLog = $('#stChatLog'), chatText = $('#stChatText');
+  const chatEverything = $('#stChatEverything');
   const progressEl = $('#stProgress'), pLabel = $('#stPLabel'), pPct = $('#stPPct');
   const pFill = $('#stPFill'), pDetail = $('#stPDetail');
   const promptName = $('#stPromptName'), promptText = $('#stPromptText');
   const promptNote = $('#stPromptNote'), promptPreview = $('#stPromptPreviewBox');
-  let busy = false, lastStatus = null, prompts = [];
+  let busy = false, lastStatus = null, prompts = [], scopes = {};
 
   /* ---------- progress ---------- */
   function showProgress(state) {
@@ -152,8 +168,8 @@
   function setBusy(on, message) {
     busy = on;
     ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse',
-     '#stImportPick', '#stPromptSave', '#stPromptReset',
-     '#stPromptPreview'].forEach((s) => {
+     '#stImportPick', '#stPromptSave', '#stPromptReset', '#stPromptPreview',
+     '#stChatSend', '#stChatReset'].forEach((s) => {
       const button = $(s); if (button) button.disabled = on;
     });
     dropEl.classList.toggle('busy', on);
@@ -172,7 +188,7 @@
     hideProgress();
     return state.result || { ok: false, error: 'the job ended without an answer' };
   }
-  async function run(action, message) {
+  async function run(action, message, onResult) {
     if (busy) return;
     setBusy(true, message);
     try {
@@ -186,6 +202,7 @@
                         || result.summary)) {
         await loadDataset();
       }
+      if (onResult) onResult(result);
     } catch (error) {
       hideProgress();
       logEl.textContent = 'Error: ' + error.message;
@@ -369,6 +386,80 @@
       : 'Error: ' + (answer.error || 'could not render this prompt');
   };
 
+  /* ---------- the chat ---------- */
+  function shortName(iri) {
+    return String(iri).split(/[#/]/).filter(Boolean).pop() || String(iri);
+  }
+
+  function scopeNote(turn, scope) {
+    if (!scope) return '';
+    const focus = scope.nodes && scope.nodes.length
+      ? ` \u00b7 focus: ${esc(shortName(scope.nodes[0]))}` : '';
+    const dropped = scope.dropped ? `, ${scope.dropped} beyond the scope limit` : '';
+    const button = turn.view
+      ? ` <button class="lnk" data-scope="${turn.index}">Show scope</button>` : '';
+    return `<div class="smeta">${scope.triples} triples selected${dropped}${focus}${button}</div>`;
+  }
+
+  function renderChat(turns) {
+    const list = turns || [];
+    scopes = {};
+    list.forEach((turn) => {
+      if (turn.role === 'graph' && turn.view) scopes[turn.index] = turn;
+    });
+    chatLog.innerHTML = list.length ? list.map((turn) =>
+      `<div class="msg ${turn.role === 'you' ? 'you' : 'graph'}">`
+      + `<div class="who">${turn.role === 'you' ? 'you' : 'graph'}</div>`
+      + `<div class="body">${esc(turn.text)}</div>`
+      + (turn.role === 'graph' ? scopeNote(turn, turn.scope) : '')
+      + '</div>').join('')
+      : '<div class="sempty">Nothing yet. Ask a question about the graph.</div>';
+    chatLog.scrollTop = chatLog.scrollHeight;
+    chatEverything.hidden = !Object.keys(scopes).length;
+  }
+
+  chatLog.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-scope]');
+    if (!button) return;
+    const turn = scopes[+button.dataset.scope];
+    if (!turn || !turn.view) return;
+    const lens = window.__lens;
+    if (lens) lens.applyView(turn.view);
+    const scope = turn.scope || {};
+    logEl.textContent = 'Showing the subgraph selected for: ' + turn.text.slice(0, 80)
+      + (scope.dropped ? ` (${scope.dropped} triples were beyond the scope limit)` : '')
+      + '. The full dataset is still loaded as another file.';
+  });
+
+  $('#stChatSend').onclick = () => {
+    const message = chatText.value.trim();
+    if (!message) { logEl.textContent = 'Type a question first.'; return; }
+    chatText.value = '';
+    run(() => op.chat(message), 'Selecting the relevant subgraph\u2026',
+      (result) => { if (result.turns) renderChat(result.turns); });
+  };
+  chatText.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      $('#stChatSend').click();
+    }
+  });
+  chatEverything.onclick = () => {
+    const lens = window.__lens;
+    const names = [];
+    Object.keys(scopes).forEach((key) => {
+      (scopes[key].view.replace || []).forEach((name) => names.push(name));
+    });
+    if (lens) lens.applyView({ replace: names, files: [] });
+    chatEverything.hidden = true;
+    logEl.textContent = 'Showing the full dataset again.';
+  };
+  $('#stChatReset').onclick = async () => {
+    const answer = await op.chatReset();
+    renderChat(answer && answer.turns ? answer.turns : []);
+    logEl.textContent = 'Conversation cleared.';
+  };
+
   /* ---------- connect ---------- */
   (async function connect() {
     try {
@@ -378,6 +469,8 @@
       renderStatus(status);
       await loadDataset();
       await refreshPrompts();
+      const chat = await op.chatState();
+      if (chat && chat.turns) renderChat(chat.turns);
       logEl.textContent = status.triples > 0
         ? `Loaded ${status.graph} with ${fmt(status.triples)} triples.\n`
           + 'To start from scratch: Reset everything, paste a starter description, then drop sources.\n'
