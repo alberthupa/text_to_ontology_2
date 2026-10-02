@@ -696,10 +696,26 @@
       </div>
 
       <div class="card">
+        <h3><span class="badge read">chat</span> graph_scope.py + graph_chat.py</h3>
+        <p class="what">Talking to a graph, not to a model: one question selects a bounded, deterministic subgraph (the same relevance layer extraction uses), the answer is written from that subgraph only, and the transcript keeps the subgraph so anyone can see what the model was shown.</p>
+        <ul class="members">
+          <li><span class="fn">select(text, graph, carry_over, limits)</span><span class="desc">→ Scope: nodes, triples, dropped, focus_source</span></li>
+          <li><span class="fn">_focus · _collect · _statements</span><span class="desc">matched resources first, a fair share each, types and labels ranked first, a slice reserved for declarations</span></li>
+          <li><span class="fn">Scope.trig_text() · view() · render_for_model()</span><span class="desc">the three faces: for a viewer, for a frontend directive, for a model</span></li>
+          <li><span class="fn">ChatSession.ask(message, graph, ask, on_step)</span><span class="desc">one turn; asking is injected, so no network in here</span></li>
+          <li><span class="fn">transcript() · recent() · reset() · _remember()</span><span class="desc">each answer keeps its subgraph (newest 20 keep the view text); the focus carries over</span></li>
+          <li><span class="const">MAX_TRIPLES 300 · MAX_TOKENS 2500 · MAX_FOCUS 20</span><span class="desc">scope caps; HISTORY_TURNS 6 · MAX_TURNS 200 · TRANSCRIPT_VIEWS 20</span></li>
+        </ul>
+        <div class="outcome"><span class="tag">page</span>
+          <p class="line">Each answer shows <code>N triples selected</code> (and what was left out) with a <b>Show scope</b> button that loads exactly that subgraph as one file next to the full dataset; <b>Show everything</b> removes it again.</p>
+        </div>
+      </div>
+
+      <div class="card">
         <h3><span class="badge gate">prompts</span> prompts.py</h3>
         <p class="what">Every prompt the app sends is a named template: defaults in code (the tested wording), overrides in one JSON file beside the dataset. Templates use <code>${context}</code>-style placeholders, so a JSON contract edited by hand needs no brace escaping.</p>
         <ul class="members">
-          <li><span class="fn">DEFAULT_PROMPTS</span><span class="desc">extraction_system · extraction_user · starter</span></li>
+          <li><span class="fn">DEFAULT_PROMPTS</span><span class="desc">extraction_system · extraction_user · starter · chat_system · chat_user</span></li>
           <li><span class="fn">PROMPT_FIELDS / REQUIRED_FIELDS</span><span class="desc">what a template may use, and what it must keep</span></li>
           <li><span class="fn">PromptLibrary.render(name, values)</span><span class="desc">the finished text; a missing value is a clear ValueError</span></li>
           <li><span class="fn">validate(name, text) / advice(name, text)</span><span class="desc">blocking errors and non-blocking hints for a human editor</span></li>
@@ -724,7 +740,7 @@
           <li><span class="fn">_ProgressReporter(RunReporter)</span><span class="desc">run log + one progress step per checkpoint, spanning every dropped file</span></li>
           <li><span class="fn">Operation(name, summary, handler, args, background)</span><span class="desc">one capability and its published metadata</span></li>
           <li><span class="fn">REGISTRY · describe() · call(workspace, name, payload)</span><span class="desc">the contract; unknown names raise</span></li>
-          <li><span class="const">operations</span><span class="desc">status · dataset · progress · reset · starter.create · ingest · prompts.list/save/reset/preview · operations.list</span></li>
+          <li><span class="const">operations</span><span class="desc">status · dataset · progress · reset · starter.create/import · ingest · prompts.list/save/reset/preview · chat.ask/state/reset · operations.list</span></li>
         </ul>
         <div class="outcome"><span class="tag">rule</span>
           <p class="line">One route, every capability: adding one means one function plus one <code>Operation</code> line. <code>studio.py</code> and the frontend keep working; only the button that calls it is new.</p>
@@ -745,7 +761,7 @@
         </ul>
         <div class="outcome"><span class="tag">page</span>
           <p class="line"><b>frontend split</b>: <code>triple-lens.html</code> is the visualization (plus a documented <code>window.__lens</code> view API); <code>studio.js</code> + <code>studio.css</code> are the panel, loaded only when the page is served. The panel holds controls and nothing else: named operations in, view directives out.</p>
-          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; section 1 creates the starter <i>or</i> imports a dropped RDF/Turtle/TriG file (and section 2 refuses RDF with a pointer back); then drop sources → reset, plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
+          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; section 1 creates the starter <i>or</i> imports a dropped RDF/Turtle/TriG file (and section 2 refuses RDF with a pointer back); section 4 is the chat with the graph, each answer showing the subgraph it used; then drop sources → reset, plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
           <p class="line"><b>progress</b>: one bar pinned under the Studio header, labelled with the running job. Starter: model call 1, 2… (repairs included) then the write step. Ingestion: per file and per window — <code>n2.txt: window 1/1, asking the model</code> → <code>admitted</code> → <code>published</code>. The panel polls <code>progress</code> every 400 ms and the bar only moves forward.</p>
         </div>
       </div>
@@ -995,6 +1011,7 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_cli.py</h3><p class="what">Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_view_html.py</h3><p class="what">view_html.write_report renders view_report.build_report output as one self-contained page.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_install_smoke.py</h3><p class="what">The package imports and the console script is installed.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_chat.py</h3><p class="what">The scope selector (focus from the question, statements plus declarations, the cap with a reported dropped count, a hub not pushing the schema out, deterministic output, carry-over, an empty match, the TriG/view/model faces) and the chat (a turn answers from the subgraph, the transcript keeps it, history reaches the prompt, reset, an edited chat prompt, and the operations end to end).</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_prompts.py</h3><p class="what">The defaults and their validity; placeholder rules (required, unknown, bare $, escaped $$); the advisory checks; the override file (store, refuse, reload, reset, corrupt, stale); digests; and that an edited template reaches make_prompt, starter_prompt, and parse_source.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_starter_import.py</h3><p class="what">RDF detection (suffix and content sniff), parse_rdf for Turtle/TriG/unknown/garbage, partitioning a plain ontology into roles, importing this project's own named graphs role for role (a foreign graph stays data), refusing a document with no vocabulary, an atomic failure that leaves the old dataset alone, the operation answers, and the end-to-end proof that ingestion after an import types individuals with the imported classes and predicates and creates no class:* twins.</p></div>
@@ -1055,6 +1072,8 @@
     ├── <span class="py">vocabulary.py</span>            <span class="comment"># [read-only] declared starter classes / relations / facts</span>
     ├── <span class="py">starter.py</span>               <span class="comment"># paste → checked starter ontology → one atomic write</span>
     ├── <span class="py">prompts.py</span>               <span class="comment"># named editable prompt templates + overrides</span>
+    ├── <span class="py">graph_scope.py</span>           <span class="comment"># [read-only] the relevant subgraph for one question</span>
+    ├── <span class="py">graph_chat.py</span>            <span class="comment"># [read-only] one conversation; asking is injected</span>
     ├── <span class="py">workspace.py</span>             <span class="comment"># state + the two long jobs (no HTTP)</span>
     ├── <span class="py">operations.py</span>            <span class="comment"># every capability as one named operation</span>
     └── <span class="py">studio.py</span>                <span class="comment"># transport: page, assets, /api/op/&lt;name&gt;</span>

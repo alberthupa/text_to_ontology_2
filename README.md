@@ -32,9 +32,10 @@ pip install -e .
 text-to-ontology-studio            # prints a localhost URL and opens it
 ```
 
-The studio's panel has four parts: **Dataset** (status, Clear view, Reset
-everything), **1 Starter ontology**, **2 Add sources**, and **3 Ingestion
-prompt** — plus the run log.
+The studio's panel has five parts: **Dataset** (status, Clear view, Reset
+everything), **1 Starter ontology**, **2 Add sources**, **3 Ingestion prompt**,
+and **4 Chat with the graph** (with **Show scope**, **Show everything**, and
+**Clear conversation**) — plus the run log.
 
 1. **Create the starter ontology.** Paste a few sentences about the world
    ("We roast coffee, we buy green coffee from farms, we sell bags to cafes").
@@ -93,7 +94,20 @@ Only one job runs at a time, so graph writes never interleave.
    the digest of the templates in force is recorded in every run's
    configuration, so a report always names the prompt that produced it.
 
-4. **Reset.** The studio's **Reset everything** button deletes the dataset file
+4. **Talk to the graph.** Section 4 is a chat. Every question is answered from
+   only the relevant part of the graph: the panel shows how many triples were
+   selected (and how many were left out), and **Show scope** loads exactly that
+   subgraph as its own file next to the full dataset, so you can see what the
+   answer was based on. **Show everything** removes it again, and **Clear
+   conversation** forgets the thread. A follow-up like "and Germany?" keeps the
+   topic because the matched resources are carried over, and when something is
+   not in the graph the answer says so and what would have to be added.
+
+   The same conversation is available over the operations API
+   (`chat.ask`, `chat.state`, `chat.reset`), so a script can talk to the graph
+   without the page.
+
+5. **Reset.** The studio's **Reset everything** button deletes the dataset file
    and every source in the inbox; **Clear view** only unloads the dataset from
    the graph view and deletes nothing. Without the page:
 
@@ -336,6 +350,10 @@ The pipeline that runs when you invoke the program:
   exit codes (also reachable as `python3 -m text_to_ontology`)
 - `src/text_to_ontology/prompts.py` — every model prompt as a named, validated,
   editable template (defaults in code, overrides in `prompts.local.json`)
+- `src/text_to_ontology/graph_scope.py` — the relevant subgraph for one
+  question, as TriG, as a view directive, and as text for a model
+- `src/text_to_ontology/graph_chat.py` — one conversation about the graph; each
+  answer keeps the subgraph it was written from
 - `src/text_to_ontology/vocabulary.py` — the starter vocabulary read back out
   of a graph: which classes, relations, and facts ingestion may use, and which
   IRI each name means (so an imported ontology keeps its own)

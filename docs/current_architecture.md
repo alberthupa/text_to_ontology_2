@@ -121,7 +121,7 @@ text_to_ontology_2/
 ├── scripts/studio.css          # the panel's styles
 ├── sources/inbox/              # studio drop zone for source files (git-ignored)
 ├── docs/                       # this map + app_map.html + data_flow.html
-├── src/text_to_ontology/       # the importable package (41 .py files)
+├── src/text_to_ontology/       # the importable package (43 .py files)
 └── tests/                      # unittest: one file per module + pipeline
     ├── store_contract.py       # shared GraphStore contract test base
     ├── fixtures/
@@ -379,7 +379,9 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 - `OpenRouterExtractor(model=None, system_prompt=None)` — `model()` → override
   or `model_name()`; `extract(prompt)` → `ask_llm(prompt,
   system=self.system_prompt)`, so the pipeline can hand it the (possibly
-  edited) `extraction_system` text.
+  edited) `extraction_system` text; `extract_text(prompt, system=None)` →
+  `ask_llm_text(...)` for the graph chat, where `system` wins over the client's
+  own message (the JSON contract) so a chat answer is prose, not JSON.
 
 ### 4.7 `repair.py` — bounded self-repair
 
@@ -710,7 +712,10 @@ use `string.Template` placeholders (`${context}`, `${text}`), not
 `str.format`, because these prompts carry JSON braces a human edits by hand and
 should never have to escape.
 
-- `DEFAULT_PROMPTS` — `extraction_system`, `extraction_user`, `starter`.
+- `DEFAULT_PROMPTS` — `extraction_system`, `extraction_user`, `starter`,
+  `chat_system`, `chat_user`. The chat pair is what makes an answer prose
+  (`chat_system`) written from one subgraph (`chat_user`: `question`, `history`,
+  `scope_note`, `subgraph`).
 - `PROMPT_FIELDS` / `REQUIRED_FIELDS` — the placeholders a template may use and
   the ones it must keep (`extraction_user`: `context`, `text`; `starter`:
   `text` required, the numeric caps optional).
@@ -732,7 +737,60 @@ should never have to escape.
 - `ValueError` for a template that cannot be rendered (a missing value or an
   invalid placeholder) and `KeyError` for an unknown prompt name.
 
-### 4.23 `workspace.py` — the application state and its long jobs
+### 4.23 `graph_scope.py` — the relevant subgraph for one question
+
+Read-only. Turns one topic text into a small, deterministic subgraph, with three
+faces: TriG for a viewer, a view directive for a frontend, and compact lines for
+a model. Constants: `MAX_TRIPLES = 300`, `MAX_TOKENS = 2500`, `MAX_FOCUS = 20`,
+`SCOPE_GRAPH` (`.../graphs/scope`), `SCOPE_FILE = "scope.trig"`,
+`DECLARATION_PREDICATES`, `DEFAULT_LIMITS`.
+
+- `select(text, graph, carry_over=(), limits=None)` → `Scope`. It reuses
+  `task_context.build_task_context` for relevance, so the same read-only
+  selection extraction uses decides what a question is about; then it collects
+  the statements around the matched resources.
+- `_focus(matched, carry_over, graph, limit)` — the resources to expand: what
+  matched now, else what the conversation was about, newest first.
+- `_collect(graph, nodes, context, limit)` — three passes: each focus node gets
+  a fair share first (`per_node`, with a slice reserved for declarations), then
+  the declarations and labels of everything mentioned, then the remainder. A
+  well-connected node therefore cannot push the schema out of the scope.
+- `_statements(graph, node)` — a node's statements in a stable and useful order:
+  `rdf:type` and labels first, then the rest, then what points at the node.
+- `Scope` — frozen dataclass with `question`, `nodes`, `triples`, `dropped`,
+  `focus_source` (`matched` / `carried` / `empty`), `diagnostics`, and the three
+  faces: `trig_text()` (one named graph), `view(file_name=SCOPE_FILE)`
+  (`{replace, files, mode, clearFilters, hideIsolated, focus}`), and
+  `render_for_model(budget=None, graph=None)` (labelled lines, whole triples,
+  `{text, triples, dropped, tokens}`). `summary()` is the plain record the
+  transcript keeps.
+- `describe(triple, graph)` / `_term` / `label_of` / `_short` — the line
+  renderer: qnames plus the preferred label where there is one.
+- `parse_trig(text)` — reads a scope document back to one graph (tests,
+  frontends that check what they were sent).
+
+### 4.24 `graph_chat.py` — one conversation about the graph
+
+Talking is a turn: select the relevant subgraph, render it, send the question
+with a little history, remember the answer *and* the subgraph behind it. Asking
+is injected, so this module never touches a network. Constants:
+`HISTORY_TURNS = 6`, `MAX_TURNS = 200`, `TRANSCRIPT_VIEWS = 20`, `MAX_FOCUS`.
+
+- `Turn(role, text, scope, index, view)` — one thing said; `role` is `you` or
+  `graph`, `scope` is the summary, `view` the directive that draws it.
+- `ChatSession(library=None, history_turns=6, turns=(), focus=())` —
+  `transcript()` (the newest `TRANSCRIPT_VIEWS` turns also carry their `view`,
+  so a long conversation does not grow without bound), `recent()` (the last few
+  turns for the prompt), `state()`, `reset()`, and
+  `ask(message, graph, ask, limits=None, budget=None, on_step=None)`. `ask`
+  returns `{answer, scope}`; `on_step(scope, rendered)` is called after
+  selection so a frontend can show what is about to be sent.
+- `_remember(scope)` — the focus for the next question: the newest matched
+  resources first, then what was already being discussed, bounded by `MAX_FOCUS`.
+- `chat_prompt(question, scope, history, graph, library, budget)` — the exact
+  prompt one turn would send, for a preview or a test.
+
+### 4.25 `workspace.py` — the application state and its long jobs
 
 The backend state for one dataset, with no HTTP and no argument parsing.
 
@@ -770,7 +828,13 @@ The backend state for one dataset, with no HTTP and no argument parsing.
   inbox is the working directory, one of its parents, or the dataset's own
   directory), `create_starter(text, progress=None)` (propose + publish on this
   workspace's store, reporting model calls and the write step when a `progress`
-  is given), `import_starter(name, text)` (parse an RDF document and publish it
+  is given), `chat_state()`, `chat_reset()`, `chat_ask(message, on_step=None)`
+  (one turn over `canonical_graph()`, answering
+  `{ok, answer, scope: {..., view}, turns}`), `start_chat(message)` and
+  `_chat_job` (the same turn as the one background job, so the page gets the
+  progress bar), `ask_text(prompt, system=None)` (a prose answer from the
+  extractor, never JSON),
+  `import_starter(name, text)` (parse an RDF document and publish it
   as the starter vocabulary in one write, answering
   `{ok, summary, log, status}` or `{ok: false, error}`),
   `ingest(files, log, progress=None)` (write each dropped text into
@@ -784,7 +848,7 @@ The backend state for one dataset, with no HTTP and no argument parsing.
 - Module constants: `DEFAULT_GRAPH = Path("ontology.trig")`,
   `DEFAULT_SOURCES = Path("sources/inbox")`.
 
-### 4.24 `operations.py` — every capability as one named operation
+### 4.26 `operations.py` — every capability as one named operation
 
 The contract between a frontend and the backend: one registry of names, each
 mapping to a small function `(workspace, payload) -> plain JSON record`. No
@@ -802,11 +866,12 @@ HTTP, no objects, no browser.
   `starter.create` (`text`, background), `ingest` (`files`, background),
   `operations.list`, `starter.import` (`name`, `text`), `prompts.list`,
   `prompts.save` (`name`, `text`), `prompts.reset` (`name`),
-  `prompts.preview` (`name`).
+  `prompts.preview` (`name`), `chat.ask` (`message`, background),
+  `chat.state`, `chat.reset`.
 - Payload helpers: `_started(workspace, job)` (the background answer, or the
   "a job is already running" refusal), `_integer`, `_files`.
 
-### 4.25 `studio.py` — the HTTP transport (and the page it serves)
+### 4.27 `studio.py` — the HTTP transport (and the page it serves)
 
 Carries things and nothing else: no state, no domain logic.
 
@@ -834,7 +899,7 @@ Carries things and nothing else: no state, no domain logic.
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
 
-### 4.26 The frontend split
+### 4.28 The frontend split
 
 The page is the visualization; the control panel is a separate file that the
 page loads only when it is served over HTTP.
@@ -855,7 +920,10 @@ page loads only when it is served over HTTP.
   drop zone and file picker for import, and the vocabulary in force), 2 Add
   sources (a source drop zone that refuses RDF with a pointer to section 1),
   3 Ingestion prompt (template picker, monospace editor, validation and advice
-  note, Preview, Save, Back to default), and the Run log.
+  note, Preview, Save, Back to default), 4 Chat with the graph (a transcript
+  where each answer shows how many triples were selected and how many were left
+  out, a **Show scope** button per answer, **Show everything**, and **Clear
+  conversation**), and the Run log.
 - `scripts/studio.css` — the panel's styles, injected as a `<link>` by the
   loader in the page when it is not opened from `file://`.
 
@@ -994,6 +1062,10 @@ items).
 | `starter` | `import_publication(text, name, names)` | `(Publication, summary)` |
 | `starter` | `import_starter(text, name, graph_path, names)` | the summary (already published) |
 | `vocabulary` | `Vocabulary.class_iri(kind)` / `relation_iri(p)` / `fact_iri(p)` | the declared IRI, or the generated one |
+| `graph_scope` | `select(text, graph, carry_over, limits)` | `Scope` (triples + view + model text) |
+| `graph_scope` | `Scope.view(file_name)` | the directive a frontend applies |
+| `graph_chat` | `ChatSession.ask(message, graph, ask, ...)` | `{answer, scope}` (and two new turns) |
+| `graph_chat` | `ChatSession.transcript()` | `[{role, text, scope, index, view}]` |
 | `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
 | `studio` | `Studio.ingest(files, log)` | list of saved source names |
 | `workspace` | `Workspace.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
@@ -1198,6 +1270,8 @@ publication only apply already-made decisions.
 | Operations | `status` · `dataset` · `progress {job}` · `reset` · `starter.create {text}` → `{job_id}` · `ingest {files:[{name,text}]}` → `{job_id}` · `operations.list` |
 | Studio jobs | starter: `model call N` (10 %, +25 % per call) → `writing the schema and shapes` (88 %) → 100 %; ingestion: per file (1/8 of the bar per file, half of it per window) with `starting`, `window k/n, asking the model`, `model replied`, `admitted`, `published` |
 | Studio polling | panel polls `progress {job}` (400 ms) while `running` is true |
+| Scope caps | `MAX_TRIPLES` 300, `MAX_TOKENS` 2500, `MAX_FOCUS` 20, `SCOPE_FILE` `scope.trig`, `SCOPE_GRAPH` `.../graphs/scope` |
+| Chat session | `HISTORY_TURNS` 6, `MAX_TURNS` 200, `TRANSCRIPT_VIEWS` 20 |
 | Prompt templates | `extraction_system`, `extraction_user`, `starter`; placeholders `context`, `text`, `min_classes`, `max_classes`, `xsd_names`; digest 12 hex characters |
 | Prompt overrides | `prompts.local.json` beside the dataset (git-ignored); `{"version": 1, "prompts": {...}}`; only non-default entries are stored |
 | Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
@@ -1240,6 +1314,8 @@ lever on prompt size; where both apply the smaller wins.
 | Template that cannot be used | `prompts.PromptLibrary.validate` | an error string: empty, a missing required placeholder, an unknown placeholder, a bare `$` |
 | Template that cannot be rendered | `prompts.PromptLibrary.render` | `ValueError` naming the missing value |
 | Unknown prompt name | `PromptLibrary._known` → the workspace | `KeyError`, answered as `{ok: false, error}` |
+| Empty chat question | `ChatSession.ask` / the operation | `ValueError` / `{ok: false, error}` |
+| Extractor without text answers | `Workspace.ask_text` | `RuntimeError("…cannot answer with text…")` |
 | Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
 | Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
 | Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
@@ -1311,6 +1387,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes. |
 | `test_view_html.py` | `view_html.write_report` renders `view_report.build_report` output as one self-contained page. |
 | `test_install_smoke.py` | The package imports and the console script is installed. |
+| `test_graph_chat.py` | The scope selector: focus from the question, statements plus declarations, the triple cap with a reported `dropped`, a well-connected node not pushing the schema out, deterministic output, carry-over for a follow-up, an empty match, the TriG/view/model faces, and the summary. The chat: a turn answers from the subgraph, the transcript keeps each subgraph (bounded to the newest turns), history reaches the prompt, reset, an edited chat prompt, and the workspace operations end to end. |
 | `test_prompts.py` | The three defaults and their validity, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
 | `test_starter_import.py` | RDF detection (suffix and content sniff), `parse_rdf` for Turtle/TriG/unknown/garbage, partitioning a plain ontology into roles, importing this project's own named graphs role for role (keeping a foreign graph as data), refusing a document with no vocabulary, an atomic failure leaving the old dataset alone, the operation answers, and the end-to-end proof that data-only ingestion after an import types individuals with the imported classes and predicates and creates no `class:*` twins. |
@@ -1447,17 +1524,28 @@ pattern numbers are pinned on the frozen miniature in
     (`starter.import`, or `text-to-ontology-starter --import`), while the Add
     sources zone refuses RDF and points at section 1 — feeding a syntax file to
     the extractor would only produce noise.
-36. **One route, every capability**: the transport is a dispatcher over
+36. **A chat answer is only as wide as its scope**: each turn shows the model
+    one bounded subgraph (300 triples, types and labels ranked first, a slice
+    reserved for declarations) and nothing else; the transcript keeps that same
+    subgraph, so a reader can always see what the answer was based on. A
+    follow-up carries the previous focus over, which is what makes "and
+    Germany?" work without repeating the question.
+37. **The chat system prompt wins over the extractor's**: the same
+    `OpenRouterExtractor` answers extraction (JSON, `extraction_system`) and
+    chat (prose, `chat_system`); `extract_text(prompt, system)` takes the
+    caller's system message, because the first live run answered the chat with
+    JSON while the extraction contract was still in force.
+38. **One route, every capability**: the transport is a dispatcher over
     `operations.call`, so a new capability is one function plus one `Operation`
     line in `operations.py` — `studio.py` does not change, and an unknown name
     is the only 404. `GET` carries arguments in the query string (as strings;
     the operation coerces), `POST` carries a JSON body.
-37. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+39. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
     markup, style, or logic, and loads `studio.js` / `studio.css` only when it
     is not opened from `file://`. The page owns `#workspace` layout so it still
     renders standalone, and the only contract between the two files is the
     `window.__lens` view API.
-38. **A view is data, not code**: `applyView({replace, files, mode, focus,
+40. **A view is data, not code**: `applyView({replace, files, mode, focus,
     filters, hideIsolated, clearFilters})` is the whole picture-changing
     surface; the lens resolves IRIs to nodes and filter keys to internal sets,
     and ignores junk, so a backend bug can mislead the picture but cannot break
