@@ -696,6 +696,22 @@
       </div>
 
       <div class="card">
+        <h3><span class="badge write">edit</span> graph_edit.py</h3>
+        <p class="what">Change the graph the way a person writes Turtle: additions are ordinary statements, a line starting with <code>- </code> removes one. Nothing is applied by parsing — a patch is checked, previewed with a diff, and then applied by id, so what was seen is what lands.</p>
+        <ul class="members">
+          <li><span class="fn">parse_patch(text)</span><span class="desc">additions, <code>- </code> removals, shared prefixes, comments</span></li>
+          <li><span class="fn">preview(graph, text, source, allow_new_vocabulary, shapes)</span><span class="desc">→ Patch: triples, errors, warnings, stable patch_id</span></li>
+          <li><span class="fn">check_patch(...)</span><span class="desc">new vocabulary (locked by default), undeclared use, class/property collision, SHACL as warnings</span></li>
+          <li><span class="fn">publication(store, names, patch)</span><span class="desc">target + provenance only: schema, shapes and review are never touched</span></li>
+          <li><span class="fn">provenance_for(patch)</span><span class="desc">one prov:Activity per edit, one rdf:Statement per triple, <code>prov:wasGeneratedBy</code> / <code>wasInvalidatedBy</code></span></li>
+          <li><span class="fn">fenced_turtle(answer) · data_turtle(graph)</span><span class="desc">find a proposal in an answer; show the editable graph</span></li>
+        </ul>
+        <div class="outcome"><span class="tag">safety</span>
+          <p class="line">The applied bytes are the previewed bytes (apply takes the patch id). A chat answer's Turtle block is only ever a proposal: it is previewed, and the model's invented IRIs are exactly what the vocabulary and collision checks catch.</p>
+        </div>
+      </div>
+
+      <div class="card">
         <h3><span class="badge read">chat</span> graph_scope.py + graph_chat.py</h3>
         <p class="what">Talking to a graph, not to a model: one question selects a bounded, deterministic subgraph (the same relevance layer extraction uses), the answer is written from that subgraph only, and the transcript keeps the subgraph so anyone can see what the model was shown.</p>
         <ul class="members">
@@ -740,7 +756,7 @@
           <li><span class="fn">_ProgressReporter(RunReporter)</span><span class="desc">run log + one progress step per checkpoint, spanning every dropped file</span></li>
           <li><span class="fn">Operation(name, summary, handler, args, background)</span><span class="desc">one capability and its published metadata</span></li>
           <li><span class="fn">REGISTRY · describe() · call(workspace, name, payload)</span><span class="desc">the contract; unknown names raise</span></li>
-          <li><span class="const">operations</span><span class="desc">status · dataset · progress · reset · starter.create/import · ingest · prompts.list/save/reset/preview · chat.ask/state/reset · operations.list</span></li>
+          <li><span class="const">operations</span><span class="desc">status · dataset · progress · reset · starter.create/import · ingest · prompts.list/save/reset/preview · chat.ask/state/reset · edit.current/preview/apply · operations.list</span></li>
         </ul>
         <div class="outcome"><span class="tag">rule</span>
           <p class="line">One route, every capability: adding one means one function plus one <code>Operation</code> line. <code>studio.py</code> and the frontend keep working; only the button that calls it is new.</p>
@@ -761,7 +777,7 @@
         </ul>
         <div class="outcome"><span class="tag">page</span>
           <p class="line"><b>frontend split</b>: <code>triple-lens.html</code> is the visualization (plus a documented <code>window.__lens</code> view API); <code>studio.js</code> + <code>studio.css</code> are the panel, loaded only when the page is served. The panel holds controls and nothing else: named operations in, view directives out.</p>
-          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; section 1 creates the starter <i>or</i> imports a dropped RDF/Turtle/TriG file (and section 2 refuses RDF with a pointer back); section 4 is the chat with the graph, each answer showing the subgraph it used; then drop sources → reset, plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
+          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; section 1 creates the starter <i>or</i> imports a dropped RDF/Turtle/TriG file (and section 2 refuses RDF with a pointer back); section 4 is the chat with the graph, each answer showing the subgraph it used and any Turtle proposal it made; section 5 edits the data graph (Load, preview diff, Apply, allow-new-vocabulary); plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
           <p class="line"><b>progress</b>: one bar pinned under the Studio header, labelled with the running job. Starter: model call 1, 2… (repairs included) then the write step. Ingestion: per file and per window — <code>n2.txt: window 1/1, asking the model</code> → <code>admitted</code> → <code>published</code>. The panel polls <code>progress</code> every 400 ms and the bar only moves forward.</p>
         </div>
       </div>
@@ -1011,6 +1027,7 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_cli.py</h3><p class="what">Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_view_html.py</h3><p class="what">view_html.write_report renders view_report.build_report output as one self-contained page.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_install_smoke.py</h3><p class="what">The package imports and the console script is installed.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_edit.py</h3><p class="what">Patch parsing (additions, removals, shared prefixes, comments, a missing full stop, both parse errors), fenced Turtle blocks, preview (stable id, both sides of the diff, vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), provenance records matching the publishing statement IRIs, a publication touching only target and provenance, and the workspace operations end to end.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_graph_chat.py</h3><p class="what">The scope selector (focus from the question, statements plus declarations, the cap with a reported dropped count, a hub not pushing the schema out, deterministic output, carry-over, an empty match, the TriG/view/model faces) and the chat (a turn answers from the subgraph, the transcript keeps it, history reaches the prompt, reset, an edited chat prompt, and the operations end to end).</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_prompts.py</h3><p class="what">The defaults and their validity; placeholder rules (required, unknown, bare $, escaped $$); the advisory checks; the override file (store, refuse, reload, reset, corrupt, stale); digests; and that an edited template reaches make_prompt, starter_prompt, and parse_source.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
@@ -1074,6 +1091,7 @@
     ├── <span class="py">prompts.py</span>               <span class="comment"># named editable prompt templates + overrides</span>
     ├── <span class="py">graph_scope.py</span>           <span class="comment"># [read-only] the relevant subgraph for one question</span>
     ├── <span class="py">graph_chat.py</span>            <span class="comment"># [read-only] one conversation; asking is injected</span>
+    ├── <span class="py">graph_edit.py</span>            <span class="comment"># patch: parse, check, preview, apply + PROV evidence</span>
     ├── <span class="py">workspace.py</span>             <span class="comment"># state + the two long jobs (no HTTP)</span>
     ├── <span class="py">operations.py</span>            <span class="comment"># every capability as one named operation</span>
     └── <span class="py">studio.py</span>                <span class="comment"># transport: page, assets, /api/op/&lt;name&gt;</span>

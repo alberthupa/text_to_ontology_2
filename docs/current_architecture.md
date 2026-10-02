@@ -121,7 +121,7 @@ text_to_ontology_2/
 ├── scripts/studio.css          # the panel's styles
 ├── sources/inbox/              # studio drop zone for source files (git-ignored)
 ├── docs/                       # this map + app_map.html + data_flow.html
-├── src/text_to_ontology/       # the importable package (43 .py files)
+├── src/text_to_ontology/       # the importable package (44 .py files)
 └── tests/                      # unittest: one file per module + pipeline
     ├── store_contract.py       # shared GraphStore contract test base
     ├── fixtures/
@@ -751,6 +751,14 @@ a model. Constants: `MAX_TRIPLES = 300`, `MAX_TOKENS = 2500`, `MAX_FOCUS = 20`,
   the statements around the matched resources.
 - `_focus(matched, carry_over, graph, limit)` — the resources to expand: what
   matched now, else what the conversation was about, newest first.
+- `loose_matches(text, graph, limit)` — the one bounded fallback when the strict
+  layer matched nothing: the question's words (with `_word_forms`, so
+  "countries" also tries "country") are looked up in the labels of everything
+  the graph names; a word that matches a class brings that class's instances
+  (`_instances_of`, direct and one `rdfs:subClassOf` level down) and, if there
+  are none, the class itself. `focus_source` becomes `loose` when this was used,
+  and `diagnostics["loose"]` says so. Without it, "what tools does the library
+  have?" found nothing while the graph had a class labelled "Tool".
 - `_collect(graph, nodes, context, limit)` — three passes: each focus node gets
   a fair share first (`per_node`, with a slice reserved for declarations), then
   the declarations and labels of everything mentioned, then the remainder. A
@@ -790,7 +798,45 @@ is injected, so this module never touches a network. Constants:
 - `chat_prompt(question, scope, history, graph, library, budget)` — the exact
   prompt one turn would send, for a preview or a test.
 
-### 4.25 `workspace.py` — the application state and its long jobs
+### 4.25 `graph_edit.py` — change the graph by hand, or from a proposal
+
+An edit is a patch written the way a person writes Turtle: additions are plain
+statements, removals are the same statement on a line that starts with `- `.
+Parsing alone never applies anything: `preview` parses and checks and returns a
+stable `patch_id`, and `apply` writes exactly the triples that were previewed.
+Constants: `EDIT_BASE` (`.../candidate/edit/`), `REMOVAL = "-"`,
+`PREVIEW_LIMIT = 40`, `VOCABULARY_TYPES`, `SYSTEM_NAMESPACES`.
+
+- `parse_patch(text)` → `(added, removed, errors)`. Prefix declarations are
+  shared: they are read once from the top of the patch and prepended to every
+  removal line, so a removal reads like the statement it deletes. Comments and
+  blank lines are ignored; a removal without a full stop is still read.
+- `check_patch(graph, added, removed, allow_new_vocabulary=False, shapes=())`
+  → `(errors, warnings, proposed)`. It reports: a removal that is not in the
+  graph (warning — the target state is still reached); new class or property
+  declarations (error unless `allow_new_vocabulary`); statements that use a
+  class or property nothing declares (error while the vocabulary is frozen, a
+  warning when it is open, since a patch's own declarations count as declared);
+  an IRI that would be both a class and a property (error); and SHACL violations
+  in the proposed data graph (warning: a hand edit is the author's call, but
+  they should see what the shapes say).
+- `preview(graph, text, source="hand", allow_new_vocabulary=False, shapes=())`
+  → `Patch`. `Patch.counts()`, `Patch.sample(limit)` (both sides of the diff),
+  `Patch.summary()` (the plain record an operation returns).
+- `publication(store, names, patch)` → `(Publication, evidence)`: the target and
+  provenance graphs only, so the schema, shapes, and review graphs are never
+  touched by an edit.
+- `provenance_for(patch, edit_iri=None)` → one `prov:Activity` per patch
+  (`onto:edit/<patch_id>`, labelled, with `onto:editSource`, `onto:editAdded`,
+  `onto:editRemoved`) and one `rdf:Statement` per added or removed triple
+  (`prov:wasGeneratedBy` / `prov:wasInvalidatedBy`), addressed by
+  `statement_uri(triple)` exactly as publishing addresses statements.
+- `fenced_turtle(text)` — every ```turtle / ```trig / bare ``` block of an
+  answer, in order; this is how a chat answer's proposal is found.
+- `data_turtle(graph)` — the editable part of the graph as Turtle with its
+  prefixes.
+
+### 4.26 `workspace.py` — the application state and its long jobs
 
 The backend state for one dataset, with no HTTP and no argument parsing.
 
@@ -828,7 +874,14 @@ The backend state for one dataset, with no HTTP and no argument parsing.
   inbox is the working directory, one of its parents, or the dataset's own
   directory), `create_starter(text, progress=None)` (propose + publish on this
   workspace's store, reporting model calls and the write step when a `progress`
-  is given), `chat_state()`, `chat_reset()`, `chat_ask(message, on_step=None)`
+  is given), `edit_current()` (the target data graph as Turtle), 
+  `edit_preview(text, allow_new_vocabulary=False, source="hand")` (check a patch
+  and remember exactly what applying it would do; `self.edits` maps a
+  `patch_id` to the checked `Patch`), `edit_apply(patch_id)` (write exactly
+  those triples, with PROV evidence, answering the new Turtle),
+  `_with_proposals(turns)` (check any Turtle block in a chat answer and attach
+  it as an unapplied proposal; called by `chat_ask` and `chat_state`),
+  `chat_state()`, `chat_reset()`, `chat_ask(message, on_step=None)`
   (one turn over `canonical_graph()`, answering
   `{ok, answer, scope: {..., view}, turns}`), `start_chat(message)` and
   `_chat_job` (the same turn as the one background job, so the page gets the
@@ -848,7 +901,7 @@ The backend state for one dataset, with no HTTP and no argument parsing.
 - Module constants: `DEFAULT_GRAPH = Path("ontology.trig")`,
   `DEFAULT_SOURCES = Path("sources/inbox")`.
 
-### 4.26 `operations.py` — every capability as one named operation
+### 4.27 `operations.py` — every capability as one named operation
 
 The contract between a frontend and the backend: one registry of names, each
 mapping to a small function `(workspace, payload) -> plain JSON record`. No
@@ -867,11 +920,12 @@ HTTP, no objects, no browser.
   `operations.list`, `starter.import` (`name`, `text`), `prompts.list`,
   `prompts.save` (`name`, `text`), `prompts.reset` (`name`),
   `prompts.preview` (`name`), `chat.ask` (`message`, background),
-  `chat.state`, `chat.reset`.
+  `chat.state`, `chat.reset`, `edit.current`, `edit.preview` (`text`,
+  `allow_new_vocabulary`), `edit.apply` (`patch_id`).
 - Payload helpers: `_started(workspace, job)` (the background answer, or the
   "a job is already running" refusal), `_integer`, `_files`.
 
-### 4.27 `studio.py` — the HTTP transport (and the page it serves)
+### 4.28 `studio.py` — the HTTP transport (and the page it serves)
 
 Carries things and nothing else: no state, no domain logic.
 
@@ -899,7 +953,7 @@ Carries things and nothing else: no state, no domain logic.
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
 
-### 4.28 The frontend split
+### 4.29 The frontend split
 
 The page is the visualization; the control panel is a separate file that the
 page loads only when it is served over HTTP.
@@ -923,7 +977,12 @@ page loads only when it is served over HTTP.
   note, Preview, Save, Back to default), 4 Chat with the graph (a transcript
   where each answer shows how many triples were selected and how many were left
   out, a **Show scope** button per answer, **Show everything**, and **Clear
-  conversation**), and the Run log.
+  conversation**), 5 Edit the graph (Load the graph, the Turtle editor, **allow
+  new classes and relations**, Preview changes with a `+`/`-` diff and the
+  warnings, then Apply changes — which is only enabled for the exact patch that
+  was previewed), and the Run log. A chat answer that contains a Turtle block
+  also shows `proposed change: +N −M` with **Apply this patch**, which goes
+  through the same preview id.
 - `scripts/studio.css` — the panel's styles, injected as a `<link>` by the
   loader in the page when it is not opened from `file://`.
 
@@ -1066,6 +1125,11 @@ items).
 | `graph_scope` | `Scope.view(file_name)` | the directive a frontend applies |
 | `graph_chat` | `ChatSession.ask(message, graph, ask, ...)` | `{answer, scope}` (and two new turns) |
 | `graph_chat` | `ChatSession.transcript()` | `[{role, text, scope, index, view}]` |
+| `graph_edit` | `preview(graph, text, source, allow_new_vocabulary, shapes)` | `Patch` (triples, errors, warnings, `patch_id`) |
+| `graph_edit` | `parse_patch(text)` | `(added, removed, errors)` |
+| `graph_edit` | `publication(store, names, patch)` | `(Publication, evidence)` — target and provenance only |
+| `graph_edit` | `fenced_turtle(answer)` | the Turtle blocks of an answer |
+| `graph_edit` | `data_turtle(graph)` | the editable graph as Turtle |
 | `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
 | `studio` | `Studio.ingest(files, log)` | list of saved source names |
 | `workspace` | `Workspace.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
@@ -1272,6 +1336,7 @@ publication only apply already-made decisions.
 | Studio polling | panel polls `progress {job}` (400 ms) while `running` is true |
 | Scope caps | `MAX_TRIPLES` 300, `MAX_TOKENS` 2500, `MAX_FOCUS` 20, `SCOPE_FILE` `scope.trig`, `SCOPE_GRAPH` `.../graphs/scope` |
 | Chat session | `HISTORY_TURNS` 6, `MAX_TURNS` 200, `TRANSCRIPT_VIEWS` 20 |
+| Edits | `REMOVAL = "-"`, `PREVIEW_LIMIT` 40, `EDIT_BASE` `.../candidate/edit/`; the vocabulary is frozen unless `allow_new_vocabulary` |
 | Prompt templates | `extraction_system`, `extraction_user`, `starter`; placeholders `context`, `text`, `min_classes`, `max_classes`, `xsd_names`; digest 12 hex characters |
 | Prompt overrides | `prompts.local.json` beside the dataset (git-ignored); `{"version": 1, "prompts": {...}}`; only non-default entries are stored |
 | Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
@@ -1316,6 +1381,9 @@ lever on prompt size; where both apply the smaller wins.
 | Unknown prompt name | `PromptLibrary._known` → the workspace | `KeyError`, answered as `{ok: false, error}` |
 | Empty chat question | `ChatSession.ask` / the operation | `ValueError` / `{ok: false, error}` |
 | Extractor without text answers | `Workspace.ask_text` | `RuntimeError("…cannot answer with text…")` |
+| Patch that does not parse | `graph_edit.parse_patch` | an error line naming the statement |
+| Patch that changes the vocabulary | `graph_edit.check_patch` | an error naming the new IRIs, unless `allow_new_vocabulary` |
+| Applying an unknown or stale patch | `Workspace.edit_apply` | `{ok: false, error: "…press Preview again…"}` |
 | Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
 | Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
 | Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
@@ -1387,6 +1455,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes. |
 | `test_view_html.py` | `view_html.write_report` renders `view_report.build_report` output as one self-contained page. |
 | `test_install_smoke.py` | The package imports and the console script is installed. |
+| `test_graph_edit.py` | Patch parsing (additions, removals, shared prefixes, a comment, a missing full stop, both kinds of parse error), fenced Turtle blocks, preview (stable id, both sides of the diff, new vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), the provenance records matching the publishing statement IRIs, the publication touching only target and provenance, and the workspace operations end to end (current, preview, apply, a refused patch never stored, the toggle travelling with the preview). |
 | `test_graph_chat.py` | The scope selector: focus from the question, statements plus declarations, the triple cap with a reported `dropped`, a well-connected node not pushing the schema out, deterministic output, carry-over for a follow-up, an empty match, the TriG/view/model faces, and the summary. The chat: a turn answers from the subgraph, the transcript keeps each subgraph (bounded to the newest turns), history reaches the prompt, reset, an edited chat prompt, and the workspace operations end to end. |
 | `test_prompts.py` | The three defaults and their validity, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
@@ -1535,17 +1604,34 @@ pattern numbers are pinned on the frozen miniature in
     chat (prose, `chat_system`); `extract_text(prompt, system)` takes the
     caller's system message, because the first live run answered the chat with
     JSON while the extraction contract was still in force.
-38. **One route, every capability**: the transport is a dispatcher over
+38. **An edit is always previewed first**: `edit.preview` parses and checks a
+    patch and stores the exact triples under a `patch_id`; `edit.apply` writes
+    those stored triples and nothing else, so editing the text box after a
+    preview invalidates the button until the next preview. A chat answer's
+    Turtle block goes through the same path and is never applied by the model.
+    Because the removal syntax is `- `, the parser shares the patch's prefix
+    declarations with every removal line.
+39. **A chat answer can be a proposal**: `_with_proposals` finds a fenced Turtle
+    block in an answer and previews it, so the panel can offer to apply it; a
+    proposal that would change the vocabulary or use undeclared names comes back
+    with the same errors a hand patch gets, and the model's guess at the IRIs is
+    exactly what that check catches.
+40. **The strict matcher misses plurals, so there is one bounded fallback**:
+    `loose_matches` runs only when the strict selection found no resources, and
+    only against labels, with singular forms and one subclass level for class
+    names. It is reported as `focus_source: "loose"`, so a reader can tell which
+    path found the subgraph.
+41. **One route, every capability**: the transport is a dispatcher over
     `operations.call`, so a new capability is one function plus one `Operation`
     line in `operations.py` — `studio.py` does not change, and an unknown name
     is the only 404. `GET` carries arguments in the query string (as strings;
     the operation coerces), `POST` carries a JSON body.
-39. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+42. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
     markup, style, or logic, and loads `studio.js` / `studio.css` only when it
     is not opened from `file://`. The page owns `#workspace` layout so it still
     renders standalone, and the only contract between the two files is the
     `window.__lens` view API.
-40. **A view is data, not code**: `applyView({replace, files, mode, focus,
+43. **A view is data, not code**: `applyView({replace, files, mode, focus,
     filters, hideIsolated, clearFilters})` is the whole picture-changing
     surface; the lens resolves IRIs to nodes and filter keys to internal sets,
     and ignores junk, so a backend bug can mislead the picture but cannot break

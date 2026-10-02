@@ -107,7 +107,25 @@ Only one job runs at a time, so graph writes never interleave.
    (`chat.ask`, `chat.state`, `chat.reset`), so a script can talk to the graph
    without the page.
 
-5. **Reset.** The studio's **Reset everything** button deletes the dataset file
+5. **Edit the graph.** Section 5 loads the data graph as Turtle. Change it —
+   additions are ordinary statements, a line starting with `- ` removes one —
+   then press **Preview changes** to see exactly what would change (additions,
+   removals, and any warnings), and **Apply changes** to write precisely what
+   you previewed. New classes and relations are refused unless you tick
+   *allow new classes and relations*, which keeps the same data-only rule
+   ingestion follows. Every applied edit is recorded in the provenance graph as
+   one `prov:Activity` plus a statement record per triple.
+
+   A chat answer that proposes a change comes back with the same preview
+   attached: the panel shows `proposed change: +N −M` with an **Apply this
+   patch** button, and the model's invented identifiers are exactly what the
+   checks catch before anything is written. Nothing a model writes is ever
+   applied on its own.
+
+   <sub>Buttons in the panel read exactly: Preview changes, Apply changes,
+   Apply this patch, allow new classes and relations.</sub>
+
+6. **Reset.** The studio's **Reset everything** button deletes the dataset file
    and every source in the inbox; **Clear view** only unloads the dataset from
    the graph view and deletes nothing. Without the page:
 
@@ -354,6 +372,8 @@ The pipeline that runs when you invoke the program:
   question, as TriG, as a view directive, and as text for a model
 - `src/text_to_ontology/graph_chat.py` — one conversation about the graph; each
   answer keeps the subgraph it was written from
+- `src/text_to_ontology/graph_edit.py` — patches (additions plus `- ` removals):
+  parse, check, preview, apply by id, with PROV evidence
 - `src/text_to_ontology/vocabulary.py` — the starter vocabulary read back out
   of a graph: which classes, relations, and facts ingestion may use, and which
   IRI each name means (so an imported ontology keeps its own)
