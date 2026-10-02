@@ -47,6 +47,10 @@
     starter: (text) => call('starter.create', { text }),
     ingest: (files) => call('ingest', { files }),
     operations: () => call('operations.list'),
+    prompts: () => call('prompts.list'),
+    promptSave: (name, text) => call('prompts.save', { name, text }),
+    promptReset: (name) => call('prompts.reset', { name }),
+    promptPreview: (name) => call('prompts.preview', { name }),
   };
 
   /* ---------- the panel ---------- */
@@ -82,6 +86,21 @@
       <p class="smuted" id="stReady"></p>
     </section>
     <section>
+      <h3>3 \u00b7 Ingestion prompt</h3>
+      <p class="smuted">The prompt sent for every source window. Placeholders stay in the text; anything else is yours to change. Saved edits live in <code>prompts.local.json</code> next to the dataset.</p>
+      <div class="srow">
+        <select id="stPromptName" aria-label="Which prompt to edit"></select>
+        <button class="btn" id="stPromptPreview">Preview</button>
+      </div>
+      <textarea id="stPromptText" spellcheck="false" class="scode"></textarea>
+      <p class="smuted" id="stPromptNote"></p>
+      <div class="sactions">
+        <button class="btn primary" id="stPromptSave">Save prompt</button>
+        <button class="btn" id="stPromptReset">Back to default</button>
+      </div>
+      <pre class="slog" id="stPromptPreviewBox" hidden></pre>
+    </section>
+    <section>
       <h3>Run log</h3>
       <pre class="slog" id="stLog">Nothing yet.</pre>
     </section>
@@ -108,7 +127,9 @@
   const warnEl = $('#stWarn'), readyEl = $('#stReady'), dropEl = $('#stDrop');
   const progressEl = $('#stProgress'), pLabel = $('#stPLabel'), pPct = $('#stPPct');
   const pFill = $('#stPFill'), pDetail = $('#stPDetail');
-  let busy = false, lastStatus = null;
+  const promptName = $('#stPromptName'), promptText = $('#stPromptText');
+  const promptNote = $('#stPromptNote'), promptPreview = $('#stPromptPreviewBox');
+  let busy = false, lastStatus = null, prompts = [];
 
   /* ---------- progress ---------- */
   function showProgress(state) {
@@ -126,7 +147,8 @@
   }
   function setBusy(on, message) {
     busy = on;
-    ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse'].forEach((s) => {
+    ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse',
+     '#stPromptSave', '#stPromptReset', '#stPromptPreview'].forEach((s) => {
       const button = $(s); if (button) button.disabled = on;
     });
     dropEl.classList.toggle('busy', on);
@@ -154,13 +176,21 @@
       if (result.log) logEl.textContent = result.log;
       if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
       if (result.status) renderStatus(result.status);
-      if (result.ok) await loadDataset();
+      if (result.prompts) renderPrompts(result.prompts);
+      if (result.ok && (result.status || result.sources || result.proposal)) {
+        await loadDataset();
+      }
     } catch (error) {
       hideProgress();
       logEl.textContent = 'Error: ' + error.message;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function refreshPrompts() {
+    const answer = await op.prompts();
+    if (answer && answer.prompts) renderPrompts(answer.prompts);
   }
 
   /* ---------- views ---------- */
@@ -251,6 +281,45 @@
   $('#stCollapse').onclick = () => panel.classList.toggle('collapsed');
   toggle.onclick = () => { panel.hidden = !panel.hidden; };
 
+  /* ---------- the prompt editor ---------- */
+  function renderPrompts(list) {
+    prompts = list || [];
+    const keep = promptName.value;
+    promptName.innerHTML = prompts.map((item) =>
+      `<option value="${esc(item.name)}">${esc(item.name)}${item.default ? '' : ' (edited)'}</option>`).join('');
+    promptName.value = prompts.some((item) => item.name === keep)
+      ? keep : (prompts.length ? prompts[0].name : '');
+    showPrompt();
+  }
+  function currentPrompt() {
+    return prompts.find((item) => item.name === promptName.value) || null;
+  }
+  function showPrompt() {
+    const item = currentPrompt();
+    if (!item) { promptText.value = ''; promptNote.textContent = ''; return; }
+    promptText.value = item.text;
+    const notes = [];
+    notes.push(item.default ? 'using the tested default' : 'edited version in use');
+    if (item.required.length) notes.push('must keep ' + item.required.map((f) => '$' + f).join(', '));
+    if (item.fields.length) notes.push('may use ' + item.fields.map((f) => '$' + f).join(', '));
+    if (item.error) notes.push('PROBLEM: ' + item.error);
+    (item.advice || []).forEach((line) => notes.push('check: ' + line));
+    promptNote.textContent = notes.join(' \u00b7 ');
+    promptNote.style.color = item.error ? 'var(--warn)' : '';
+    promptPreview.hidden = true;
+  }
+  promptName.onchange = showPrompt;
+  $('#stPromptSave').onclick = () => run(
+    () => op.promptSave(promptName.value, promptText.value), 'Saving the prompt\u2026');
+  $('#stPromptReset').onclick = () => run(
+    () => op.promptReset(promptName.value), 'Restoring the default prompt\u2026');
+  $('#stPromptPreview').onclick = async () => {
+    const answer = await op.promptPreview(promptName.value);
+    promptPreview.hidden = false;
+    promptPreview.textContent = answer.ok ? answer.prompt
+      : 'Error: ' + (answer.error || 'could not render this prompt');
+  };
+
   /* ---------- connect ---------- */
   (async function connect() {
     try {
@@ -259,6 +328,7 @@
       toggle.hidden = false;
       renderStatus(status);
       await loadDataset();
+      await refreshPrompts();
       logEl.textContent = status.triples > 0
         ? `Loaded ${status.graph} with ${fmt(status.triples)} triples.\n`
           + 'To start from scratch: Reset everything, paste a starter description, then drop sources.\n'

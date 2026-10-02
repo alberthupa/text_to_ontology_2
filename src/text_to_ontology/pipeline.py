@@ -7,13 +7,14 @@ from typing import Protocol
 
 from rdflib import Graph
 
+from . import prompts
 from .candidate_graph import build_candidate_graph
 from .candidate_validation import format_validation_failure, validate_candidates
 from .graph_management import save_graph
 from .graph_merge import apply_merge_plan
 from .graph_store import GraphNames, RdflibGraphStore
 from .ingest_sources import find_text_files, read_source
-from .llm import SYSTEM_PROMPT, OpenRouterExtractor
+from .llm import OpenRouterExtractor
 from .merge_policy import (
     AUTO_ACCEPT_MIN_CONFIDENCE,
     build_provenance,
@@ -150,6 +151,7 @@ class RunRequest:
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     validation: ValidationConfig = field(default_factory=ValidationConfig)
     graph_names: GraphNames = field(default_factory=GraphNames)
+    prompts: object = None
     dry_run: bool = False
 
 
@@ -258,9 +260,11 @@ def _extract_window(window, request, final_graph, source_graph, extractor,
     reporter.prompt_context(prompt_context)
 
     model = extractor.model()
-    prompt = make_prompt(window.text, prompt_context["text"])
+    library = request.prompts
+    system_prompt = prompts.render("extraction_system", library=library)
+    prompt = make_prompt(window.text, prompt_context["text"], library=library)
     reporter.asking_model(model)
-    reporter.llm_input(SYSTEM_PROMPT, prompt)
+    reporter.llm_input(system_prompt, prompt)
     started = time.monotonic()
 
     # Send the prompt; a messy answer is repaired by the model itself,
@@ -408,7 +412,10 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
     into its own source staging graph first; the final ontology is touched
     only after a document's last window was admitted.
     """
-    extractor = extractor or OpenRouterExtractor(model=request.extraction.model)
+    library = request.prompts
+    system_prompt = prompts.render("extraction_system", library=library)
+    extractor = extractor or OpenRouterExtractor(
+        model=request.extraction.model, system_prompt=system_prompt)
     reporter = reporter or RunReporter()
     names = request.graph_names
     names.validate()
@@ -470,7 +477,13 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
             canonical_graph(roles, names), document, staged.packages,
             staged.admission_plans,
             request.merge.min_auto_accept_confidence,
-            planner=plan_graph_merge, vocabulary=vocabulary)
+            planner=plan_graph_merge, vocabulary=vocabulary,
+            configuration={
+                "extraction_system_sha256": prompts.digest(
+                    "extraction_system", library=library),
+                "extraction_user_sha256": prompts.digest(
+                    "extraction_user", library=library),
+            })
         merge_plan = document_merge["merge_plan"]
         reporter.merge_plan(
             merge_plan, document_merge["candidates"],

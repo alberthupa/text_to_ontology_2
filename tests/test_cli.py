@@ -32,7 +32,7 @@ def run_cli(argv, responses):
     """Run cli.main() with a patched LLM boundary; report code and output."""
     prompts = []
 
-    def fake_extract(prompt):
+    def fake_extract(prompt, system=None):
         prompts.append(prompt)
         response = responses.pop(0) if responses else {}
         return response() if callable(response) else response

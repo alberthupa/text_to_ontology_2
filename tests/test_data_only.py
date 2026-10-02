@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from text_to_ontology.prompts import PromptLibrary
+
 from rdflib import Graph
 from rdflib.namespace import OWL, RDF, RDFS
 
@@ -50,12 +52,14 @@ class FakeExtractor:
     def __init__(self, answer):
         self.answer = answer
         self.calls = 0
+        self.prompts = []
 
     def model(self):
         return "fake-model"
 
     def extract(self, prompt):
         self.calls += 1
+        self.prompts.append(prompt)
         return self.answer
 
 
@@ -126,6 +130,46 @@ class MergePlanTest(unittest.TestCase):
                             and triple[2] in (OWL.Class, OWL.ObjectProperty,
                                               OWL.DatatypeProperty)
                             for triple in plan["domain_triples"]))
+
+
+class EditedPromptRunTest(unittest.TestCase):
+    """A run uses the prompt templates in force, and names them in the plan."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.base = Path(self.directory.name)
+        self.graph = self.base / "ontology.trig"
+        self.source = self.base / "note.txt"
+        self.source.write_text("Alice works for Acme.", encoding="utf-8")
+        self.library = PromptLibrary(self.base / "prompts.local.json")
+        self.library.set("extraction_user", "${context}HANDEDITED ${text}")
+        self.library.set("extraction_system", "EDITED SYSTEM")
+        self.store = starter_store(self.graph)
+
+    def test_the_extractor_receives_the_edited_prompt(self):
+        extractor = FakeExtractor(DECLARED)
+        run_text_to_graph(
+            RunRequest(source=self.source, graph_path=self.graph,
+                       merge=MergeConfig(require_declared_vocabulary=True),
+                       prompts=self.library),
+            graph_store=self.store, extractor=extractor, reporter=RunReporter())
+        self.assertIn("HANDEDITED", extractor.prompts[0])
+
+    def test_the_plan_names_the_prompt_templates_used(self):
+        request = RunRequest(
+            source=self.source, graph_path=self.graph,
+            merge=MergeConfig(require_declared_vocabulary=True),
+            prompts=self.library)
+        result = run_text_to_graph(
+            request, graph_store=self.store,
+            extractor=FakeExtractor(DECLARED), reporter=RunReporter())
+        configuration = result.documents[0].publication_plan \
+            .document_merge["configuration"]
+        self.assertEqual(configuration["extraction_system_sha256"],
+                         self.library.digest("extraction_system"))
+        self.assertEqual(configuration["extraction_user_sha256"],
+                         self.library.digest("extraction_user"))
 
 
 class DataOnlyRunTest(unittest.TestCase):

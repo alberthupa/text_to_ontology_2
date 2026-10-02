@@ -22,6 +22,7 @@ from .graph_management import bind
 from .graph_store import GraphNames, RdflibGraphStore
 from .llm import OpenRouterExtractor
 from .pipeline import MergeConfig, RunRequest, run_text_to_graph
+from .prompts import DEFAULT_FILE, PREVIEW_VALUES, PromptLibrary
 from .run_report import RunReporter
 from .starter import proposal_summary, propose_starter, starter_publication
 from .vocabulary import read_vocabulary
@@ -167,13 +168,27 @@ class Workspace:
     """One dataset, its source inbox, and the jobs that change them."""
 
     def __init__(self, graph_path=DEFAULT_GRAPH, sources_dir=DEFAULT_SOURCES,
-                 model=None, names=None, extractor=None):
+                 model=None, names=None, extractor=None, prompts_path=None):
         self.names = names or GraphNames()
         self.graph_path = Path(graph_path)
         self.sources_dir = Path(sources_dir)
-        self.extractor = extractor or OpenRouterExtractor(model=model)
+        self.model = model
+        # An injected extractor is used as-is; otherwise one is built per run,
+        # so an edited extraction_system prompt takes effect immediately.
+        self.extractor = extractor
+        # Prompt overrides live beside the dataset they belong to.
+        self.prompts = PromptLibrary(
+            prompts_path or self.graph_path.parent / DEFAULT_FILE)
         self.store = RdflibGraphStore(path=self.graph_path)
         self.progress = Progress()
+
+    def extractor_for_run(self):
+        """The extractor this run should use, with the prompts in force now."""
+        if self.extractor is not None:
+            return self.extractor
+        return OpenRouterExtractor(
+            model=self.model,
+            system_prompt=self.prompts.render("extraction_system"))
 
     # ---------- reading ----------
 
@@ -256,15 +271,15 @@ class Workspace:
 
     def create_starter(self, text, progress=None):
         """Propose a starter ontology from pasted text and install it."""
-        extractor = self.extractor
+        extractor = self.extractor_for_run()
         if progress is not None:
             def model_call(calls):
                 progress.update(
                     percent=min(10 + 25 * calls, 80),
                     detail=f"model call {calls}"
                            + ("" if calls == 1 else " (repairing the answer)"))
-            extractor = _CountingExtractor(self.extractor, model_call)
-        proposal = propose_starter(text, extractor)
+            extractor = _CountingExtractor(extractor, model_call)
+        proposal = propose_starter(text, extractor, library=self.prompts)
         if progress is not None:
             progress.update(percent=88, detail="writing the schema and shapes")
         self.store.publish(starter_publication(proposal, self.names))
@@ -330,14 +345,57 @@ class Workspace:
             log.write(f"\n=== {path.name} ===\n")
             result = run_text_to_graph(
                 RunRequest(source=path, graph_path=self.graph_path,
-                           merge=MergeConfig(require_declared_vocabulary=True)),
+                           merge=MergeConfig(require_declared_vocabulary=True),
+                           prompts=self.prompts),
                 graph_store=self.store,
-                extractor=self.extractor,
+                extractor=self.extractor_for_run(),
                 reporter=_ProgressReporter(log, path.name, number,
                                            len(written), progress),
             )
             log.write(f"\n{path.name}: {result.triples} triples in the dataset\n")
         return [path.name for path in written]
+
+    # ---------- prompts ----------
+
+    def prompt_list(self):
+        """Every prompt template, with its override state and any problem."""
+        return {"ok": True, "prompts": self.prompts.describe()}
+
+    def prompt_save(self, name, text):
+        """Validate and store one edited template."""
+        try:
+            error = self.prompts.set(name, text)
+        except KeyError as unknown:
+            return {"ok": False, "error": str(unknown.args[0])}
+        if error:
+            return {"ok": False, "error": error,
+                    "prompts": self.prompts.describe()}
+        return {"ok": True, "log": f"{name} saved to {self.prompts.path}\n",
+                "prompts": self.prompts.describe()}
+
+    def prompt_reset(self, name):
+        """Go back to the tested default for one template."""
+        try:
+            self.prompts.reset(name)
+        except KeyError as unknown:
+            return {"ok": False, "error": str(unknown.args[0])}
+        return {"ok": True, "log": f"{name} is back to its default\n",
+                "prompts": self.prompts.describe()}
+
+    def prompt_preview(self, name):
+        """Render one template with its sample values, for the editor."""
+        try:
+            error = self.prompts.validate(name, self.prompts.text(name))
+        except KeyError as unknown:
+            return {"ok": False, "error": str(unknown.args[0])}
+        if error:
+            return {"ok": False, "error": error}
+        try:
+            rendered = self.prompts.render(name, dict(PREVIEW_VALUES.get(name, {})))
+        except ValueError as failure:
+            return {"ok": False, "error": str(failure)}
+        return {"ok": True, "prompt": rendered,
+                "values": dict(PREVIEW_VALUES.get(name, {}))}
 
     def _write_source(self, name, text):
         """One dropped file, saved under a safe name in the inbox."""

@@ -17,3 +17,5 @@ ontology_views.html
 
 
 /sources/*
+# Per-dataset prompt overrides edited in the studio
+prompts.local.json

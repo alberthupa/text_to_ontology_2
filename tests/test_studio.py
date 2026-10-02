@@ -337,6 +337,75 @@ class OperationsTest(WorkspaceTestBase):
         wait_for_job(workspace)
 
 
+class PromptOperationsTest(WorkspaceTestBase):
+    def test_the_prompt_list_carries_everything_the_editor_needs(self):
+        listed = call(self.workspace(), "prompts.list", {})
+        self.assertTrue(listed["ok"])
+        names = [item["name"] for item in listed["prompts"]]
+        self.assertEqual(names, ["extraction_system", "extraction_user",
+                                 "starter"])
+        for item in listed["prompts"]:
+            self.assertIn("text", item)
+            self.assertIn("default", item)
+            self.assertIn("required", item)
+            self.assertIn("error", item)
+
+    def test_saving_a_prompt_validates_then_stores_it(self):
+        workspace = self.workspace()
+        refused = call(workspace, "prompts.save",
+                       {"name": "extraction_user", "text": "no markers"})
+        self.assertFalse(refused["ok"])
+        self.assertIn("$context", refused["error"])
+        saved = call(workspace, "prompts.save",
+                     {"name": "extraction_system", "text": "ONLY JSON PLEASE"})
+        self.assertTrue(saved["ok"], saved)
+        self.assertIn("prompts.local.json", saved["log"])
+        edited = [item for item in saved["prompts"]
+                  if item["name"] == "extraction_system"][0]
+        self.assertFalse(edited["default"])
+        self.assertEqual(edited["text"], "ONLY JSON PLEASE")
+
+    def test_resetting_a_prompt_restores_the_default(self):
+        workspace = self.workspace()
+        call(workspace, "prompts.save",
+             {"name": "extraction_system", "text": "ONLY JSON PLEASE"})
+        reset = call(workspace, "prompts.reset",
+                     {"name": "extraction_system"})
+        self.assertTrue(reset["ok"])
+        self.assertTrue([item for item in reset["prompts"]
+                         if item["name"] == "extraction_system"][0]["default"])
+
+    def test_a_preview_renders_the_template(self):
+        workspace = self.workspace()
+        preview = call(workspace, "prompts.preview",
+                       {"name": "extraction_user"})
+        self.assertTrue(preview["ok"], preview)
+        self.assertIn("Acme Corp participates in Springfield", preview["prompt"])
+        self.assertNotIn("${", preview["prompt"])
+
+    def test_a_missing_name_is_reported(self):
+        for name in ("prompts.save", "prompts.reset", "prompts.preview"):
+            answer = call(self.workspace(), name, {})
+            self.assertFalse(answer["ok"], name)
+            self.assertIn("name", answer["error"])
+
+    def test_an_unknown_name_is_reported_by_the_operation(self):
+        answer = call(self.workspace(), "prompts.save",
+                      {"name": "nope", "text": "x"})
+        self.assertFalse(answer["ok"])
+        self.assertIn("unknown prompt", answer["error"])
+
+    def test_an_edited_system_prompt_reaches_the_run(self):
+        # With no injected extractor, one is built per run from the prompts.
+        workspace = Workspace(graph_path=self.graph, sources_dir=self.sources)
+        workspace.prompts.set("extraction_system", "EDITED FOR A RUN")
+        self.assertEqual(workspace.extractor_for_run().system_prompt,
+                         "EDITED FOR A RUN")
+        # An injected extractor is never replaced.
+        injected = self.workspace(DECLARED)
+        self.assertIs(injected.extractor_for_run(), injected.extractor)
+
+
 class AssetsTest(unittest.TestCase):
     def test_the_page_and_the_panel_beside_it_are_served(self):
         assets = Assets(PAGE)

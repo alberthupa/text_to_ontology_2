@@ -71,6 +71,31 @@ def _ingest(workspace, payload):
     return _started(workspace, workspace.start_ingest(files))
 
 
+def _prompts_list(workspace, payload):
+    return workspace.prompt_list()
+
+
+def _prompts_save(workspace, payload):
+    name = str(payload.get("name") or "")
+    if not name:
+        return {"ok": False, "error": "no prompt name was given"}
+    return workspace.prompt_save(name, str(payload.get("text") or ""))
+
+
+def _prompts_reset(workspace, payload):
+    name = str(payload.get("name") or "")
+    if not name:
+        return {"ok": False, "error": "no prompt name was given"}
+    return workspace.prompt_reset(name)
+
+
+def _prompts_preview(workspace, payload):
+    name = str(payload.get("name") or "")
+    if not name:
+        return {"ok": False, "error": "no prompt name was given"}
+    return workspace.prompt_preview(name)
+
+
 def _operations(workspace, payload):
     return {"ok": True, "operations": describe()}
 
@@ -87,6 +112,14 @@ OPERATIONS = (
     Operation("ingest", "ingest dropped texts, data-only",
               _ingest, args=("files",), background=True),
     Operation("operations.list", "this list of named capabilities", _operations),
+    Operation("prompts.list", "the editable prompt templates and their state",
+              _prompts_list),
+    Operation("prompts.save", "validate and store one edited prompt template",
+              _prompts_save, args=("name", "text")),
+    Operation("prompts.reset", "go back to the tested default for one template",
+              _prompts_reset, args=("name",)),
+    Operation("prompts.preview", "render one template with sample values",
+              _prompts_preview, args=("name",)),
 )
 
 REGISTRY = {operation.name: operation for operation in OPERATIONS}

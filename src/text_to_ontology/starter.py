@@ -16,6 +16,7 @@ from pathlib import Path
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 
+from . import prompts
 from .document_publication import split_legacy_graph
 from .graph_management import FACT, ONTO, RELATION, seed_graph
 from .graph_merge import class_uri, label, slug
@@ -39,49 +40,17 @@ XSD_NAMES = "string, integer, decimal, float, boolean, date, datetime, anyURI"
 
 STARTER_SHAPE = '"classes", "relations", "facts"'
 
-STARTER_PROMPT = """
-You design the starter ontology for a small knowledge base.
-
-Read the initial information below and answer with exactly one JSON object:
-
-{{
-  "classes": [
-    {{"name": "Person", "description": "a human being"}}
-  ],
-  "relations": [
-    {{"name": "works-for", "description": "is employed by",
-      "domain": "Person", "range": "Organization"}}
-  ],
-  "facts": [
-    {{"name": "founded-in", "description": "year the organization started",
-      "domain": "Organization", "range": "integer"}}
-  ]
-}}
-
-Rules:
-- {MIN_CLASSES} to {MAX_CLASSES} classes, named in singular Title Case.
-- A relation connects two classes: "domain" is where it starts, "range" is
-  where it ends, and both must be one of the class names.
-- A fact gives a literal value: it has a "domain" class and optionally a
-  "range" from: {XSD_NAMES}.
-- Relation and fact names are short lowercase words separated by hyphens.
-  Never write camelCase, underscores, or empty values.
-- descriptions are optional and short.
-- Propose only what the initial information supports; do not invent a domain.
-- Answer with that JSON object only. No Markdown, no explanations.
-
-INITIAL INFORMATION
----
-{text}
----
-""".strip()
+# The default starter template lives in prompts.py, where a user can edit it.
+STARTER_PROMPT = prompts.DEFAULT_PROMPTS["starter"]
 
 
-def starter_prompt(text):
+def starter_prompt(text, library=None):
     """The one prompt that turns pasted information into a starter proposal."""
-    return STARTER_PROMPT.format(
-        text=text.strip(), MIN_CLASSES=MIN_CLASSES, MAX_CLASSES=MAX_CLASSES,
-        XSD_NAMES=XSD_NAMES)
+    return prompts.render(
+        "starter",
+        {"text": text.strip(), "min_classes": MIN_CLASSES,
+         "max_classes": MAX_CLASSES, "xsd_names": XSD_NAMES},
+        library=library)
 
 
 def format_starter_failure(result):
@@ -261,10 +230,10 @@ def _check_unique(records, section, word, issues):
         seen.add(key)
 
 
-def propose_starter(text, extractor, repair_attempts=2):
+def propose_starter(text, extractor, repair_attempts=2, library=None):
     """Ask the model for a starter ontology and validate it (with repair)."""
     outcome = extract_validated(
-        extractor, starter_prompt(text), validate_starter,
+        extractor, starter_prompt(text, library=library), validate_starter,
         max_repair_attempts=repair_attempts, shape=STARTER_SHAPE)
     if not outcome.ok:
         raise RuntimeError(outcome.raw_problem

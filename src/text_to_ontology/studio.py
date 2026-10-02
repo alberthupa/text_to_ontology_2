@@ -104,8 +104,10 @@ class StudioHandler(BaseHTTPRequestHandler):
         except UnknownOperation:
             return self._json({"ok": False, "error": f"unknown operation {name!r}"},
                               404)
-        except (RuntimeError, OSError, ValueError) as error:
-            return self._json({"ok": False, "error": str(error)})
+        except (RuntimeError, OSError, ValueError, KeyError) as error:
+            # A bug in one operation must not kill the connection; the page
+            # shows the message and keeps working.
+            return self._json({"ok": False, "error": f"{type(error).__name__}: {error}"})
         return self._json(answer)
 
     # ---------- request helpers ----------

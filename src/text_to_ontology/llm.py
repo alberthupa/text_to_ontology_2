@@ -38,8 +38,12 @@ def model_name():
     return os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)
 
 
-def ask_llm(prompt):
-    """Send one prompt to OpenRouter and return its JSON object."""
+def ask_llm(prompt, system=None):
+    """Send one prompt to OpenRouter and return its JSON object.
+
+    The system message defaults to `SYSTEM_PROMPT`; the pipeline passes the
+    `extraction_system` prompt instead, which a user may have edited.
+    """
     load_env()
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
@@ -49,7 +53,7 @@ def ask_llm(prompt):
         "model": model_name(),
         "temperature": 0,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
         ],
     }).encode()
@@ -87,8 +91,9 @@ class OpenRouterExtractor:
     reads environment variables itself.
     """
 
-    def __init__(self, model=None):
+    def __init__(self, model=None, system_prompt=None):
         self.model_override = model
+        self.system_prompt = system_prompt
 
     def model(self):
         """The configured model name, or the OpenRouter default."""
@@ -96,4 +101,4 @@ class OpenRouterExtractor:
 
     def extract(self, prompt):
         """Send one prompt and return its parsed JSON answer."""
-        return ask_llm(prompt)
+        return ask_llm(prompt, system=self.system_prompt)

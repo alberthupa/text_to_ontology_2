@@ -97,14 +97,19 @@ def build_document_candidates(document_id, packages, admission_plans):
 
 def plan_document_merge(canonical_graph, document, packages, admission_plans,
                         min_new_confidence, planner=plan_graph_merge,
-                        vocabulary=None):
-    """Resolve the whole reconciled source against canonical knowledge once."""
+                        vocabulary=None, configuration=None):
+    """Resolve the whole reconciled source against canonical knowledge once.
+
+    Anything in `configuration` joins the hashed run configuration, so an
+    artifact always names the prompt and policy that produced it.
+    """
     bundle = build_document_candidates(
         document.document_id, packages, admission_plans)
     models = sorted({model for _window, model, _candidates in packages})
     configuration = {
         "document_merge_version": DOCUMENT_MERGE_VERSION,
         "min_new_confidence": min_new_confidence,
+        **(configuration or {}),
     }
     provenance = build_provenance(
         Path(document.name), document.text, ", ".join(models))
