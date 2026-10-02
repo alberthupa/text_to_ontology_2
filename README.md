@@ -47,6 +47,17 @@ prompt** — plus the run log.
    echo "We roast coffee and sell it to cafes." | text-to-ontology-starter - ontology.trig
    ```
 
+   Already have an ontology? Drop an RDF/Turtle/TriG file on section 1 and it is
+   **imported** instead of asked: its classes and relations become the starter
+   vocabulary, its individuals become data, and its own IRIs are kept — after
+   the import, ingestion types and links new individuals with *those* names. A
+   file that declares no classes or properties is refused, and a failed import
+   leaves the previous dataset untouched. On the command line:
+
+   ```bash
+   text-to-ontology-starter --import my_ontology.ttl ontology.trig
+   ```
+
 Both long steps run in the background while the page polls the `progress`
 operation, so the studio shows a progress bar pinned under its header: the
 starter counts model calls (including repairs), and ingestion counts files and
@@ -326,7 +337,8 @@ The pipeline that runs when you invoke the program:
 - `src/text_to_ontology/prompts.py` — every model prompt as a named, validated,
   editable template (defaults in code, overrides in `prompts.local.json`)
 - `src/text_to_ontology/vocabulary.py` — the starter vocabulary read back out
-  of a graph: which classes, relations, and facts ingestion may use
+  of a graph: which classes, relations, and facts ingestion may use, and which
+  IRI each name means (so an imported ontology keeps its own)
 - `src/text_to_ontology/starter.py` — the starter ontology: one prompt, one
   checked proposal, one atomic write (`text-to-ontology-starter`)
 - `src/text_to_ontology/workspace.py` — the application state for one dataset:

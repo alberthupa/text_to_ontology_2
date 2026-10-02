@@ -667,7 +667,8 @@
         <p class="what">Read-only. The starter vocabulary read back out of a graph: which classes, relations, and facts ingestion may use. Nothing here writes.</p>
         <ul class="members">
           <li><span class="fn">read_vocabulary(graph)</span><span class="desc">→ Vocabulary(classes, relations, facts) keyed by IRI</span></li>
-          <li><span class="fn">declares_class(kind) / declares_relation(p) / declares_fact(p)</span><span class="desc">compare the IRI the pipeline would generate</span></li>
+          <li><span class="fn">class_iri(kind) / relation_iri(p) / fact_iri(p)</span><span class="desc">the starter is the naming authority: the declared IRI wins, so an imported ontology keeps its own names</span></li>
+          <li><span class="fn">declares_class(kind) / declares_relation(p) / declares_fact(p)</span><span class="desc">may ingestion use this name?</span></li>
           <li><span class="fn">class_names / relation_names / fact_names / is_empty</span><span class="desc">display names; "no starter yet" signal</span></li>
         </ul>
         <div class="const-block"><span class="tag">frozen</span>
@@ -685,8 +686,13 @@
           <li><span class="fn">starter_publication(proposal, names)</span><span class="desc">→ one Publication: schema / shapes / empty target, provenance, review</span></li>
           <li><span class="fn">create_starter(text, graph_path, …)</span><span class="desc">propose + publish</span></li>
           <li><span class="const">MIN_CLASSES / MAX_CLASSES / MAX_ASSERTIONS</span><span class="desc">2 / 20 / 40</span></li>
-          <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-starter [INFO|-] [GRAPH] [--model]</span></li>
+          <li><span class="fn">looks_like_rdf(name, text) · parse_rdf(text, name)</span><span class="desc">import an RDF/Turtle/TriG file instead of asking: a known suffix or a content sniff decides</span></li>
+          <li><span class="fn">import_publication(text, name, names) · import_starter(...)</span><span class="desc">our own named graphs import role for role; anything else is partitioned into schema / shapes / data / support</span></li>
+          <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-starter [INFO|-] [GRAPH] [--model] [--import FILE]</span></li>
         </ul>
+        <div class="outcome"><span class="tag">import</span>
+          <p class="line">A document with no class or property declaration is refused with its triple count, and the write is atomic: a bad file leaves the previous dataset untouched. An imported vocabulary keeps its own IRIs, and ingestion uses them.</p>
+        </div>
       </div>
 
       <div class="card">
@@ -739,7 +745,7 @@
         </ul>
         <div class="outcome"><span class="tag">page</span>
           <p class="line"><b>frontend split</b>: <code>triple-lens.html</code> is the visualization (plus a documented <code>window.__lens</code> view API); <code>studio.js</code> + <code>studio.css</code> are the panel, loaded only when the page is served. The panel holds controls and nothing else: named operations in, view directives out.</p>
-          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; create starter → drop sources → reset, plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
+          <p class="line"><b>the panel</b>: dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; section 1 creates the starter <i>or</i> imports a dropped RDF/Turtle/TriG file (and section 2 refuses RDF with a pointer back); then drop sources → reset, plus a run log. Opened from disk the page is the plain viewer: no panel, no server, everything read in the browser.</p>
           <p class="line"><b>progress</b>: one bar pinned under the Studio header, labelled with the running job. Starter: model call 1, 2… (repairs included) then the write step. Ingestion: per file and per window — <code>n2.txt: window 1/1, asking the model</code> → <code>admitted</code> → <code>published</code>. The panel polls <code>progress</code> every 400 ms and the bar only moves forward.</p>
         </div>
       </div>
@@ -991,6 +997,7 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_install_smoke.py</h3><p class="what">The package imports and the console script is installed.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_prompts.py</h3><p class="what">The defaults and their validity; placeholder rules (required, unknown, bare $, escaped $$); the advisory checks; the override file (store, refuse, reload, reset, corrupt, stale); digests; and that an edited template reaches make_prompt, starter_prompt, and parse_source.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_starter_import.py</h3><p class="what">RDF detection (suffix and content sniff), parse_rdf for Turtle/TriG/unknown/garbage, partitioning a plain ontology into roles, importing this project's own named graphs role for role (a foreign graph stays data), refusing a document with no vocabulary, an atomic failure that leaves the old dataset alone, the operation answers, and the end-to-end proof that ingestion after an import types individuals with the imported classes and predicates and creates no class:* twins.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_starter.py</h3><p class="what">Starter proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, the five-role publication, the summary, and create_starter replacing an old dataset.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_data_only.py</h3><p class="what">The data-only gate end to end: a declared extraction accepted with the schema and shapes unchanged, an undeclared kind or predicate rejected with nothing written, no declarations in a data-only plan, and the permissive default still declaring as before.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_studio.py</h3><p class="what">Three layers: the workspace (status/dataset/reset/safe-name round trips, data-only ingestion and its error, the job layer with real progress, a monotonic bar across files, one job at a time, results handed only to the job that asked); the operation registry (manifest equals the registry, plain-JSON answers, unknown names raise, missing arguments reported); and the transport (page + panel + styles served, traversal refused, GET/POST <code>/api/op/&lt;name&gt;</code>, 404 for unknown operations and old routes).</p></div>

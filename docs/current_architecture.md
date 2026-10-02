@@ -523,8 +523,9 @@ accept (with property declarations). Entity fields plan per-field outcomes
 another same-kind entity routes only that alias to review.
 With a `vocabulary`, planning is data-only: `_plan_new_entity` does not emit
 `class_triples(kind)` and `_plan_assertion` emits no property declarations, so
-a plan can only add individuals and statements. Identity decisions and
-conflict handling are unchanged.
+a plan can only add individuals and statements. It also asks the vocabulary for
+the class and predicate IRIs, so ingestion follows an imported ontology's own
+names. Identity decisions and conflict handling are unchanged.
 
 **Audit vocabulary** (all under `onto:`; support partition; no timestamps, no
 raw source/prompt/response): `onto:ExtractionEvent` (sourcePath, sourceSha256,
@@ -639,10 +640,16 @@ Read-only, no writes. `Vocabulary(classes, relations, facts)` holds three
 `{resource IRI: readable name}` dicts. `read_vocabulary(graph)` collects named
 subjects of `owl:Class` / `rdfs:Class`, `owl:ObjectProperty`, and
 `owl:DatatypeProperty` (blank nodes skipped, missing labels fall back to the
-IRI). `declares_class(kind)` / `declares_relation(predicate)` /
-`declares_fact(predicate)` compare the *IRI* the pipeline would generate
-(`class_uri` / `RELATION[slug]` / `FACT[slug]`), so spelling differences that
-fold to the same slug still match. `class_names` / `relation_names` /
+IRI).
+
+**The starter is the naming authority.** `class_iri(kind)`,
+`relation_iri(predicate)`, and `fact_iri(predicate)` return the declared IRI
+whose label (or local name) folds to the same slug as the candidate's name, or
+the generated `class:` / `relation:` / `fact:` IRI when nothing was declared.
+That is what lets an imported RDF vocabulary keep its own IRIs instead of
+gaining `class:*` twins: merge planning and the collision check both ask the
+vocabulary. `_match(declared, generated, name)` and `local_name(iri)` are the
+two small helpers. `class_names` / `relation_names` /
 `fact_names` are sorted display names; `is_empty` is the "no starter yet"
 signal the studio shows.
 
@@ -676,7 +683,24 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   publish; returns the proposal.
 - `proposal_summary(proposal)` — the short plain-text listing.
 - `build_parser()` / `main(argv)` — `text-to-ontology-starter [INFO|-] [GRAPH]
-  [--model]`; reads a file or standard input.
+  [--model] [--import FILE]`; reads a file or standard input, or imports an RDF
+  document with `--import`.
+- **Importing RDF instead of asking the model**: `RDF_SUFFIXES` (suffix →
+  rdflib format), `RDF_FORMATS` (the order tried when the suffix says nothing),
+  `RDF_SIGNS` (the content sniff). `looks_like_rdf(name, text)` trusts a known
+  suffix and otherwise sniffs; `parse_rdf(text, name)` returns
+  `(format, graph or Dataset)` and raises a `ValueError` listing what it tried;
+  `import_publication(text, name, names)` returns one `Publication` plus a
+  summary of counts and vocabulary, refusing a document that declares no
+  classes or properties; `import_starter(text, name, graph_path, names)` writes
+  it atomically; `import_summary(summary)` is the plain-text report.
+  `_roles_from_parsed(parsed, names)` imports this project's own named graphs
+  role for role when the document carries them (so an exported dataset can be
+  edited and dropped back in), keeps any other named graph as data, and
+  otherwise partitions the union: classes and properties to the schema,
+  embedded SHACL shapes to the shapes graph, individuals and statements to the
+  data graph, the rest as support. `_triples(parsed)` reads a graph or a
+  dataset.
 
 ### 4.22 `prompts.py` — editable prompt templates
 
@@ -746,7 +770,10 @@ The backend state for one dataset, with no HTTP and no argument parsing.
   inbox is the working directory, one of its parents, or the dataset's own
   directory), `create_starter(text, progress=None)` (propose + publish on this
   workspace's store, reporting model calls and the write step when a `progress`
-  is given), `ingest(files, log, progress=None)` (write each dropped text into
+  is given), `import_starter(name, text)` (parse an RDF document and publish it
+  as the starter vocabulary in one write, answering
+  `{ok, summary, log, status}` or `{ok: false, error}`),
+  `ingest(files, log, progress=None)` (write each dropped text into
   the inbox, then run the pipeline once per file with
   `MergeConfig(require_declared_vocabulary=True)`, reporting into `log` and
   moving the bar per file and window), `_write_source(name, text)` (safe name,
@@ -773,8 +800,9 @@ HTTP, no objects, no browser.
   name raises `UnknownOperation`.
 - The registry today: `status`, `dataset`, `progress` (`job`), `reset`,
   `starter.create` (`text`, background), `ingest` (`files`, background),
-  `operations.list`, `prompts.list`, `prompts.save` (`name`, `text`),
-  `prompts.reset` (`name`), `prompts.preview` (`name`).
+  `operations.list`, `starter.import` (`name`, `text`), `prompts.list`,
+  `prompts.save` (`name`, `text`), `prompts.reset` (`name`),
+  `prompts.preview` (`name`).
 - Payload helpers: `_started(workspace, job)` (the background answer, or the
   "a job is already running" refusal), `_integer`, `_files`.
 
@@ -823,9 +851,11 @@ page loads only when it is served over HTTP.
   named operations (`api/op/<name>`), and changes the picture only through the
   view API. It contains no domain logic, so a new backend capability needs only
   a new button here. Its sections are Dataset (status, Clear view, Reset
-  everything), 1 Starter ontology, 2 Add sources, 3 Ingestion prompt (template
-  picker, monospace editor, validation and advice note, Preview, Save, Back to
-  default), and the Run log.
+  everything), 1 Starter ontology (description box, Create, an RDF/Turtle/TriG
+  drop zone and file picker for import, and the vocabulary in force), 2 Add
+  sources (a source drop zone that refuses RDF with a pointer to section 1),
+  3 Ingestion prompt (template picker, monospace editor, validation and advice
+  note, Preview, Save, Back to default), and the Run log.
 - `scripts/studio.css` — the panel's styles, injected as a `<link>` by the
   loader in the page when it is not opened from `file://`.
 
@@ -959,6 +989,11 @@ items).
 | `starter` | `validate_starter(data)` | `{valid, candidates, issues, counts}` |
 | `starter` | `starter_publication(proposal, names)` | one `Publication` (five roles) |
 | `starter` | `create_starter(text, graph_path, extractor, names)` | the proposal (already published) |
+| `starter` | `looks_like_rdf(name, text)` | True when a dropped file is RDF |
+| `starter` | `parse_rdf(text, name)` | `(format, graph or Dataset)`, or `ValueError` |
+| `starter` | `import_publication(text, name, names)` | `(Publication, summary)` |
+| `starter` | `import_starter(text, name, graph_path, names)` | the summary (already published) |
+| `vocabulary` | `Vocabulary.class_iri(kind)` / `relation_iri(p)` / `fact_iri(p)` | the declared IRI, or the generated one |
 | `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
 | `studio` | `Studio.ingest(files, log)` | list of saved source names |
 | `workspace` | `Workspace.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
@@ -1156,6 +1191,7 @@ publication only apply already-made decisions.
 | Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |
 | Starter caps | `MIN_CLASSES` 2, `MAX_CLASSES` 20, `MAX_ASSERTIONS` 40 (`starter.py`) |
 | Starter literal ranges | `XSD_TYPES`: string/text/integer/int/decimal/float/double/boolean/date/datetime/time/anyURI |
+| Starter RDF import | `RDF_SUFFIXES` (`.ttl .turtle .trig .nt .n3 .nq .rdf .owl .jsonld .json`), `RDF_FORMATS` (`turtle trig nt nquads xml json-ld n3`), `RDF_SIGNS` (the content sniff) |
 | Workspace | `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox` (`workspace.py`) |
 | Studio transport | `DEFAULT_PORT` 8765 (next free port when taken), page `scripts/triple-lens.html`, assets `.js`/`.css` beside it, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
 | Transport routes | `GET /` · `GET /studio.js` · `GET /studio.css` · `GET /api/op/<name>?arg=value` · `POST /api/op/<name>` |
@@ -1194,6 +1230,8 @@ lever on prompt size; where both apply the smaller wins.
 | Invalid candidate package | `pipeline._extract_window` | `RuntimeError(format_validation_failure(...))` |
 | Undeclared class/relation/fact (data-only) | `candidate_validation.validate_candidates` | validation errors `entity.undeclared_kind`, `relation.undeclared_predicate`, `fact.undeclared_predicate` → repair → rejected window |
 | Rejected starter proposal | `starter.propose_starter` | `RuntimeError(format_starter_failure(...))` |
+| Unparseable RDF import | `starter.parse_rdf` | `ValueError` listing the formats tried |
+| RDF import without vocabulary | `starter.import_publication` | `ValueError` naming the triple count |
 | Page file not found | `studio.find_page` | `RuntimeError("Could not find scripts/triple-lens.html…")` |
 | Studio port in use | `studio.main` | `Error: cannot listen on {host}:{port}` + `SystemExit(1)` |
 | Unknown operation | `operations.call` / `StudioHandler` | `UnknownOperation` / `{ok: false, error}` with HTTP 404 |
@@ -1275,6 +1313,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_install_smoke.py` | The package imports and the console script is installed. |
 | `test_prompts.py` | The three defaults and their validity, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
+| `test_starter_import.py` | RDF detection (suffix and content sniff), `parse_rdf` for Turtle/TriG/unknown/garbage, partitioning a plain ontology into roles, importing this project's own named graphs role for role (keeping a foreign graph as data), refusing a document with no vocabulary, an atomic failure leaving the old dataset alone, the operation answers, and the end-to-end proof that data-only ingestion after an import types individuals with the imported classes and predicates and creates no `class:*` twins. |
 | `test_starter.py` | Proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, `starter_publication` roles and triples, `proposal_summary`, `create_starter` replacing an old dataset. |
 | `test_data_only.py` | The data-only gate end to end: declared extraction accepted with the schema and shapes unchanged, undeclared kind/predicate rejected and nothing written, no declarations in a data-only plan, and the permissive default still declaring as before. |
 | `test_studio.py` | Three layers in one file: `Workspace` status/dataset/reset/`_write_source` round trips, data-only ingestion and its error, and the job layer (progress from model calls and per-file/window checkpoints, a monotonic bar across several dropped files, a failed job finishing with its error, results handed only to the job that asked, one job at a time); the operation registry (manifest equals the registry, every operation answers plain JSON, unknown names raise, missing arguments are reported, a running job is refused); `Assets` (page + panel + styles served, traversal and unknown types refused); and the HTTP transport (`/`, `/studio.js`, `/studio.css`, `GET`/`POST /api/op/<name>`, 404 for unknown operations and old routes). |
@@ -1395,17 +1434,30 @@ pattern numbers are pinned on the frozen miniature in
     literal dollar. The two extraction digests join the run configuration, so
     an artifact names the templates that produced it, and `extractor_for_run()`
     rebuilds the client per run so an edited system prompt takes effect.
-34. **One route, every capability**: the transport is a dispatcher over
+34. **An imported vocabulary keeps its IRIs**: `Vocabulary.class_iri` /
+    `relation_iri` / `fact_iri` resolve a candidate name to the *declared* IRI,
+    so an imported `lib:Bike` is what new individuals are typed with and
+    `lib:made-by` is what new statements use. Merge planning and the collision
+    check both ask the vocabulary, which is why importing an ontology creates no
+    `class:*` twins and does not dead-end the data-only gate. Individuals always
+    stay in the project's `entity:` namespace; only classes and properties come
+    from the starter.
+35. **Importing RDF belongs to the starter step, not to ingestion**: a dropped
+    RDF/Turtle/TriG file is parsed and replaces the dataset like any starter
+    (`starter.import`, or `text-to-ontology-starter --import`), while the Add
+    sources zone refuses RDF and points at section 1 — feeding a syntax file to
+    the extractor would only produce noise.
+36. **One route, every capability**: the transport is a dispatcher over
     `operations.call`, so a new capability is one function plus one `Operation`
     line in `operations.py` — `studio.py` does not change, and an unknown name
     is the only 404. `GET` carries arguments in the query string (as strings;
     the operation coerces), `POST` carries a JSON body.
-35. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+37. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
     markup, style, or logic, and loads `studio.js` / `studio.css` only when it
     is not opened from `file://`. The page owns `#workspace` layout so it still
     renders standalone, and the only contract between the two files is the
     `window.__lens` view API.
-36. **A view is data, not code**: `applyView({replace, files, mode, focus,
+38. **A view is data, not code**: `applyView({replace, files, mode, focus,
     filters, hideIsolated, clearFilters})` is the whole picture-changing
     surface; the lens resolves IRIs to nodes and filter keys to internal sets,
     and ignores junk, so a backend bug can mislead the picture but cannot break
