@@ -190,6 +190,15 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
 #studio .sbody{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:16px}
 #studio.collapsed{width:38px}
 #studio.collapsed .sbody,#studio.collapsed .shead span{display:none}
+#stProgress{flex:none;padding:8px 12px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 6%,var(--panel))}
+#stProgress .sptop{display:flex;gap:8px;align-items:baseline;font-size:12.5px;font-weight:600}
+#stProgress .sptop span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stProgress .sptop b{font:500 12px var(--cond);color:var(--muted)}
+#stProgress .spdetail{margin-top:3px;color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stProgress .sptrack{margin-top:6px;height:6px;border-radius:4px;background:var(--chip);overflow:hidden}
+#stProgress .spfill{height:100%;width:0;border-radius:4px;background:var(--accent);transition:width .3s ease}
+#stProgress.running .spfill{background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.4) 0 6px,transparent 6px 12px);background-size:24px 100%;animation:spmove .9s linear infinite}
+@keyframes spmove{from{background-position:0 0}to{background-position:24px 0}}
 #studio h3{font:600 12px var(--sans);margin:0 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 #studio p{margin:0 0 8px}
 #studio .smuted{color:var(--muted);font-size:12.5px}
@@ -282,6 +291,11 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
 
 <aside id="studio" hidden aria-label="Studio">
   <div class="shead"><span>Studio</span><button class="btn quiet" id="stCollapse" title="Hide or show the studio column" aria-label="Hide or show the studio column">⇥</button></div>
+  <div id="stProgress" hidden role="status" aria-live="polite">
+    <div class="sptop"><span id="stPLabel">Working…</span><b id="stPPct"></b></div>
+    <div class="sptrack"><div class="spfill" id="stPFill"></div></div>
+    <div class="spdetail" id="stPDetail"></div>
+  </div>
   <div class="sbody">
     <section>
       <h3>Dataset</h3>
@@ -1858,6 +1872,8 @@ function filterDefs(model) {
 
   const panel = $('#studio'), toggle = $('#btnStudio');
   const statusEl = $('#stStatus'), logEl = $('#stLog'), vocabEl = $('#stVocab');
+  const progressEl = $('#stProgress'), pLabel = $('#stPLabel'), pPct = $('#stPPct');
+  const pFill = $('#stPFill'), pDetail = $('#stPDetail');
   const dropEl = $('#stDrop'), readyEl = $('#stReady'), warnEl = $('#stWarn');
   let busy = false, loaded = [], lastStatus = null;
 
@@ -1911,6 +1927,7 @@ function filterDefs(model) {
     ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse'].forEach((s) => { $(s).disabled = on; });
     dropEl.classList.toggle('busy', on);
     if (on && message) logEl.textContent = message;
+    if (!on) hideProgress();
   }
 
   async function loadDataset() {
@@ -1925,17 +1942,48 @@ function filterDefs(model) {
     lens.afterLoad([result]);
   }
 
+  function showProgress(state) {
+    if (!state || !state.running) { progressEl.hidden = true; return; }
+    progressEl.hidden = false;
+    progressEl.classList.add('running');
+    pLabel.textContent = state.label || 'Working…';
+    pPct.textContent = (state.percent == null ? '' : state.percent + '%');
+    pFill.style.width = (state.percent == null ? 100 : state.percent) + '%';
+    pDetail.textContent = state.detail || '';
+  }
+
+  function hideProgress() {
+    progressEl.hidden = true;
+    progressEl.classList.remove('running');
+  }
+
+  async function followJob(jobId, message) {
+    logEl.textContent = message;
+    let state = { running: true, label: message, percent: 0, detail: '' };
+    showProgress(state);
+    while (state.running) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      state = await api('api/progress?job=' + jobId);
+      showProgress(state);
+    }
+    hideProgress();
+    return state.result || { ok: false, error: 'the job ended without an answer' };
+  }
+
   async function run(action, message) {
     if (busy) return;
     setBusy(true, message);
     try {
-      const result = await action();
+      const started = await action();
+      const result = started && started.job_id
+        ? await followJob(started.job_id, message)
+        : started;
       if (result.log) logEl.textContent = result.log;
-      if (!result.ok && result.cancelled) logEl.textContent = result.error;
-      else if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
+      if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
       if (result.status) renderStatus(result.status);
       if (result.ok) await loadDataset();
     } catch (error) {
+      hideProgress();
       logEl.textContent = 'Error: ' + error.message;
     } finally {
       setBusy(false);
@@ -1950,15 +1998,17 @@ function filterDefs(model) {
       `Ingesting ${files.length} file${files.length > 1 ? 's' : ''}. This can take a minute per file…`);
   }
 
-  $('#stCreate').onclick = () => run(() => {
+  $('#stCreate').onclick = () => {
     const text = $('#stText').value.trim();
-    if (!text) throw new Error('paste some initial information first');
+    if (!text) { logEl.textContent = 'Error: paste some initial information first'; return; }
     const held = lastStatus ? lastStatus.triples : 0;
     if (held > 0 && !confirm(`A starter replaces the whole dataset and deletes its ${fmt(held)} triples.\n\nContinue?`)) {
-      return { ok: false, cancelled: true, error: 'Cancelled. Nothing was changed.' };
+      logEl.textContent = 'Cancelled. Nothing was changed.';
+      return;
     }
-    return api('api/starter', { text });
-  }, 'Asking the model for a starter ontology. This can take a minute…');
+    run(() => api('api/starter', { text }),
+        'Asking the model for a starter ontology. This can take a minute…');
+  };
 
   $('#stPick').onclick = () => $('#stFiles').click();
   $('#stFiles').onchange = () => {

@@ -4,6 +4,7 @@ import io
 import json
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -55,6 +56,30 @@ class FakeExtractor:
         answer = self.answers[min(self.calls, len(self.answers) - 1)]
         self.calls += 1
         return answer
+
+
+class BlockingExtractor(FakeExtractor):
+    """Waits until the test lets it answer, so a job can be observed running."""
+
+    def __init__(self, *answers):
+        super().__init__(*answers)
+        self.released = threading.Event()
+        self.started = threading.Event()
+
+    def extract(self, prompt):
+        self.started.set()
+        self.released.wait(5)
+        return super().extract(prompt)
+
+
+def wait_for_job(studio, timeout=10):
+    """Wait for the studio's one job to finish and return its result."""
+    deadline = time.monotonic() + timeout
+    while studio.progress.running_now:
+        if time.monotonic() > deadline:
+            raise AssertionError("the studio job did not finish in time")
+        time.sleep(0.02)
+    return studio.progress.snapshot(studio.progress.job_id)["result"]
 
 
 class StudioTestBase(unittest.TestCase):
@@ -152,6 +177,110 @@ class StudioTest(StudioTestBase):
         self.assertNotIn("graphs/provenance", trig)
 
 
+class StudioJobTest(StudioTestBase):
+    def test_a_starter_job_reports_progress_and_its_result(self):
+        studio = self.studio()
+        studio.extractor = BlockingExtractor(PROPOSAL)
+        job = studio.start_starter("people and companies")
+        self.assertIsNotNone(job)
+        self.assertTrue(studio.extractor.started.wait(5))
+        while_working = studio.progress.snapshot()
+        self.assertTrue(while_working["running"])
+        self.assertIn("model call 1", while_working["detail"])
+        studio.extractor.released.set()
+        result = wait_for_job(studio)
+        self.assertTrue(result["ok"], result)
+        self.assertIn("Starter ontology installed", result["log"])
+        self.assertTrue(result["status"]["ready"])
+        self.assertEqual(studio.progress.snapshot()["percent"], 100)
+
+    def test_an_ingest_job_reports_files_and_windows(self):
+        studio = self.studio(PROPOSAL, DECLARED)
+        studio.create_starter("people and companies")
+        recorded = []
+        real_update = studio.progress.update
+
+        def record(percent=None, detail=None):
+            if detail is not None:
+                recorded.append(detail)
+            real_update(percent=percent, detail=detail)
+
+        studio.progress.update = record
+        studio.extractor = BlockingExtractor(DECLARED)
+        studio.start_ingest([("note.txt", "Alice works for Acme.")])
+        self.assertTrue(studio.extractor.started.wait(5))
+        while_working = studio.progress.snapshot()
+        self.assertTrue(while_working["running"])
+        self.assertIn("note.txt", while_working["detail"])
+        self.assertIn("window 1/1", while_working["detail"])
+        studio.extractor.released.set()
+        result = wait_for_job(studio)
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["sources"], ["note.txt"])
+        self.assertTrue(any("starting" in detail for detail in recorded), recorded)
+        self.assertTrue(any("asking the model" in detail for detail in recorded),
+                        recorded)
+        self.assertTrue(any("window 1/1 admitted" in detail for detail in recorded),
+                        recorded)
+        self.assertTrue(any("published" in detail for detail in recorded), recorded)
+        self.assertEqual(studio.progress.snapshot()["percent"], 100)
+
+    def test_progress_spans_every_dropped_file(self):
+        studio = self.studio(PROPOSAL, DECLARED, DECLARED)
+        studio.create_starter("people and companies")
+        recorded = []
+        real_update = studio.progress.update
+
+        def record(percent=None, detail=None):
+            if percent is not None:
+                recorded.append((percent, detail))
+            real_update(percent=percent, detail=detail)
+
+        studio.progress.update = record
+        studio.ingest([("a.txt", "Alice works for Acme."),
+                       ("b.txt", "Acme hired Alice as a person.")],
+                      io.StringIO(), progress=studio.progress)
+        percents = [percent for percent, _detail in recorded]
+        self.assertEqual(percents, sorted(percents), recorded)
+        # the second file continues where the first ended instead of at zero
+        second = [percent for percent, detail in recorded
+                  if detail and "b.txt" in detail and "asking" in detail]
+        self.assertTrue(second, recorded)
+        self.assertGreaterEqual(second[0], 50, recorded)
+
+    def test_a_failed_job_still_finishes_with_an_error(self):
+        studio = self.studio(PROPOSAL, UNDECLARED)
+        studio.create_starter("people and companies")
+        studio.start_ingest([("note.txt", "A widget.")])
+        result = wait_for_job(studio)
+        self.assertFalse(result["ok"])
+        self.assertIn("starter ontology", result["error"])
+        self.assertFalse(studio.progress.running_now)
+
+    def test_only_one_job_runs_at_a_time(self):
+        studio = self.studio(PROPOSAL)
+        studio.extractor = BlockingExtractor(PROPOSAL)
+        self.assertIsNotNone(studio.start_starter("people and companies"))
+        self.assertTrue(studio.extractor.started.wait(5))
+        self.assertIsNone(studio.start_starter("something else"))
+        self.assertIsNone(studio.start_ingest([("note.txt", "text")]))
+        studio.extractor.released.set()
+        self.assertTrue(wait_for_job(studio)["ok"])
+
+    def test_a_result_is_only_handed_to_the_job_that_asked(self):
+        studio = self.studio(PROPOSAL)
+        first = studio.start_starter("people and companies")
+        wait_for_job(studio)
+        self.assertIsNotNone(studio.progress.snapshot(first)["result"])
+        self.assertIsNone(studio.progress.snapshot(0)["result"])
+        second = studio.start_starter("people and companies")
+        wait_for_job(studio)
+        self.assertGreater(second, first)
+        # a reloaded or stale page cannot pick up an earlier run's answer
+        self.assertIsNone(studio.progress.snapshot(first)["result"])
+        self.assertIsNotNone(studio.progress.snapshot(second)["result"])
+
+
 class StudioServerTest(StudioTestBase):
     def test_a_taken_port_falls_back_to_the_next_free_one(self):
         studio = self.studio()
@@ -186,6 +315,30 @@ class StudioHttpTest(StudioTestBase):
         with urllib.request.urlopen(request) as response:
             return response.status, json.loads(response.read())
 
+    def progress(self, job_id):
+        _status, body = self.get(f"/api/progress?job={job_id}")
+        return json.loads(body)
+
+    def job(self, path, payload):
+        """Start one job over HTTP and poll it the way the page does."""
+        _status, started = self.post(path, payload)
+        self.assertTrue(started.get("job_id"), started)
+        job_id = started["job_id"]
+        seen = []
+        deadline = time.monotonic() + 30
+        while True:
+            state = self.progress(job_id)
+            if state["detail"]:
+                seen.append(state["detail"])
+            if not state["running"]:
+                break
+            if time.monotonic() > deadline:
+                raise AssertionError("the job did not finish in time")
+            time.sleep(0.01)
+        self.assertEqual(state["percent"], 100)
+        state["seen"] = seen
+        return state["result"], state
+
     def test_status_the_page_and_the_dataset_answer(self):
         status, body = self.get("/api/status")
         self.assertEqual(status, 200)
@@ -204,18 +357,20 @@ class StudioHttpTest(StudioTestBase):
         self.assertIn("trig", json.loads(body))
 
     def test_the_starter_ingest_and_reset_round_trip(self):
-        _status, result = self.post("/api/starter",
-                                    {"text": "people and companies"})
-        self.assertTrue(result["ok"])
+        result, state = self.job("/api/starter",
+                                 {"text": "people and companies"})
+        self.assertTrue(result["ok"], result)
         self.assertTrue(result["status"]["ready"])
         self.assertEqual(result["status"]["classes"],
                          ["Entity", "Organization", "Person"])
+        self.assertIn("Creating the starter ontology", state["label"])
 
-        _status, result = self.post("/api/ingest", {"files": [
+        result, state = self.job("/api/ingest", {"files": [
             {"name": "note.txt", "text": "Alice works for Acme."}]})
-        self.assertTrue(result["ok"])
+        self.assertTrue(result["ok"], result)
         self.assertEqual(result["sources"], ["note.txt"])
         self.assertGreater(result["status"]["triples"], 0)
+        self.assertIn("Ingesting sources", state["label"])
 
         _status, result = self.post("/api/reset", {})
         self.assertTrue(result["ok"])
@@ -223,12 +378,33 @@ class StudioHttpTest(StudioTestBase):
         self.assertFalse(result["status"]["ready"])
 
     def test_an_undeclared_ingestion_answers_with_an_error(self):
-        self.post("/api/starter", {"text": "people and companies"})
+        self.job("/api/starter", {"text": "people and companies"})
         self.studio.extractor = FakeExtractor(UNDECLARED)
-        _status, result = self.post("/api/ingest", {"files": [
+        result, _state = self.job("/api/ingest", {"files": [
             {"name": "note.txt", "text": "A widget."}]})
         self.assertFalse(result["ok"])
         self.assertIn("starter ontology", result["error"])
+
+    def test_a_running_job_is_visible_and_a_second_one_is_refused(self):
+        self.studio.extractor = BlockingExtractor(PROPOSAL)
+        _status, started = self.post("/api/starter",
+                                     {"text": "people and companies"})
+        self.assertTrue(started["ok"], started)
+        self.assertTrue(self.studio.extractor.started.wait(5))
+
+        # what the page is polling while the model is thinking
+        state = self.progress(started["job_id"])
+        self.assertTrue(state["running"])
+        self.assertIn("Creating the starter ontology", state["label"])
+        self.assertIn("model call 1", state["detail"])
+        self.assertIsNone(state["result"])
+
+        _status, refused = self.post("/api/ingest", {"files": [
+            {"name": "note.txt", "text": "text"}]})
+        self.assertFalse(refused["ok"])
+        self.assertIn("already running", refused["error"])
+        self.studio.extractor.released.set()
+        wait_for_job(self.studio)
 
     def test_an_unknown_route_is_a_404(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:
