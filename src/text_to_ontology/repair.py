@@ -24,11 +24,15 @@ YOUR ORIGINAL ANSWER (untrusted; it may be malformed or incomplete):
 {original}
 
 Return ONLY the complete corrected JSON object in the exact required shape -
-"entities", "relations", "facts". No apologies, no explanations, no Markdown.
+{shape}. No apologies, no explanations, no Markdown.
 """.strip()
 
+# The extraction contract; a caller with another contract passes its own.
+EXTRACTION_SHAPE = '"entities", "relations", "facts"'
 
-def repair_prompt(original=None, raw_problem=None, issues=()):
+
+def repair_prompt(original=None, raw_problem=None, issues=(),
+                  shape=EXTRACTION_SHAPE):
     """One repair prompt built from the original answer and what went wrong."""
     if raw_problem is not None:
         problem = "The previous answer was not one parseable JSON object."
@@ -47,7 +51,8 @@ def repair_prompt(original=None, raw_problem=None, issues=()):
                     item.get("severity", ""), item.get("message", ""))))
         issue_block = f"ISSUES:\n{listed}\n"
     return REPAIR_PROMPT.format(
-        problem=problem, issue_block=issue_block, original=original_text)
+        problem=problem, issue_block=issue_block, original=original_text,
+        shape=shape)
 
 
 class ExtractionOutcome:
@@ -63,7 +68,8 @@ class ExtractionOutcome:
         return self.raw_problem is None and self.validation["valid"]
 
 
-def extract_validated(extractor, prompt, validate, max_repair_attempts=0):
+def extract_validated(extractor, prompt, validate, max_repair_attempts=0,
+                      shape=EXTRACTION_SHAPE):
     """Extract once, validate, and let the model repair up to N times."""
     response, problem = _attempt(extractor, prompt)
     validation = None if problem is not None else validate(response)
@@ -75,6 +81,7 @@ def extract_validated(extractor, prompt, validate, max_repair_attempts=0):
             original=response,
             raw_problem=problem,
             issues=validation["issues"] if validation is not None else (),
+            shape=shape,
         )
         response, problem = _attempt(extractor, ask)
         validation = None if problem is not None else validate(response)

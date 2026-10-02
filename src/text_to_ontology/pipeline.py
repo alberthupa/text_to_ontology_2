@@ -56,6 +56,7 @@ from .source_validation import (
     validate_source_graph,
 )
 from .task_context import build_task_context
+from .vocabulary import read_vocabulary
 from .windowing import (
     DEFAULT_TARGET_TOKENS,
     DEFAULT_OVERLAP_TOKENS,
@@ -101,9 +102,15 @@ class ExtractionConfig:
 
 @dataclass
 class MergeConfig:
-    """When a new assertion is confident enough to be accepted."""
+    """When a new assertion is confident enough to be accepted.
+
+    With `require_declared_vocabulary` (data-only ingestion), the starter
+    ontology is frozen: the model may only use the classes and relationships
+    the starter already declares, and no plan may declare new ones.
+    """
 
     min_auto_accept_confidence: float = AUTO_ACCEPT_MIN_CONFIDENCE
+    require_declared_vocabulary: bool = False
 
 
 @dataclass
@@ -242,7 +249,7 @@ def _window_context(window_text, final_graph, source_graph, budget_config):
 
 
 def _extract_window(window, request, final_graph, source_graph, extractor,
-                    reporter):
+                    reporter, vocabulary=None):
     """Ask the model about one window and validate the answer."""
     prompt_context, canonical_context = _window_context(
         window.text, final_graph, source_graph,
@@ -261,7 +268,8 @@ def _extract_window(window, request, final_graph, source_graph, extractor,
     outcome = extract_validated(
         extractor, prompt,
         lambda data: validate_candidates(
-            data, final_graph, prompt_context["existing_ids"]),
+            data, final_graph, prompt_context["existing_ids"],
+            vocabulary=vocabulary),
         max_repair_attempts=request.extraction.repair_attempts,
     )
     reporter.model_replied(
@@ -313,7 +321,8 @@ def _admit_window(window, candidates, request, document, staging,
     return updated, counts, plan
 
 
-def _process_document(document, request, final_graph, extractor, reporter):
+def _process_document(document, request, final_graph, extractor, reporter,
+                      vocabulary=None):
     """Run every window of one document through staging.
 
     Returns the admitted window packages. The final ontology is never written
@@ -334,7 +343,8 @@ def _process_document(document, request, final_graph, extractor, reporter):
         for number, window in enumerate(windows, start=1):
             reporter.window_started(number, len(windows), window.window_id)
             model, candidates = _extract_window(
-                window, request, final_graph, source_graph, extractor, reporter)
+                window, request, final_graph, source_graph, extractor,
+                reporter, vocabulary)
             source_graph, counts, plan = _admit_window(
                 window, candidates, request, document, staging, source_graph,
                 model, reporter)
@@ -405,6 +415,10 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
     store = _final_store(graph_store, request)
     roles = initial_role_graphs(store, names)
     graph = union_graphs(roles.values())
+    # Data-only ingestion locks the starter vocabulary: the same classes and
+    # relationships stay valid for the whole run.
+    vocabulary = (read_vocabulary(graph)
+                  if request.merge.require_declared_vocabulary else None)
     files = find_text_files(request.source, request.graph_path)
     if not files:
         raise RuntimeError("No text-like files found")
@@ -425,7 +439,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         before_size = len(graph)
         before_snapshot = final_graphs_snapshot(graph)
         staged = _process_document(
-            document, request, graph, extractor, reporter)
+            document, request, graph, extractor, reporter, vocabulary)
         windows_processed += len(staged.packages)
 
         reconciliation = reconcile_document(
@@ -456,7 +470,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
             canonical_graph(roles, names), document, staged.packages,
             staged.admission_plans,
             request.merge.min_auto_accept_confidence,
-            planner=plan_graph_merge)
+            planner=plan_graph_merge, vocabulary=vocabulary)
         merge_plan = document_merge["merge_plan"]
         reporter.merge_plan(
             merge_plan, document_merge["candidates"],

@@ -25,6 +25,7 @@ from typing import Protocol
 from rdflib import Dataset, Graph, URIRef
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 
+from .graph_management import bind
 from .graph_partition import partition_graph
 
 
@@ -85,6 +86,7 @@ class RdflibGraphStore:
     def __init__(self, path=None):
         self.path = Path(path) if path else None
         self.dataset = Dataset(default_union=True)
+        bind(self.dataset)
         if self.path and self.path.exists():
             self.dataset.parse(self.path, format="trig")
 
@@ -125,6 +127,7 @@ class RdflibGraphStore:
 
     def _clone_with(self, publication):
         clone = Dataset()
+        bind(clone)
         for subject, predicate, object_, name in self.dataset.quads((None, None, None, None)):
             if name != DATASET_DEFAULT_GRAPH_ID:
                 clone.add((subject, predicate, object_, name))

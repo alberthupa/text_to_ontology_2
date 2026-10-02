@@ -77,9 +77,12 @@ class _Planner:
 
     def __init__(self, graph, candidates, provenance,
                  min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE,
-                 allocate_uri=None, provisional_uri=None):
+                 allocate_uri=None, provisional_uri=None, vocabulary=None):
         self.min_new_confidence = min_new_confidence
         self.graph = graph
+        # A frozen starter vocabulary means data-only planning: no class or
+        # property declaration may be added by this plan.
+        self.vocabulary = vocabulary
         self.candidates = {
             section: [dict(record)
                       for record in candidates.get(section, [])]
@@ -214,8 +217,10 @@ class _Planner:
     def _plan_new_entity(self, record, uri):
         kind = label(record["kind"] or "Entity")
         kind_uri = class_uri(kind)
-        triples = {
-            *class_triples(kind),
+        triples = set()
+        if self.vocabulary is None:
+            triples |= set(class_triples(kind))
+        triples |= {
             (uri, RDF.type, ONTO.Entity),
             (uri, RDF.type, OWL.NamedIndividual),
             (uri, RDF.type, SKOS.Concept),
@@ -382,7 +387,7 @@ class _Planner:
                     "reason_codes": ["confidence.below_auto_accept"],
                     "triple": triple, "conflicts": []}
 
-        declarations = {
+        declarations = set() if self.vocabulary is not None else {
             (predicate, RDF.type, prop_type),
             (predicate, RDFS.label, Literal(label(record["predicate"]))),
         }
@@ -612,9 +617,15 @@ def resolve_entities(candidates, graph,
 
 def plan_graph_merge(graph, candidates, provenance,
                      min_new_confidence=AUTO_ACCEPT_MIN_CONFIDENCE,
-                     allocate_uri=None, provisional_uri=None):
-    """Build the complete read-only merge plan for one valid candidate package."""
+                     allocate_uri=None, provisional_uri=None,
+                     vocabulary=None):
+    """Build the complete read-only merge plan for one valid candidate package.
+
+    With a `vocabulary`, planning is data-only: the plan never declares a
+    class or a property again, so the starter ontology cannot change.
+    """
     return _Planner(graph, candidates, provenance,
                     min_new_confidence=min_new_confidence,
                     allocate_uri=allocate_uri,
-                    provisional_uri=provisional_uri).build()
+                    provisional_uri=provisional_uri,
+                    vocabulary=vocabulary).build()

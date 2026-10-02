@@ -8,6 +8,7 @@ from pathlib import Path
 from .api import RunRequest, run_text_to_graph
 from .graph_management import LocalTurtleStore
 from .llm import OpenRouterExtractor
+from .pipeline import MergeConfig
 from .run_report import RunReporter, default_report_path
 
 DEFAULT_GRAPH = Path("ontology.trig")
@@ -27,6 +28,9 @@ def build_parser():
                         help="save a verbose Markdown report; stay silent on success")
     parser.add_argument("--dry-run", action="store_true",
                         help="return and report the exact plan without publishing")
+    parser.add_argument("--data-only", action="store_true",
+                        help="use only the classes and relationships the starter "
+                             "ontology already declares; never add new ones")
     return parser
 
 
@@ -55,6 +59,8 @@ def main(argv=None):
                                if args.graph.suffix.lower() == ".ttl" else None)
         run_text_to_graph(
             RunRequest(source=args.source, graph_path=args.graph,
+                       merge=MergeConfig(
+                           require_declared_vocabulary=args.data_only),
                        dry_run=args.dry_run),
             graph_store=compatibility_store,
             extractor=OpenRouterExtractor(),

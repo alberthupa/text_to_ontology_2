@@ -96,7 +96,8 @@ def build_document_candidates(document_id, packages, admission_plans):
 
 
 def plan_document_merge(canonical_graph, document, packages, admission_plans,
-                        min_new_confidence, planner=plan_graph_merge):
+                        min_new_confidence, planner=plan_graph_merge,
+                        vocabulary=None):
     """Resolve the whole reconciled source against canonical knowledge once."""
     bundle = build_document_candidates(
         document.document_id, packages, admission_plans)
@@ -112,7 +113,7 @@ def plan_document_merge(canonical_graph, document, packages, admission_plans,
         canonical_json(configuration).encode("utf-8")).hexdigest()
     merge_plan = planner(
         canonical_graph, bundle.candidates, provenance,
-        min_new_confidence=min_new_confidence)
+        min_new_confidence=min_new_confidence, vocabulary=vocabulary)
     identity_mapping = {
         source_key: merge_plan["identities"][local_id]
         for source_key, local_id in bundle.local_id_by_source.items()

@@ -151,7 +151,19 @@ def _note(state, code, severity, path, related_paths, message,
     })
 
 
-def _normalize_entities(raw, state, allowed, catalog_by_id):
+def _vocabulary_message(vocabulary, section):
+    """The repair hint for an undeclared class or predicate."""
+    names = {"classes": vocabulary.class_names,
+             "relations": vocabulary.relation_names,
+             "facts": vocabulary.fact_names}[section]
+    if not names:
+        return (f"the starter ontology declares no {section}; "
+                f"return an empty {section} list")
+    return (f"use one of the starter ontology's {section}: "
+            + ", ".join(names))
+
+
+def _normalize_entities(raw, state, allowed, catalog_by_id, vocabulary=None):
     """Pass 2: normalize every entity record and build the local-ID index."""
     entities = []
     id_to_path = {}
@@ -227,6 +239,11 @@ def _normalize_entities(raw, state, allowed, catalog_by_id):
                       f"{base}.kind", [],
                       "empty kind defaulted to 'Entity'",
                       "entities", index, "kind")
+
+        if vocabulary is not None and not vocabulary.declares_class(kind):
+            error("entity.undeclared_kind", "kind",
+                  f"kind {kind!r} is not in the starter ontology; "
+                  + _vocabulary_message(vocabulary, "classes"))
 
         raw_description = record.get("description")
         if raw_description is None:
@@ -368,12 +385,13 @@ def _normalize_entities(raw, state, allowed, catalog_by_id):
     return entities, id_to_path, valid_ids
 
 
-def _normalize_records(raw, section, state):
+def _normalize_records(raw, section, state, vocabulary=None):
     """Pass 3: normalize relation and fact records in original order."""
     normalizer = _normalize_relation if section == "relations" else _normalize_fact
     records = []
     for index, record in enumerate(raw):
-        normalized = normalizer(record, state, f"{section}[{index}]", index)
+        normalized = normalizer(record, state, f"{section}[{index}]", index,
+                                vocabulary)
         if normalized is not None:
             records.append(normalized)
     return records
@@ -404,7 +422,7 @@ def _ref(record, field, state, base, index, section, problems):
     return value
 
 
-def _normalize_relation(record, state, base, index):
+def _normalize_relation(record, state, base, index, vocabulary=None):
     if not isinstance(record, dict):
         _note(state, "relation.not_mapping", "error", base, [],
               "relation record is not a JSON object", "relations", index)
@@ -448,6 +466,13 @@ def _normalize_relation(record, state, base, index):
                   f"relation predicate {name!r} has no usable local name",
                   "relations", index, "predicate")
             problems.append(True)
+        elif vocabulary is not None and not vocabulary.declares_relation(name):
+            _note(state, "relation.undeclared_predicate", "error",
+                  f"{base}.predicate", [],
+                  f"relation {name!r} is not in the starter ontology; "
+                  + _vocabulary_message(vocabulary, "relations"),
+                  "relations", index, "predicate")
+            problems.append(True)
 
     if problems:
         return None
@@ -459,7 +484,7 @@ def _normalize_relation(record, state, base, index):
             "_slug": slug(name), "_label": label(name), "_base": base}
 
 
-def _normalize_fact(record, state, base, index):
+def _normalize_fact(record, state, base, index, vocabulary=None):
     if not isinstance(record, dict):
         _note(state, "fact.not_mapping", "error", base, [],
               "fact record is not a JSON object", "facts", index)
@@ -495,6 +520,13 @@ def _normalize_fact(record, state, base, index):
         elif slug(name) == "unnamed":
             _note(state, "fact.unnamed_predicate", "error", f"{base}.predicate",
                   [], f"fact predicate {name!r} has no usable local name",
+                  "facts", index, "predicate")
+            problems.append(True)
+        elif vocabulary is not None and not vocabulary.declares_fact(name):
+            _note(state, "fact.undeclared_predicate", "error",
+                  f"{base}.predicate", [],
+                  f"fact {name!r} is not in the starter ontology; "
+                  + _vocabulary_message(vocabulary, "facts"),
                   "facts", index, "predicate")
             problems.append(True)
 
@@ -642,8 +674,14 @@ def _check_graph_compatibility(entities, relations, facts, graph, state):
                       f"used as a class or entity", section)
 
 
-def validate_candidates(data, graph, allowed_existing_ids=()):
-    """Validate and normalize a candidate package; never write to the graph."""
+def validate_candidates(data, graph, allowed_existing_ids=(),
+                        vocabulary=None):
+    """Validate and normalize a candidate package; never write to the graph.
+
+    With a `vocabulary` (the starter ontology), a class or a relationship that
+    the starter does not declare is an error: in data-only mode ingestion may
+    add individuals and statements, never new vocabulary.
+    """
     state = {
         "issues": [],
         "normalized_fields": 0,
@@ -700,11 +738,11 @@ def validate_candidates(data, graph, allowed_existing_ids=()):
 
     # Pass 2: entities.
     entities, id_to_path, valid_ids = _normalize_entities(
-        raw_entities, state, allowed, catalog_by_id)
+        raw_entities, state, allowed, catalog_by_id, vocabulary)
 
     # Pass 3: relations and facts.
-    relations = _normalize_records(raw_relations, "relations", state)
-    facts = _normalize_records(raw_facts, "facts", state)
+    relations = _normalize_records(raw_relations, "relations", state, vocabulary)
+    facts = _normalize_records(raw_facts, "facts", state, vocabulary)
 
     # Pass 4: references.
     for record in relations:
