@@ -43,11 +43,11 @@ text-to-ontology-studio            # prints a localhost URL and opens it
    echo "We roast coffee and sell it to cafes." | text-to-ontology-starter - ontology.trig
    ```
 
-Both long steps run in the background while the page polls `/api/progress`, so
-the studio shows a progress bar pinned under its header: the starter counts
-model calls (including repairs), and ingestion counts files and windows
-(`n2.txt: window 1/1, asking the model` → `admitted` → `published`). Only one
-job runs at a time, so graph writes never interleave.
+Both long steps run in the background while the page polls the `progress`
+operation, so the studio shows a progress bar pinned under its header: the
+starter counts model calls (including repairs), and ingestion counts files and
+windows (`n2.txt: window 1/1, asking the model` → `admitted` → `published`).
+Only one job runs at a time, so graph writes never interleave.
 
 2. **Ingest.** Drop `.txt` or `.md` files on the studio column. Each file is
    written into `sources/inbox/` and ingested through the ordinary pipeline.
@@ -77,9 +77,15 @@ job runs at a time, so graph writes never interleave.
    Deleting `ontology.trig` by hand is the same thing; the next run starts a
    fresh dataset.
 
-The studio serves `scripts/triple-lens.html` and binds to localhost only.
-Opened straight from disk, that same page behaves exactly as before: it reads
-files in the browser, no server, no studio column.
+The studio serves `scripts/triple-lens.html`, the panel beside it
+(`studio.js`, `studio.css`), and one generic JSON path over a registry of named
+operations, and binds to localhost only. `GET /api/op/operations.list` lists
+everything a client may ask for; adding a capability is one small function in
+`src/text_to_ontology/operations.py`, never a new route. The state and the two
+long jobs live in `src/text_to_ontology/workspace.py`; the transport carries and
+nothing else.
+Opened straight from disk, the same page is exactly the standalone viewer: no
+server, no panel, everything read in the browser.
 
 ## Install
 
@@ -305,9 +311,12 @@ The pipeline that runs when you invoke the program:
   of a graph: which classes, relations, and facts ingestion may use
 - `src/text_to_ontology/starter.py` — the starter ontology: one prompt, one
   checked proposal, one atomic write (`text-to-ontology-starter`)
-- `src/text_to_ontology/studio.py` — the local studio server: the Triple Lens
-  page plus reset, starter, and drag-and-drop ingestion
-  (`text-to-ontology-studio`)
+- `src/text_to_ontology/workspace.py` — the application state for one dataset:
+  the store, the inbox, the extractor, the progress slot, and the two long jobs
+- `src/text_to_ontology/operations.py` — every capability as one named
+  operation in one registry, with no HTTP in it
+- `src/text_to_ontology/studio.py` — the local HTTP transport: the lens page,
+  its panel, and `/api/op/<name>` (`text-to-ontology-studio`)
 - `src/text_to_ontology/run_report.py` — normal and verbose run reporting to
   the terminal, a file, or any supplied text stream
 - `src/text_to_ontology/ingest_sources.py` — finding and reading source files
@@ -381,8 +390,10 @@ And the rest:
 
 - `pyproject.toml` — package metadata and the two dependencies (`rdflib`,
   `pyshacl`)
-- `scripts/triple-lens.html` — the one self-contained viewer page; with the
-  studio server it also grows the studio column
+- `scripts/triple-lens.html` — the one self-contained viewer page (it also
+  exposes the `window.__lens` view API a panel draws through)
+- `scripts/studio.js` / `scripts/studio.css` — the control panel, loaded only
+  when the page is served; controls and view directives, no domain logic
 - `sources/inbox/` — where the studio keeps the files you drop (git-ignored)
 - `tests/fixtures/miniature_repository.ttl` — the frozen miniature graph the
   exact partition/skeleton/pattern tests run against

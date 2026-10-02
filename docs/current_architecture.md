@@ -60,10 +60,11 @@ Around that pipeline sit two entry paths:
   ontology (classes, relations, facts) and writes it in one atomic
   publication. It is a *separate* step from ingestion: nothing is extracted
   from a real source document while it runs.
-- `text_to_ontology.studio` serves `scripts/triple-lens.html` plus a tiny JSON
-  API, so the same page can create the starter, ingest dropped files
-  (always with `require_declared_vocabulary=True`), and reset the dataset. The
-  page works unchanged without the server.
+- `text_to_ontology.studio` serves `scripts/triple-lens.html`, its panel
+  (`studio.js` / `studio.css`), and a generic HTTP transport over the named
+  operations in `operations.py`. The state and the jobs live in
+  `workspace.Workspace`; the transport carries and nothing more. The page
+  works unchanged without the server.
 
 Data-only mode (`MergeConfig(require_declared_vocabulary=True)`, CLI
 `--data-only`) is the lock that keeps the starter fixed: `vocabulary` reads the
@@ -115,10 +116,12 @@ text_to_ontology_2/
 ├── ontology.trig               # default named-graph dataset (data, not code)
 ├── ontology.ttl                # legacy Turtle export of the data graph
 ├── reports/runs/               # --report Markdown output (git-ignored)
-├── scripts/triple-lens.html    # the viewer page; the studio column lives here too
+├── scripts/triple-lens.html    # the viewer page (+ the view API; no panel code)
+├── scripts/studio.js           # the control panel (loaded only when served)
+├── scripts/studio.css          # the panel's styles
 ├── sources/inbox/              # studio drop zone for source files (git-ignored)
 ├── docs/                       # this map + app_map.html + data_flow.html
-├── src/text_to_ontology/       # the importable package (38 .py files)
+├── src/text_to_ontology/       # the importable package (40 .py files)
 └── tests/                      # unittest: one file per module + pipeline
     ├── store_contract.py       # shared GraphStore contract test base
     ├── fixtures/
@@ -663,13 +666,12 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
 - `build_parser()` / `main(argv)` — `text-to-ontology-starter [INFO|-] [GRAPH]
   [--model]`; reads a file or standard input.
 
-### 4.22 `studio.py` — the local studio server
+### 4.22 `workspace.py` — the application state and its long jobs
 
-- `find_page(explicit=None)` — the `scripts/triple-lens.html` page: the given
-  path, then the working directory, then the repository root next to the
-  package.
-- `Progress` — the one job the page polls: `claim(label)` takes the single job
-  slot (returns `None` when a job already runs), `update(percent, detail)`
+The backend state for one dataset, with no HTTP and no argument parsing.
+
+- `Progress` — the one job a frontend polls: `claim(label)` takes the single
+  job slot (returns `None` when a job already runs), `update(percent, detail)`
   moves the bar, `finish(result)` stores the answer, `snapshot(job_id)` returns
   `{ok, job_id, running, label, detail, percent, result}` where `result` is
   filled in only for the job id that asked (so a reloaded or stale page cannot
@@ -680,48 +682,98 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   a `RunReporter` subclass: the ordinary run log plus one progress step per
   checkpoint (`source_started`, `document_staging`, `window_started`,
   `model_replied`, `window_admitted`, `saved`). The pipeline runs once per file
-  and therefore always reports "1 of 1", so the studio supplies the real file
-  number and count; `_percent(within_file)` makes the bar span the whole drop
-  and never move backwards.
-- `Studio(graph_path, sources_dir, page_path, model=None, names=None,
-  extractor=None)` — everything the studio does, with no HTTP in it:
-  `canonical_graph()` (schema + configured data + target), `triple_count()`,
-  `source_names()`, `status()` (graph, triples, `ready`, class/relation/fact
-  names, inbox files), `dataset_text()` (schema + shapes + data + target as one
-  TriG text, prefixes bound, provenance left out), `reset()` (unlink the graph
-  file and every direct child file of the inbox, then re-open an empty store;
-  `_check_reset_target` refuses when the inbox is the working directory, one of
-  its parents, or the dataset's own directory),
-  `create_starter(text, progress=None)` (propose + publish on the studio's own
-  store, reporting model calls and the write step when a `progress` is given),
-  `ingest(files, log, progress=None)` (write each dropped text into the inbox,
-  then run the pipeline once per file with
+  and therefore always reports "1 of 1", so the workspace supplies the real
+  file number and count; `_percent(within_file)` makes the bar span the whole
+  drop and never move backwards.
+- `Workspace(graph_path="ontology.trig", sources_dir="sources/inbox",
+  model=None, names=None, extractor=None)` — reading: `canonical_graph()`
+  (schema + configured data + target), `triple_count()`, `source_names()`,
+  `status()` (graph, triples, `ready`, class/relation/fact names, inbox files),
+  `dataset_text()` (schema + shapes + data + target as one TriG text, prefixes
+  bound, provenance left out), `progress_state(job_id)`.
+  Writing: `reset()` (unlink the graph file and every direct child file of the
+  inbox, then re-open an empty store; `_check_reset_target` refuses when the
+  inbox is the working directory, one of its parents, or the dataset's own
+  directory), `create_starter(text, progress=None)` (propose + publish on this
+  workspace's store, reporting model calls and the write step when a `progress`
+  is given), `ingest(files, log, progress=None)` (write each dropped text into
+  the inbox, then run the pipeline once per file with
   `MergeConfig(require_declared_vocabulary=True)`, reporting into `log` and
   moving the bar per file and window), `_write_source(name, text)` (safe name,
-  never overwrites), and the two job launchers the HTTP layer uses:
+  never overwrites), and the two job launchers a transport uses:
   `start_starter(text)` / `start_ingest(files)` claim the slot, run the work in
   a daemon thread, and return the job id (or `None` when one is already
   running).
-- `StudioHandler` — `GET /` (the page), `GET /api/status`, `GET /api/dataset`,
-  `GET /api/progress?job=N`, `POST /api/reset`, `POST /api/starter` (`{text}`),
-  `POST /api/ingest` (`{files: [{name, text}]}`). The two long POSTs only start
-  a job (`{ok, job_id}`) and the page polls `/api/progress` until
-  `running` is false and the matching `result` arrives; a second job while one
-  runs answers `{ok: false, error: "a job is already running…"}`. Reset stays
-  synchronous and answers `{ok, log, status, removed}`. Failures answer
-  `{ok: false, error, log, status}` with HTTP 200, so the page can show the run
-  log either way. JSON only — no multipart, no cookies, no state outside the
-  dataset and the inbox.
+- Module constants: `DEFAULT_GRAPH = Path("ontology.trig")`,
+  `DEFAULT_SOURCES = Path("sources/inbox")`.
+
+### 4.23 `operations.py` — every capability as one named operation
+
+The contract between a frontend and the backend: one registry of names, each
+mapping to a small function `(workspace, payload) -> plain JSON record`. No
+HTTP, no objects, no browser.
+
+- `Operation(name, summary, handler, args=(), background=False)` — one
+  capability and the metadata published to clients.
+- `OPERATIONS` (tuple) / `REGISTRY` (name → operation). Adding a capability is
+  one function plus one `Operation(...)` line; the transport never changes.
+- `describe()` — the published manifest: name, summary, argument names, and
+  whether it answers with a `job_id` instead of a result.
+- `call(workspace, name, payload=None)` — run one operation; an unregistered
+  name raises `UnknownOperation`.
+- The registry today: `status`, `dataset`, `progress` (`job`), `reset`,
+  `starter.create` (`text`, background), `ingest` (`files`, background),
+  `operations.list`.
+- Payload helpers: `_started(workspace, job)` (the background answer, or the
+  "a job is already running" refusal), `_integer`, `_files`.
+
+### 4.24 `studio.py` — the HTTP transport (and the page it serves)
+
+Carries things and nothing else: no state, no domain logic.
+
+- `find_page(explicit=None)` — the `scripts/triple-lens.html` page: the given
+  path, then the working directory, then the repository root next to the
+  package.
+- `Assets(page=None)` — the files served: the page itself, plus `studio.js` and
+  `studio.css` from the same directory. `body(path)` returns `(bytes,
+  content_type)` for `/`, `/index.html`, and sibling files whose suffix is in
+  `ASSET_TYPES` (`.js`, `.css`); anything else returns `(None, None)`, so path
+  traversal or arbitrary files are refused.
+- `StudioHandler` — a generic dispatcher, not a list of endpoints:
+  `GET /` and the assets; `GET /api/op/<name>?arg=value` for read operations;
+  `POST /api/op/<name>` with a JSON body for the rest. An unknown operation is
+  the only 404; an operation's own failure answers `{ok: false, error}` with
+  HTTP 200 so a page can show the message.
 - `StudioServer(ThreadingHTTPServer)` — `daemon_threads = True`; threading
-  exists only so the page can poll while a job runs, while the `Progress` slot
-  keeps graph writes strictly serial (one job at a time).
-- `create_server(studio, host="127.0.0.1", port=8765, tries=10)` — a
-  `StudioServer` with the studio bound to a handler subclass; a taken port
-  falls through to the next free one, and `main` prints the `server_address` it
-  actually got.
+  exists only so a page can poll while a job runs, while the `Progress` slot in
+  the workspace keeps graph writes strictly serial (one job at a time).
+- `create_server(workspace, host="127.0.0.1", port=8765, tries=10, assets=None)`
+  — a `StudioServer` with the workspace and assets bound to a handler subclass;
+  a taken port falls through to the next free one, and `main` prints the
+  `server_address` it actually got, plus the manifest URL.
 - `build_parser()` / `main(argv)` — `text-to-ontology-studio [--graph]
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
+
+### 4.25 The frontend split
+
+The page is the visualization; the control panel is a separate file that the
+page loads only when it is served over HTTP.
+
+- `scripts/triple-lens.html` — the viewer: parsing, layout, details, filters,
+  and the **view API** a control panel is allowed to use:
+  `window.__lens.applyView(view)`, `clearFiles(names)`, `fileNames()`, plus the
+  pre-existing `S`, `addText`, `afterLoad`, `setMode`, `tick`, `draw`. A view
+  is one declarative record: `{replace, files: [{name, trig}], mode, focus,
+  filters: {defId: [keys]}, hideIsolated, clearFilters}`; the lens resolves
+  names to nodes and keys to filters itself. The page also owns the
+  `#workspace` flex layout, so it renders standalone.
+- `scripts/studio.js` — the panel: builds its own markup, talks only through
+  named operations (`api/op/<name>`), and changes the picture only through the
+  view API. It contains no domain logic, so a new backend capability needs only
+  a new button here.
+- `scripts/studio.css` — the panel's styles, injected as a `<link>` by the
+  loader in the page when it is not opened from `file://`.
 
 ---
 
@@ -852,9 +904,12 @@ items).
 | `starter` | `create_starter(text, graph_path, extractor, names)` | the proposal (already published) |
 | `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
 | `studio` | `Studio.ingest(files, log)` | list of saved source names |
-| `studio` | `create_server(studio, host, port)` | `StudioServer` (a `ThreadingHTTPServer`) |
-| `studio` | `Studio.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
-| `studio` | `Studio.progress.snapshot(job_id)` | `{ok, job_id, running, label, detail, percent, result}` |
+| `workspace` | `Workspace.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
+| `workspace` | `Workspace.progress.snapshot(job_id)` | `{ok, job_id, running, label, detail, percent, result}` |
+| `operations` | `call(workspace, name, payload)` | one plain JSON record (`UnknownOperation` for a bad name) |
+| `operations` | `describe()` | `[{name, summary, args, background}]` |
+| `studio` | `Assets(page).body(path)` | `(bytes, content_type)` or `(None, None)` |
+| `studio` | `create_server(workspace, host, port, tries, assets)` | `StudioServer` (a `ThreadingHTTPServer`) |
 | `publication_sources` | `materialize_sources(graph, document, merge, canonical)` | None (mutates the evidence graph) |
 | `view_report` | `build_report(path, graph, views)` | plain report dict for the HTML page |
 | `view_html` | `write_report(...)` | writes one self-contained HTML page |
@@ -932,8 +987,10 @@ graph_store.py ──► graph_partition (for legacy import), graph_management (
 vocabulary.py ──► graph_management (FACT, RELATION), graph_merge (class_uri, slug)
 starter.py ──► document_publication (split_legacy_graph), graph_management,
                graph_merge, graph_store, llm, repair
-studio.py ──► graph_management (bind), graph_store, llm, pipeline, run_report,
-              starter, vocabulary
+workspace.py ──► graph_management (bind), graph_store, llm, pipeline,
+                run_report, starter, vocabulary
+operations.py ──► (nothing from the package: it only names capabilities)
+studio.py ──► operations, workspace (transport only)
 task_context.py ──► entity_lookup, graph_patterns (STRUCTURAL, eligible), ontology_views, source_concepts
 context_render.py ──► prompt_budget, task_context (TEXT_PREDICATES, datatype_term)
 ontology_views.py ──► graph_partition, graph_skeleton, graph_patterns
@@ -997,17 +1054,17 @@ initial information ──► starter_prompt() → extract_validated() → valid
                                                           │
                           schema + shapes graphs  =  the frozen starter vocabulary
                                                           ▼
-studio page ──► POST /api/starter        (above)          → {job_id}
-            ──► POST /api/ingest  {files} → sources/inbox/ → run_text_to_graph(data_only)
-            ──► POST /api/reset          → unlink dataset + inbox files → empty store
-            ──► GET  /api/status|dataset → sizes, vocabulary, canonical TriG text
-            ──► GET  /api/progress?job=N → {running, label, detail, percent, result}
+page + panel ──► GET  /api/op/status|dataset|operations.list|progress?job=N
+             ──► POST /api/op/reset          → unlink dataset + inbox files → empty store
+             ──► POST /api/op/starter.create → {job_id}   (the operation registry)
+             ──► POST /api/op/ingest {files} → {job_id} → sources/inbox/ → run_text_to_graph(data_only)
+             (the transport only calls operations.call(workspace, name, payload))
 
 Both long jobs run in one background thread at a time; the page polls
-/api/progress every 400 ms and moves the bar from the pipeline's own
+the `progress` operation every 400 ms and moves the bar from the pipeline's own
 checkpoints (model call N for the starter; file, window, and publication for
-ingestion). `/api/progress` never touches the store, so polling while a
-publication is being applied cannot read a half-written graph.
+ingestion). `progress` never touches the store, so polling while a publication
+is being applied cannot read a half-written graph.
 ```
 
 Identity scope: window admission sees only the source-local staging graph
@@ -1041,10 +1098,12 @@ publication only apply already-made decisions.
 | Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |
 | Starter caps | `MIN_CLASSES` 2, `MAX_CLASSES` 20, `MAX_ASSERTIONS` 40 (`starter.py`) |
 | Starter literal ranges | `XSD_TYPES`: string/text/integer/int/decimal/float/double/boolean/date/datetime/time/anyURI |
-| Studio | `DEFAULT_PORT` 8765 (next free port when taken), `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox`, page `scripts/triple-lens.html`, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
-| Studio API | `GET /` · `GET /api/status` · `GET /api/dataset` · `GET /api/progress?job=N` · `POST /api/reset` · `POST /api/starter {text}` → `{job_id}` · `POST /api/ingest {files:[{name,text}]}` → `{job_id}` |
+| Workspace | `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox` (`workspace.py`) |
+| Studio transport | `DEFAULT_PORT` 8765 (next free port when taken), page `scripts/triple-lens.html`, assets `.js`/`.css` beside it, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
+| Transport routes | `GET /` · `GET /studio.js` · `GET /studio.css` · `GET /api/op/<name>?arg=value` · `POST /api/op/<name>` |
+| Operations | `status` · `dataset` · `progress {job}` · `reset` · `starter.create {text}` → `{job_id}` · `ingest {files:[{name,text}]}` → `{job_id}` · `operations.list` |
 | Studio jobs | starter: `model call N` (10 %, +25 % per call) → `writing the schema and shapes` (88 %) → 100 %; ingestion: per file (1/8 of the bar per file, half of it per window) with `starting`, `window k/n, asking the model`, `model replied`, `admitted`, `published` |
-| Studio polling | page polls `/api/progress?job=N` every 400 ms while `running` is true |
+| Studio polling | panel polls `progress {job}` (400 ms) while `running` is true |
 | Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
 | Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |
 | Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 |
@@ -1077,7 +1136,9 @@ lever on prompt size; where both apply the smaller wins.
 | Rejected starter proposal | `starter.propose_starter` | `RuntimeError(format_starter_failure(...))` |
 | Page file not found | `studio.find_page` | `RuntimeError("Could not find scripts/triple-lens.html…")` |
 | Studio port in use | `studio.main` | `Error: cannot listen on {host}:{port}` + `SystemExit(1)` |
-| Studio API failure | `studio.StudioHandler.do_POST` | `{ok: false, error, log, status}` with HTTP 200 |
+| Unknown operation | `operations.call` / `StudioHandler` | `UnknownOperation` / `{ok: false, error}` with HTTP 404 |
+| Operation failure | `operations.call` | `{ok: false, error}` with HTTP 200 (only unknown names are 404) |
+| Missing operation arguments | the operation itself | `{ok: false, error}` naming what was missing |
 | Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
 | Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
 | Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
@@ -1152,7 +1213,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
 | `test_starter.py` | Proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, `starter_publication` roles and triples, `proposal_summary`, `create_starter` replacing an old dataset. |
 | `test_data_only.py` | The data-only gate end to end: declared extraction accepted with the schema and shapes unchanged, undeclared kind/predicate rejected and nothing written, no declarations in a data-only plan, and the permissive default still declaring as before. |
-| `test_studio.py` | `Studio` status/dataset/reset/`_write_source` round trips, data-only ingestion, error reporting; the HTTP API (`/`, `/api/status`, `/api/dataset`, `/api/progress`, `/api/starter`, `/api/ingest`, `/api/reset`, 404, one job at a time); the job layer: progress from model calls and per-file/window checkpoints, a monotonic bar across several dropped files, a failed job still finishing with its error, and results handed only to the job id that asked. |
+| `test_studio.py` | Three layers in one file: `Workspace` status/dataset/reset/`_write_source` round trips, data-only ingestion and its error, and the job layer (progress from model calls and per-file/window checkpoints, a monotonic bar across several dropped files, a failed job finishing with its error, results handed only to the job that asked, one job at a time); the operation registry (manifest equals the registry, every operation answers plain JSON, unknown names raise, missing arguments are reported, a running job is refused); `Assets` (page + panel + styles served, traversal and unknown types refused); and the HTTP transport (`/`, `/studio.js`, `/studio.css`, `GET`/`POST /api/op/<name>`, 404 for unknown operations and old routes). |
 
 ---
 
@@ -1260,8 +1321,23 @@ pattern numbers are pinned on the frozen miniature in
     0 % → 33 % → 67 % → 100 % instead of restarting at zero.
 32. **Only one studio job at a time**: the `Progress` slot serializes the two
     long jobs even though the HTTP server is threaded, so graph writes never
-    interleave; reads the page makes during a job (`/api/progress`) do not touch
-    the store.
+    interleave; reads a page makes during a job (`progress`) do not touch the
+    store.
+33. **One route, every capability**: the transport is a dispatcher over
+    `operations.call`, so a new capability is one function plus one `Operation`
+    line in `operations.py` — `studio.py` does not change, and an unknown name
+    is the only 404. `GET` carries arguments in the query string (as strings;
+    the operation coerces), `POST` carries a JSON body.
+34. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+    markup, style, or logic, and loads `studio.js` / `studio.css` only when it
+    is not opened from `file://`. The page owns `#workspace` layout so it still
+    renders standalone, and the only contract between the two files is the
+    `window.__lens` view API.
+35. **A view is data, not code**: `applyView({replace, files, mode, focus,
+    filters, hideIsolated, clearFilters})` is the whole picture-changing
+    surface; the lens resolves IRIs to nodes and filter keys to internal sets,
+    and ignores junk, so a backend bug can mislead the picture but cannot break
+    the viewer.
 
 ---
 
