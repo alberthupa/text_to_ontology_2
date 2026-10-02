@@ -216,7 +216,10 @@ class _Planner:
 
     def _plan_new_entity(self, record, uri):
         kind = label(record["kind"] or "Entity")
-        kind_uri = class_uri(kind)
+        # With a starter vocabulary it decides the class IRI, so an imported
+        # ontology keeps its own names instead of gaining class:* twins.
+        kind_uri = (self.vocabulary.class_iri(kind) if self.vocabulary
+                    else class_uri(kind))
         triples = set()
         if self.vocabulary is None:
             triples |= set(class_triples(kind))
@@ -330,11 +333,15 @@ class _Planner:
                 record["subject"]: self.identities[record["subject"]],
                 record["object"]: self.identities[record["object"]],
             }
-            predicate = RELATION[slug(record["predicate"])]
+            predicate = (self.vocabulary.relation_iri(record["predicate"])
+                         if self.vocabulary
+                         else RELATION[slug(record["predicate"])])
             prop_type = OWL.ObjectProperty
         else:
             endpoints = {record["subject"]: self.identities[record["subject"]]}
-            predicate = FACT[slug(record["predicate"])]
+            predicate = (self.vocabulary.fact_iri(record["predicate"])
+                         if self.vocabulary
+                         else FACT[slug(record["predicate"])])
             prop_type = OWL.DatatypeProperty
 
         base = {

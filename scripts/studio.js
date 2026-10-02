@@ -45,6 +45,7 @@
     progress: (job) => call('progress', { job }),
     reset: () => call('reset', {}),
     starter: (text) => call('starter.create', { text }),
+    starterImport: (name, text) => call('starter.import', { name, text }),
     ingest: (files) => call('ingest', { files }),
     operations: () => call('operations.list'),
     prompts: () => call('prompts.list'),
@@ -76,12 +77,14 @@
       <p class="smuted">Describe the world in a few sentences. The model proposes the classes and relationships, and ingestion may then only use them.</p>
       <textarea id="stText" spellcheck="false" placeholder="Example: We are a coffee roaster. We track roasters, farms, coffee lots, retailers, and the shipments between them. A lot is grown at one farm, has a roast level and a price, and is sold by retailers."></textarea>
       <div class="sactions"><button class="btn primary" id="stCreate">Create starter ontology</button></div>
+      <div id="stImportDrop"><b>Drop an RDF / Turtle / TriG file here to import it</b><span>its classes and relations become the starter vocabulary, its individuals become data</span></div>
+      <div class="sactions"><button class="btn" id="stImportPick">Import RDF file\u2026</button><input type="file" id="stImportFiles" accept=".ttl,.turtle,.trig,.nt,.nq,.n3,.rdf,.owl,.jsonld,.json" hidden></div>
       <p class="smuted" id="stWarn" style="margin-top:6px"></p>
       <div class="svocab" id="stVocab" hidden></div>
     </section>
     <section>
       <h3>2 \u00b7 Add sources</h3>
-      <div id="stDrop"><b>Drop .txt or .md files here</b><span>only the data graph grows: classes and relationships stay as the starter defines them</span></div>
+      <div id="stDrop"><b>Drop .txt or .md files here</b><span>only the data graph grows: classes and relationships stay as the starter defines them. An RDF/Turtle file belongs in section 1.</span></div>
       <div class="sactions"><button class="btn" id="stPick">Choose files\u2026</button><input type="file" id="stFiles" multiple accept=".txt,.md,.rst,.csv,.json,.jsonl,.yaml,.yml,.xml,.html,.log" hidden></div>
       <p class="smuted" id="stReady"></p>
     </section>
@@ -125,6 +128,7 @@
 
   const statusEl = $('#stStatus'), logEl = $('#stLog'), vocabEl = $('#stVocab');
   const warnEl = $('#stWarn'), readyEl = $('#stReady'), dropEl = $('#stDrop');
+  const importDrop = $('#stImportDrop'), importFiles = $('#stImportFiles');
   const progressEl = $('#stProgress'), pLabel = $('#stPLabel'), pPct = $('#stPPct');
   const pFill = $('#stPFill'), pDetail = $('#stPDetail');
   const promptName = $('#stPromptName'), promptText = $('#stPromptText');
@@ -148,7 +152,8 @@
   function setBusy(on, message) {
     busy = on;
     ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse',
-     '#stPromptSave', '#stPromptReset', '#stPromptPreview'].forEach((s) => {
+     '#stImportPick', '#stPromptSave', '#stPromptReset',
+     '#stPromptPreview'].forEach((s) => {
       const button = $(s); if (button) button.disabled = on;
     });
     dropEl.classList.toggle('busy', on);
@@ -175,9 +180,10 @@
       const result = started && started.job_id ? await follow(started.job_id, message) : started;
       if (result.log) logEl.textContent = result.log;
       if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
-      if (result.status) renderStatus(result.status);
       if (result.prompts) renderPrompts(result.prompts);
-      if (result.ok && (result.status || result.sources || result.proposal)) {
+      if (result.status) renderStatus(result.status);
+      if (result.ok && (result.status || result.sources || result.proposal
+                        || result.summary)) {
         await loadDataset();
       }
     } catch (error) {
@@ -250,7 +256,50 @@
     ingest(files);
   };
 
+  /* A dropped file is RDF when its suffix says so; the backend also sniffs
+     the content, so a mislabelled file still lands in the right place. */
+  const RDF_SUFFIX = /\.(ttl|turtle|trig|nt|nq|n3|rdf|owl|jsonld|json)$/i;
+  function looksRdf(name) { return RDF_SUFFIX.test(name || ''); }
+
+  async function importStarter(file) {
+    const text = await file.text();
+    return run(() => op.starterImport(file.name, text),
+      `Importing ${file.name}. No model is asked: the file is parsed and checked\u2026`);
+  }
+
+  $('#stImportPick').onclick = () => importFiles.click();
+  importFiles.onchange = () => {
+    const file = importFiles.files[0];
+    importFiles.value = '';
+    if (file) importStarter(file);
+  };
+  ['dragenter', 'dragover'].forEach((type) => importDrop.addEventListener(type, (event) => {
+    if (!event.dataTransfer || [...event.dataTransfer.types].indexOf('Files') < 0) return;
+    event.preventDefault(); event.stopPropagation(); importDrop.classList.add('over');
+  }));
+  ['dragleave', 'dragend'].forEach((type) => importDrop.addEventListener(type, (event) => {
+    event.stopPropagation(); importDrop.classList.remove('over');
+  }));
+  importDrop.addEventListener('drop', (event) => {
+    event.preventDefault(); event.stopPropagation();
+    importDrop.classList.remove('over');
+    const file = (event.dataTransfer ? event.dataTransfer.files : [])[0];
+    if (!file) return;
+    if (looksRdf(file.name)) importStarter(file);
+    else file.text().then((text) => {
+      $('#stText').value = text;
+      logEl.textContent = `${file.name} is not RDF, so it was put in the box above: `
+        + 'read it, then press Create starter ontology.';
+    });
+  });
+
   async function ingest(fileList) {
+    const rdf = fileList.filter((file) => looksRdf(file.name));
+    if (rdf.length) {
+      logEl.textContent = `${rdf.map((f) => f.name).join(', ')} is RDF, not source text. `
+        + 'Drop it in section 1 (Starter ontology) to import it.';
+      return;
+    }
     const files = [];
     for (const file of fileList) files.push({ name: file.name, text: await file.text() });
     if (!files.length) return;

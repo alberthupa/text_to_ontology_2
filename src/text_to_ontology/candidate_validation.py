@@ -626,16 +626,28 @@ def _dedupe(records, section, state):
     return kept
 
 
-def _check_graph_compatibility(entities, relations, facts, graph, state):
+def _check_graph_compatibility(entities, relations, facts, graph, state,
+                               vocabulary=None):
     """Pass 6 part 2: reject provable role/type conflicts, read only."""
 
     def types_at(uri):
         return set(graph.objects(uri, RDF.type))
 
+    def class_for(kind):
+        return (vocabulary.class_iri(kind) if vocabulary
+                else class_uri(kind))
+
+    def predicate_for(section, predicate):
+        if vocabulary is not None:
+            return (vocabulary.relation_iri(predicate) if section == "relations"
+                    else vocabulary.fact_iri(predicate))
+        namespace = RELATION if section == "relations" else FACT
+        return namespace[slug(predicate)]
+
     seen_kinds = set()
     for entity in entities:
         kind = entity["kind"]
-        uri = class_uri(kind)
+        uri = class_for(kind)
         if uri in seen_kinds:
             continue
         seen_kinds.add(uri)
@@ -660,7 +672,7 @@ def _check_graph_compatibility(entities, relations, facts, graph, state):
             else OWL.ObjectProperty
         opposite_word = "datatype" if section == "relations" else "object"
         for record in records:
-            uri = namespace[record["_slug"]]
+            uri = predicate_for(section, record["predicate"])
             types = types_at(uri)
             if opposite in types:
                 _note(state, f"{code}.type_collision", "error",
@@ -759,7 +771,8 @@ def validate_candidates(data, graph, allowed_existing_ids=(),
     facts = _dedupe(facts, "facts", state)
 
     # Pass 6 part 2: generated-URI compatibility against the graph.
-    _check_graph_compatibility(entities, relations, facts, graph, state)
+    _check_graph_compatibility(entities, relations, facts, graph, state,
+                               vocabulary)
 
     # Graph-exact assertions are deliberately NOT removed here: merge policy
     # plans their corroboration and provenance, so they stay in normalized

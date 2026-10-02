@@ -64,6 +64,14 @@ def _starter_create(workspace, payload):
     return _started(workspace, workspace.start_starter(text))
 
 
+def _starter_import(workspace, payload):
+    name = str(payload.get("name") or "starter.ttl")
+    text = str(payload.get("text") or "")
+    if not text.strip():
+        return {"ok": False, "error": "no RDF file content was given"}
+    return workspace.import_starter(name, text)
+
+
 def _ingest(workspace, payload):
     files = _files(payload)
     if not files:
@@ -109,6 +117,8 @@ OPERATIONS = (
     Operation("starter.create",
               "propose a starter ontology from a pasted description",
               _starter_create, args=("text",), background=True),
+    Operation("starter.import", "import an RDF/Turtle/TriG file as the starter",
+              _starter_import, args=("name", "text")),
     Operation("ingest", "ingest dropped texts, data-only",
               _ingest, args=("files",), background=True),
     Operation("operations.list", "this list of named capabilities", _operations),

@@ -24,7 +24,10 @@ from .llm import OpenRouterExtractor
 from .pipeline import MergeConfig, RunRequest, run_text_to_graph
 from .prompts import DEFAULT_FILE, PREVIEW_VALUES, PromptLibrary
 from .run_report import RunReporter
-from .starter import proposal_summary, propose_starter, starter_publication
+from .starter import (
+    import_publication, import_summary, proposal_summary, propose_starter,
+    starter_publication,
+)
 from .vocabulary import read_vocabulary
 
 DEFAULT_GRAPH = Path("ontology.trig")
@@ -354,6 +357,19 @@ class Workspace:
             )
             log.write(f"\n{path.name}: {result.triples} triples in the dataset\n")
         return [path.name for path in written]
+
+    def import_starter(self, name, text):
+        """Make a dropped RDF document the starter ontology, in one write."""
+        if not str(text).strip():
+            return {"ok": False, "error": "the file is empty"}
+        try:
+            publication, summary = import_publication(text, name, self.names)
+        except (ValueError, OSError) as error:
+            return {"ok": False, "error": str(error)}
+        self.store.publish(publication)
+        return {"ok": True, "summary": summary,
+                "log": f"Imported {name}\n" + import_summary(summary) + "\n",
+                "status": self.status()}
 
     # ---------- prompts ----------
 
