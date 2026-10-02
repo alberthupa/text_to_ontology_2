@@ -266,10 +266,20 @@ class StudioHandler(BaseHTTPRequestHandler):
         print(f"[studio] {self.address_string()} {fmt % args}")
 
 
-def create_server(studio, host="127.0.0.1", port=DEFAULT_PORT):
-    """One plain HTTP server, one request at a time."""
+def create_server(studio, host="127.0.0.1", port=DEFAULT_PORT, tries=10):
+    """One plain HTTP server, one request at a time.
+
+    If the requested port is taken (another tool may well be sitting on it),
+    the next free port is used instead; `server_address` has the real one.
+    """
     handler = type("BoundStudioHandler", (StudioHandler,), {"studio": studio})
-    return HTTPServer((host, port), handler)
+    last_error = None
+    for candidate in (port, *range(port + 1, port + tries)) if port else (0,):
+        try:
+            return HTTPServer((host, candidate), handler)
+        except OSError as error:
+            last_error = error
+    raise last_error
 
 
 def build_parser():
@@ -286,7 +296,8 @@ def build_parser():
     parser.add_argument("--host", default="127.0.0.1",
                         help="the address to listen on (default: localhost only)")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT,
-                        help=f"the port to listen on (default {DEFAULT_PORT})")
+                        help=f"the port to listen on (default {DEFAULT_PORT}; "
+                             f"the next free port is used when it is taken)")
     parser.add_argument("--model", default=None,
                         help="the OpenRouter model to use")
     parser.add_argument("--reset", action="store_true",

@@ -688,8 +688,10 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   `{ok, log, status, ...}`; failures answer `{ok: false, error, log, status}`
   with HTTP 200, so the page can show the run log either way. JSON only — no
   multipart, no cookies, no state outside the dataset and the inbox.
-- `create_server(studio, host="127.0.0.1", port=8765)` — one plain
-  single-threaded `HTTPServer` with the studio bound to the handler class.
+- `create_server(studio, host="127.0.0.1", port=8765, tries=10)` — one plain
+  single-threaded `HTTPServer` with the studio bound to the handler class; a
+  taken port falls through to the next free one, and `main` prints the
+  `server_address` it actually got.
 - `build_parser()` / `main(argv)` — `text-to-ontology-studio [--graph]
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
@@ -1003,7 +1005,7 @@ publication only apply already-made decisions.
 | Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |
 | Starter caps | `MIN_CLASSES` 2, `MAX_CLASSES` 20, `MAX_ASSERTIONS` 40 (`starter.py`) |
 | Starter literal ranges | `XSD_TYPES`: string/text/integer/int/decimal/float/double/boolean/date/datetime/time/anyURI |
-| Studio | `DEFAULT_PORT` 8765, `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox`, page `scripts/triple-lens.html`, host `127.0.0.1`, single-threaded `HTTPServer` |
+| Studio | `DEFAULT_PORT` 8765 (next free port when taken), `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox`, page `scripts/triple-lens.html`, host `127.0.0.1`, single-threaded `HTTPServer` |
 | Studio API | `GET /` · `GET /api/status` · `GET /api/dataset` · `POST /api/reset` · `POST /api/starter {text}` · `POST /api/ingest {files:[{name,text}]}` |
 | Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
 | Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |

@@ -152,6 +152,17 @@ class StudioTest(StudioTestBase):
         self.assertNotIn("graphs/provenance", trig)
 
 
+class StudioServerTest(StudioTestBase):
+    def test_a_taken_port_falls_back_to_the_next_free_one(self):
+        studio = self.studio()
+        first = create_server(studio, "127.0.0.1", 0)
+        self.addCleanup(first.server_close)
+        taken = first.server_address[1]
+        second = create_server(studio, "127.0.0.1", taken)
+        self.addCleanup(second.server_close)
+        self.assertEqual(second.server_address[1], taken + 1)
+
+
 class StudioHttpTest(StudioTestBase):
     def setUp(self):
         super().setUp()

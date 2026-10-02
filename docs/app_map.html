@@ -696,7 +696,7 @@
           <li><span class="fn">StudioHandler + create_server(studio, host, port)</span><span class="desc">single-threaded HTTPServer with the studio bound to the handler</span></li>
           <li><span class="fn">GET / · /api/status · /api/dataset</span><span class="desc">the page; sizes + vocabulary; canonical TriG text (no provenance)</span></li>
           <li><span class="fn">POST /api/reset · /api/starter {text} · /api/ingest {files}</span><span class="desc">{ok, log, status, …}; failures answer 200 with ok:false</span></li>
-          <li><span class="const">DEFAULT_PORT / DEFAULT_SOURCES / page</span><span class="desc">8765 / sources/inbox / scripts/triple-lens.html</span></li>
+          <li><span class="const">DEFAULT_PORT / DEFAULT_SOURCES / page</span><span class="desc">8765 (falls back to the next free port) / sources/inbox / scripts/triple-lens.html</span></li>
           <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-studio … [--reset] [--no-browser]</span></li>
         </ul>
         <div class="outcome"><span class="tag">page</span>
