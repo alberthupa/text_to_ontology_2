@@ -54,6 +54,12 @@ from `GraphNames`. A `.ttl` output path explicitly selects
 `LegacyTurtleDatasetStore`, which runs the same named-graph orchestration and
 atomically exports the role union for compatibility.
 
+Two sides, one rule: **the backend owns every fact and every decision; the
+frontend owns pixels and input.** Concretely that means the page never decides
+what is relevant, never validates, never writes, and never calls a model - it
+draws what it is given and applies declarative view directives. §1.1 is the
+authoritative map of that boundary.
+
 Around that pipeline sit two entry paths:
 
 - `text_to_ontology.starter` turns a short pasted description into a starter
@@ -101,6 +107,54 @@ the data-only path).
 The prompt no longer carries the whole entity catalog or every property label.
 It carries a layered selection (canonical + `(this document)` source-local)
 capped by a token ceiling (§10).
+
+### 1.1 Frontend and backend: who owns what
+
+| Concern | Side | Where |
+|---|---|---|
+| dataset, source inbox, jobs, chat session, pending patches | backend | `workspace.py` |
+| capability names + the published manifest | backend | `operations.py` |
+| relevance (what a question is about), scope caps, model rendering | backend | `graph_scope.py`, `task_context.py` |
+| prompts, their validation and overrides | backend | `prompts.py` |
+| extraction, validation, merge policy, publication, provenance | backend | `pipeline.py` and the modules around it |
+| patch parsing/checking/preview/apply | backend | `graph_edit.py` |
+| HTTP routes, the page and its assets | transport (backend) | `studio.py` |
+| parsing RDF **for display**, layout, filters, focus, details panel | frontend | `scripts/triple-lens.html` |
+| controls, transcript rendering, diff display, view directives applied | frontend | `scripts/studio.js`, `scripts/studio.css` |
+
+**Only two boundaries exist.**
+
+1. *Frontend → backend*: named operations over `GET`/`POST /api/op/<name>`.
+   `GET /api/op/operations.list` is the manifest; every answer is one plain JSON
+   record; an unknown name is the only 404; a failed operation answers
+   `{ok: false, error}` so a page can show the message instead of breaking.
+2. *Backend → frontend*: a declarative **view directive**
+   `{replace, files: [{name, trig}], mode, focus, filters, hideIsolated,
+   clearFilters, resetFilters}`, applied by `window.__lens.applyView` (§4.29).
+
+**What each side must never do.**
+
+- The frontend never calls a model, never reads a file or the dataset path on
+  its own, never writes to the graph, never re-implements a rule (no SHACL, no
+  vocabulary check, no diffing), and never decides which part of the graph
+  matters. It may mislead the picture; it cannot corrupt the data.
+- The backend never emits markup, never knows a control's id, and never decides
+  how something is drawn beyond the view directive.
+- The transport carries and nothing else: no state beyond the binding, no
+  domain logic, no knowledge of what an operation means.
+
+**Adding a capability** is three steps, and only the last one is frontend:
+
+1. one small `def _thing(workspace, payload)` in `operations.py`;
+2. one `Operation("thing.do", "what it is for", _thing, args=(...))` line;
+3. a button in `scripts/studio.js` that calls `op.thingDo(...)`.
+
+`studio.py` does not change. If the new capability should change the picture, it
+returns a view directive and the panel passes it to `applyView`.
+
+**Changing what is shown** is one step: return a directive. The lens resolves
+IRIs to nodes and filter keys to its internal sets itself, so the backend never
+needs to know how the view is built.
 
 ---
 
@@ -973,7 +1027,8 @@ Carries things and nothing else: no state, no domain logic.
 ### 4.29 The frontend split
 
 The page is the visualization; the control panel is a separate file that the
-page loads only when it is served over HTTP.
+page loads only when it is served over HTTP. §1.1 has the full ownership map;
+this section is the file-level detail of the frontend half.
 
 - `scripts/triple-lens.html` — the viewer: parsing, layout, details, filters,
   and the **view API** a control panel is allowed to use:

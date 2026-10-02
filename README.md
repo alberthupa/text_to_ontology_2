@@ -158,6 +158,39 @@ nothing else.
 Opened straight from disk, the same page is exactly the standalone viewer: no
 server, no panel, everything read in the browser.
 
+## Frontend and backend
+
+One rule: **the backend owns every fact and every decision; the frontend owns
+pixels and input.** So the page never decides what matters in a graph, never
+validates, never writes, and never calls a model — and the backend never emits
+markup or cares which button exists.
+
+| Concern | Side | File |
+|---|---|---|
+| dataset, inbox, long jobs, chat session, pending patches | backend | `src/text_to_ontology/workspace.py` |
+| every capability, as one named operation + manifest | backend | `src/text_to_ontology/operations.py` |
+| relevance, scope caps, what a model is shown | backend | `src/text_to_ontology/graph_scope.py` |
+| prompts and their validation | backend | `src/text_to_ontology/prompts.py` |
+| patch parse/check/preview/apply, provenance | backend | `src/text_to_ontology/graph_edit.py` |
+| HTTP routes, page + assets | transport | `src/text_to_ontology/studio.py` |
+| RDF parsing for display, layout, filters, details | frontend | `scripts/triple-lens.html` |
+| controls, transcript, diff view | frontend | `scripts/studio.js`, `scripts/studio.css` |
+
+The two boundaries:
+
+1. **UI → backend**: **named operations** over `GET`/`POST /api/op/<name>`.
+   `GET /api/op/operations.list` lists every capability, each answer is one JSON
+   record, and a failure answers `{ok: false, error}` so the page can show it.
+2. **backend → UI**: a **view directive** —
+   `{replace, files, mode, focus, filters, hideIsolated, clearFilters,
+   resetFilters}` — applied by `window.__lens.applyView`. The backend says
+   *what* to show; the lens decides how to draw it.
+
+Adding a capability is one function plus one `Operation(...)` line in
+`operations.py`, and a button in the panel. `studio.py` does not change, and if
+the capability should change the picture it just returns a view directive.
+`docs/current_architecture.md` §1.1 is the detailed version of this map.
+
 ## Install
 
 ```bash

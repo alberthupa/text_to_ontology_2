@@ -193,6 +193,7 @@
 <nav class="toc">
   <div class="inner">
     <a href="#overview">1 · Overview</a>
+    <a href="#boundary">1b · Frontend / backend</a>
     <a href="#flow">2 · Data flow</a>
     <a href="#pipeline">3 · Run pipeline</a>
     <a href="#context">4 · Context selection</a>
@@ -322,6 +323,47 @@
         <li><span class="const">studio</span><span class="desc">127.0.0.1:8765 (next free port when taken) · sources/inbox/ · reset = unlink dataset + inbox</span></li>
         <li><span class="const">studio jobs</span><span class="desc">one background job at a time, watched by a progress bar via the progress operation</span></li>
       </ul>
+    </div>
+  </section>
+
+  <!-- 1b. WHO OWNS WHAT -->
+  <section id="boundary">
+    <h2>Frontend and backend</h2>
+    <p class="lead">One rule: <b>the backend owns every fact and every decision; the frontend owns pixels and input.</b> The page never decides what matters in a graph, never validates, never writes, and never calls a model. The backend never emits markup and never knows a button exists.</p>
+    <div class="two-col" style="margin-top:16px;">
+      <div class="card">
+        <h3><span class="badge read">frontend</span> pixels and input only</h3>
+        <p class="what">Two files the browser runs. They parse RDF to draw it, apply declarative view directives, and call named operations. No model calls, no validation, no writes, no idea which part of the graph matters.</p>
+        <ul class="members">
+          <li><span class="fn">scripts/triple-lens.html</span><span class="desc">the viewer: RDF parser, layout, filters, details, and <code>window.__lens</code> (applyView / clearFiles / fileNames)</span></li>
+          <li><span class="fn">scripts/studio.js</span><span class="desc">the panel: builds its own markup, calls <code>api/op/&lt;name&gt;</code>, applies view directives</span></li>
+          <li><span class="fn">scripts/studio.css</span><span class="desc">the panel's styles</span></li>
+          <li><span class="const">never</span><span class="desc">a model call, a rule re-implementation, a write, a rendering decision from the backend</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="badge write">backend</span> every fact and every decision</h3>
+        <p class="what">Python only. It owns the state, the relevance, the prompts, the model calls, the validation, the patches and the provenance - and it publishes each capability as one named operation. It never emits markup.</p>
+        <ul class="members">
+          <li><span class="fn">workspace.py</span><span class="desc">state, jobs, chat session, pending patches</span></li>
+          <li><span class="fn">operations.py</span><span class="desc">the capability registry and its manifest</span></li>
+          <li><span class="fn">graph_scope.py · graph_chat.py</span><span class="desc">relevance and one bounded subgraph per question</span></li>
+          <li><span class="fn">graph_edit.py · prompts.py · vocabulary.py</span><span class="desc">patches, editable prompts, the frozen starter vocabulary</span></li>
+          <li><span class="fn">studio.py</span><span class="desc">transport only: <code>GET/POST /api/op/&lt;name&gt;</code>, page and assets</span></li>
+          <li><span class="const">two boundaries</span><span class="desc">named operations in; view directives out</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:16px;">
+      <b>Adding a capability is three steps, and only the last is frontend:</b> one
+      <code>def _thing(workspace, payload)</code> in <code>operations.py</code>, one
+      <code>Operation("thing.do", …)</code> line, one button in
+      <code>studio.js</code>. <code>studio.py</code> never changes. If the feature
+      should change the picture, it returns a view directive -
+      <code>{replace, files, mode, focus, filters, hideIsolated, clearFilters,
+      resetFilters}</code> - and the panel hands it to
+      <code>window.__lens.applyView</code>. The detailed map is
+      <code>docs/current_architecture.md</code> §1.1.
     </div>
   </section>
 

@@ -278,7 +278,7 @@
   </section>
 
   <section id="walkthrough">
-    <h2>Step-by-step: what enters, happens, and leaves</h2>
+    <h2>Step-by-step: what enters, happens, and leaves</h2><p class="lead">Everything on this page happens in the backend. The browser parses the RDF it is given and draws it, applies declarative view directives, and calls named operations - it decides nothing about relevance, validity, or content (<code>docs/current_architecture.md</code> §1.1).</p>
     <p class="lead">These are the active calls made by <code>pipeline.run_text_to_graph()</code>, in execution order. Helpers are grouped under the stage that calls them.</p>
     <div class="steps">
       <article class="step-card" id="step-start"><h3><span class="number">0.</span> Start and open the dataset</h3><p class="purpose"><code>cli.main()</code> builds adapters and calls the one public API; the pipeline owns the loop.</p><div class="triplet">
