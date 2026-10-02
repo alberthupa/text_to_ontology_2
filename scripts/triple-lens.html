@@ -181,6 +181,41 @@ dialog .drow{display:flex;gap:8px;justify-content:flex-end;align-items:center;fl
 dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 #toast{position:fixed;left:50%;top:104px;transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--panel);padding:8px 14px;border-radius:8px;max-width:min(560px,calc(100vw - 24px));box-shadow:var(--shadow);font-size:13.5px}
 
+/* ---------- studio column (only when served by text_to_ontology.studio) ---------- */
+#workspace{display:flex;flex:1;min-height:0;min-width:0}
+#studio{flex:none;width:344px;min-height:0;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line);position:relative;z-index:6}
+#studio .shead{flex:none;display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border-bottom:1px solid var(--line);font-weight:600}
+#studio .shead span{flex:1}
+#studio .shead .btn{padding:2px 8px}
+#studio .sbody{overflow:auto;padding:12px;display:flex;flex-direction:column;gap:16px}
+#studio.collapsed{width:38px}
+#studio.collapsed .sbody,#studio.collapsed .shead span{display:none}
+#studio h3{font:600 12px var(--sans);margin:0 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+#studio p{margin:0 0 8px}
+#studio .smuted{color:var(--muted);font-size:12.5px}
+#studio .srow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#studio .sactions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+#studio .btn.danger{border-color:var(--warn);color:var(--warn)}
+#studio .btn.danger:hover{background:color-mix(in srgb,var(--warn) 12%,transparent)}
+#stText{width:100%;height:112px;resize:vertical;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;font:400 12.5px/1.45 var(--sans)}
+#stDrop{border:2px dashed var(--line);border-radius:8px;padding:14px 10px;text-align:center;color:var(--muted);font-size:12.5px;display:flex;flex-direction:column;gap:3px}
+#stDrop b{color:var(--ink);font-weight:600}
+#stDrop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);color:var(--ink)}
+#stDrop.busy{opacity:.5}
+.svocab{margin-top:10px;font-size:12.5px;display:flex;flex-direction:column;gap:4px}
+.svocab .tagline{color:var(--muted);overflow-wrap:anywhere}
+.svocab code{font:400 11.5px var(--mono)}
+.slog{margin:0;max-height:230px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;font:400 11.5px/1.45 var(--mono);white-space:pre-wrap;color:var(--muted)}
+#stStatus b{font-weight:600}
+#btnStudio{margin-left:auto}
+
+@media (max-width:1100px){ #studio{width:300px} }
+@media (max-width:820px){
+  #workspace{flex-direction:column}
+  #studio{width:auto;border-left:0;border-top:1px solid var(--line);max-height:50%}
+  #studio.collapsed{width:auto;max-height:none}
+}
+
 @media (max-width:720px){
   #details{top:auto;left:8px;right:8px;bottom:8px;width:auto;max-height:55%}
   #status{display:none}
@@ -205,10 +240,12 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
       <button data-mode="instances" aria-pressed="true" title="Every resource in the files and how they link">Full graph</button>
       <button data-mode="schema" aria-pressed="false" title="One node per class, with counts of how their instances connect">Schema summary</button>
     </div>
+    <button class="btn" id="btnStudio" hidden title="Starter ontology, ingestion, and reset">Studio</button>
   </div>
   <div class="row" id="filterbar" hidden></div>
 </header>
 
+<div id="workspace">
 <main id="stage">
   <canvas id="cv" aria-label="Graph view"></canvas>
   <div id="empty">
@@ -242,6 +279,39 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
     <div class="dbody" id="dbody"></div>
   </aside>
 </main>
+
+<aside id="studio" hidden aria-label="Studio">
+  <div class="shead"><span>Studio</span><button class="btn quiet" id="stCollapse" title="Hide or show the studio column" aria-label="Hide or show the studio column">⇥</button></div>
+  <div class="sbody">
+    <section>
+      <h3>Dataset</h3>
+      <p class="smuted" id="stStatus">Looking for the studio server…</p>
+    </section>
+    <section>
+      <h3>1 · Starter ontology</h3>
+      <p class="smuted">Describe the world in a few sentences. The model proposes the classes and relationships, and ingestion may then only use them.</p>
+      <textarea id="stText" spellcheck="false" placeholder="Example: We are a coffee roaster. We track roasters, farms, coffee lots, retailers, and the shipments between them. A lot is grown at one farm, has a roast level and a price, and is sold by retailers."></textarea>
+      <div class="sactions"><button class="btn primary" id="stCreate">Create starter ontology</button></div>
+      <div class="svocab" id="stVocab" hidden></div>
+    </section>
+    <section>
+      <h3>2 · Add sources</h3>
+      <div id="stDrop"><b>Drop .txt or .md files here</b><span>only the data graph grows: classes and relationships stay as the starter defines them</span></div>
+      <div class="sactions"><button class="btn" id="stPick">Choose files…</button><input type="file" id="stFiles" multiple accept=".txt,.md,.rst,.csv,.json,.jsonl,.yaml,.yml,.xml,.html,.log" hidden></div>
+      <p class="smuted" id="stReady"></p>
+    </section>
+    <section>
+      <h3>Run log</h3>
+      <pre class="slog" id="stLog">Nothing yet.</pre>
+    </section>
+    <section>
+      <h3>Reset</h3>
+      <p class="smuted">Deletes the dataset file and every source in the inbox. There is no undo.</p>
+      <div class="sactions"><button class="btn danger" id="stReset">Reset everything</button></div>
+    </section>
+  </div>
+</aside>
+</div>
 
 <div id="pop" hidden></div>
 <div id="results" hidden></div>
@@ -1769,6 +1839,145 @@ function filterDefs(model) {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(kick);
   readTheme(); resize(); syncChrome();
   window.__lens = { S, addText, afterLoad, setMode, tick, draw };
+})();
+
+</script>
+<script>
+"use strict";
+/* ===================== studio column =====================
+   The right-hand column only appears when this page is served by the tiny
+   local studio server (text_to_ontology.studio). It can create the starter
+   ontology, ingest dropped sources into the data graph, and reset
+   everything. Opened straight from disk, the page behaves exactly as before:
+   no server, no column, everything read in the browser. */
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (n) => Number(n).toLocaleString('en-US');
+
+  const panel = $('#studio'), toggle = $('#btnStudio');
+  const statusEl = $('#stStatus'), logEl = $('#stLog'), vocabEl = $('#stVocab');
+  const dropEl = $('#stDrop'), readyEl = $('#stReady');
+  let busy = false, loaded = [];
+
+  async function api(path, body) {
+    const options = body === undefined ? undefined : {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    };
+    const response = await fetch(path, options);
+    const text = await response.text();
+    try { return JSON.parse(text); }
+    catch (error) { throw new Error('the studio server answered ' + response.status + ' with a non-JSON body'); }
+  }
+
+  function renderStatus(status) {
+    if (!status) return;
+    const classes = status.classes || [], relations = status.relations || [], facts = status.facts || [];
+    statusEl.innerHTML = `<b>${esc(status.graph)}</b> · ${fmt(status.triples)} triples`
+      + (status.sources && status.sources.length ? `<br>${status.sources.length} source file(s) in the inbox` : '');
+    vocabEl.hidden = false;
+    if (status.ready) {
+      vocabEl.innerHTML = `<div class="tagline">Classes: <code>${esc(classes.join(', '))}</code></div>`
+        + `<div class="tagline">Relations: <code>${esc(relations.join(', ') || 'none')}</code></div>`
+        + `<div class="tagline">Facts: <code>${esc(facts.join(', ') || 'none')}</code></div>`;
+      readyEl.textContent = 'Ready. Dropped files may only use this vocabulary.';
+    } else {
+      vocabEl.innerHTML = '<div class="tagline">No starter ontology yet. Create one above first: ingestion has no classes or relationships to use until then.</div>';
+      readyEl.textContent = '';
+    }
+  }
+
+  function setBusy(on, message) {
+    busy = on;
+    ['#stCreate', '#stPick', '#stReset', '#stCollapse'].forEach((s) => { $(s).disabled = on; });
+    dropEl.classList.toggle('busy', on);
+    if (on && message) logEl.textContent = message;
+  }
+
+  async function loadDataset() {
+    const lens = window.__lens;
+    if (!lens) return;
+    const data = await api('api/dataset');
+    lens.S.files = lens.S.files.filter((f) => loaded.indexOf(f.name) < 0);
+    loaded = [];
+    if (!data.trig || !data.trig.trim()) { lens.afterLoad([]); return; }
+    const result = lens.addText('ontology.trig', data.trig);
+    loaded = [result.name];
+    lens.afterLoad([result]);
+  }
+
+  async function run(action, message) {
+    if (busy) return;
+    setBusy(true, message);
+    try {
+      const result = await action();
+      if (result.log) logEl.textContent = result.log;
+      if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
+      if (result.status) renderStatus(result.status);
+      if (result.ok) await loadDataset();
+    } catch (error) {
+      logEl.textContent = 'Error: ' + error.message;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function ingest(fileList) {
+    const files = [];
+    for (const file of fileList) files.push({ name: file.name, text: await file.text() });
+    if (!files.length) return;
+    return run(() => api('api/ingest', { files }),
+      `Ingesting ${files.length} file${files.length > 1 ? 's' : ''}. This can take a minute per file…`);
+  }
+
+  $('#stCreate').onclick = () => run(() => {
+    const text = $('#stText').value.trim();
+    if (!text) throw new Error('paste some initial information first');
+    return api('api/starter', { text });
+  }, 'Asking the model for a starter ontology. This can take a minute…');
+
+  $('#stPick').onclick = () => $('#stFiles').click();
+  $('#stFiles').onchange = () => {
+    const files = [...$('#stFiles').files];
+    $('#stFiles').value = '';
+    ingest(files);
+  };
+
+  $('#stReset').onclick = () => {
+    if (!confirm('Delete the dataset and every ingested source? This cannot be undone.')) return;
+    run(() => api('api/reset', {}), 'Deleting the dataset and the inbox…');
+  };
+
+  ['dragenter', 'dragover'].forEach((type) => dropEl.addEventListener(type, (event) => {
+    if (!event.dataTransfer || [...event.dataTransfer.types].indexOf('Files') < 0) return;
+    event.preventDefault(); event.stopPropagation(); dropEl.classList.add('over');
+  }));
+  ['dragleave', 'dragend'].forEach((type) => dropEl.addEventListener(type, (event) => {
+    event.stopPropagation(); dropEl.classList.remove('over');
+  }));
+  dropEl.addEventListener('drop', (event) => {
+    event.preventDefault(); event.stopPropagation();
+    dropEl.classList.remove('over');
+    const files = [...(event.dataTransfer ? event.dataTransfer.files : [])];
+    if (files.length) ingest(files);
+  });
+
+  $('#stCollapse').onclick = () => panel.classList.toggle('collapsed');
+  toggle.onclick = () => { panel.hidden = !panel.hidden; };
+
+  (async function connect() {
+    try {
+      const status = await api('api/status');
+      panel.hidden = false;
+      toggle.hidden = false;
+      renderStatus(status);
+      await loadDataset();
+    } catch (error) {
+      panel.hidden = true;   // opened from disk: the lens works as always
+      toggle.hidden = true;
+    }
+  })();
 })();
 
 </script>
