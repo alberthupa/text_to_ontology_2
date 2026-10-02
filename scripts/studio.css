@@ -29,6 +29,8 @@
 #studio select{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;color:var(--ink);font:inherit;flex:1;min-width:0}
 #studio textarea.scode{width:100%;height:220px;resize:vertical;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;font:400 11.5px/1.45 var(--mono);white-space:pre;overflow:auto;margin-top:8px}
 #stPromptPreviewBox{max-height:260px}
+.scheck{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12.5px;color:var(--muted);cursor:pointer}
+#studio textarea.scode + .scheck{margin-top:6px}
 .schat{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px}
 .schat .sempty{color:var(--muted);font-size:12.5px}
 .schat .msg{display:flex;flex-direction:column;gap:2px}

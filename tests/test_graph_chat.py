@@ -94,6 +94,31 @@ class SelectTest(unittest.TestCase):
         self.assertEqual(first.triples, second.triples)
         self.assertEqual(first.nodes, second.nodes)
 
+    def test_a_plural_question_still_finds_its_subject(self):
+        # The strict layer matches whole words, so "countries" misses the
+        # class labelled "Country"; the bounded fallback catches that.
+        scope = select("What countries are in the graph?", self.graph)
+        self.assertEqual(scope.focus_source, "loose")
+        self.assertIn(str(EX.poland), [str(node) for node in scope.nodes])
+        self.assertTrue(scope.diagnostics["loose"])
+
+    def test_the_strict_match_is_preferred_when_it_works(self):
+        scope = select("Tell me about Poland", self.graph)
+        self.assertEqual(scope.focus_source, "matched")
+        self.assertFalse(scope.diagnostics["loose"])
+
+    def test_a_class_name_brings_its_instances(self):
+        graph = Graph()
+        graph.add((EX.Tool, RDF.type, OWL.Class))
+        graph.add((EX.Tool, RDFS.label, Literal("Tool")))
+        graph.add((EX.drill, RDF.type, EX.Tool))
+        graph.add((EX.drill, RDFS.label, Literal("Drill")))
+        graph.add((EX.saw, RDF.type, EX.Tool))
+        graph.add((EX.saw, RDFS.label, Literal("Saw")))
+        matched = graph_scope.loose_matches("what tools are there?", graph)
+        self.assertEqual([str(uri) for uri in matched],
+                         [str(EX.drill), str(EX.saw)])
+
     def test_nothing_matching_is_an_empty_scope_not_a_crash(self):
         scope = select("nothing here matches at all", self.graph)
         self.assertEqual(scope.nodes, ())

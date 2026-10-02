@@ -18,6 +18,8 @@ from pathlib import Path
 
 from rdflib import Dataset, Graph
 
+from . import graph_edit
+from .document_publication import shape_graphs
 from .graph_chat import ChatSession
 from .graph_management import bind
 from .graph_store import GraphNames, RdflibGraphStore
@@ -186,6 +188,8 @@ class Workspace:
         self.store = RdflibGraphStore(path=self.graph_path)
         self.progress = Progress()
         self.chat = ChatSession(library=self.prompts)
+        # patch_id -> the exact triples a preview promised, until applied.
+        self.edits = {}
 
     def extractor_for_run(self):
         """The extractor this run should use, with the prompts in force now."""
@@ -376,9 +380,79 @@ class Workspace:
                 "graph chat cannot run")
         return answer(prompt, system=system)
 
+    # ---------- editing the graph ----------
+
+    def edit_current(self):
+        """The editable part of the graph: the target data graph as Turtle."""
+        text = graph_edit.data_turtle(self.store.get(self.names.target_graph))
+        return {"ok": True, "turtle": text, "bytes": len(text.encode("utf-8")),
+                "triples": len(self.store.get(self.names.target_graph))}
+
+    def edit_preview(self, text, allow_new_vocabulary=False, source="hand"):
+        """Check one patch and remember exactly what applying it would do."""
+        if not str(text or "").strip():
+            return {"ok": False, "error": "the patch is empty"}
+        patch = graph_edit.preview(
+            self.canonical_graph(), text, source=source,
+            allow_new_vocabulary=bool(allow_new_vocabulary),
+            shapes=shape_graphs(self._roles_for_edit(), self.names))
+        if not patch.ok:
+            return {**patch.summary(), "ok": False,
+                    "error": patch.errors[0] if patch.errors else "the patch is "
+                             "not valid"}
+        self.edits = {patch.patch_id: patch}
+        return patch.summary()
+
+    def edit_apply(self, patch_id):
+        """Apply exactly the triples one preview promised."""
+        patch = self.edits.get(str(patch_id or ""))
+        if patch is None:
+            return {"ok": False,
+                    "error": "that patch is not waiting to be applied; press "
+                             "Preview again so you see what will change"}
+        bundle, evidence = graph_edit.publication(
+            self.store, self.names, patch)
+        self.store.publish(bundle)
+        del self.edits[patch.patch_id]
+        return {"ok": True, "evidence": len(evidence),
+                "log": f"Applied {patch.counts()['added']} addition(s) and "
+                       f"{patch.counts()['removed']} removal(s); the change is "
+                       f"recorded in the provenance graph.\n",
+                "status": self.status(),
+                "turtle": graph_edit.data_turtle(
+                    self.store.get(self.names.target_graph))}
+
+    def _roles_for_edit(self):
+        """The role graphs as `shape_graphs` expects them."""
+        return {name: self.store.get(name)
+                for name in (*self.names.schema_graphs, *self.names.shape_graphs,
+                             *self.names.data_graphs, self.names.target_graph,
+                             self.names.provenance_graph,
+                             self.names.review_graph)}
+
     def chat_state(self):
         """The conversation so far, and what it is currently about."""
-        return self.chat.state()
+        return {**self.chat.state(),
+                "turns": self._with_proposals(self.chat.transcript())}
+
+    def _with_proposals(self, turns):
+        """Check any Turtle block in an answer, without applying anything.
+
+        A chat answer may propose a change. It becomes a checked proposal with
+        its own patch id, which a frontend can offer to apply; nothing here
+        writes to the graph.
+        """
+        prepared = []
+        for turn in turns:
+            turn = dict(turn)
+            turn["proposal"] = None
+            if turn["role"] == "graph":
+                blocks = graph_edit.fenced_turtle(turn["text"])
+                if blocks:
+                    turn["proposal"] = self.edit_preview(
+                        blocks[0], source="chat")
+            prepared.append(turn)
+        return prepared
 
     def chat_reset(self):
         """Forget the conversation."""
@@ -398,7 +472,7 @@ class Workspace:
         scope = outcome["scope"]
         return {"ok": True, "answer": outcome["answer"],
                 "scope": {**scope.summary(), "view": scope.view()},
-                "turns": self.chat.transcript()}
+                "turns": self._with_proposals(self.chat.transcript())}
 
     def start_chat(self, message):
         """Run one chat turn in the background; None when a job is running."""

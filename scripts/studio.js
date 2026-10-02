@@ -55,6 +55,10 @@
     chat: (message) => call('chat.ask', { message }),
     chatState: () => call('chat.state'),
     chatReset: () => call('chat.reset', {}),
+    editCurrent: () => call('edit.current'),
+    editPreview: (text, allow) => call('edit.preview',
+      { text, allow_new_vocabulary: !!allow }),
+    editApply: (patchId) => call('edit.apply', { patch_id: patchId }),
   };
 
   /* ---------- the panel ---------- */
@@ -118,6 +122,19 @@
       </div>
     </section>
     <section>
+      <h3>5 \u00b7 Edit the graph</h3>
+      <p class="smuted">The data graph as Turtle. Additions are ordinary statements; a line starting with <code>- </code> removes one. Nothing changes until you preview it and then apply exactly what you saw.</p>
+      <div class="sactions">
+        <button class="btn" id="stEditLoad">Load the graph</button>
+        <button class="btn primary" id="stEditPreview">Preview changes</button>
+        <button class="btn" id="stEditApply" disabled>Apply changes</button>
+      </div>
+      <label class="scheck"><input type="checkbox" id="stEditAllow"> allow new classes and relations</label>
+      <textarea id="stEditText" class="scode" spellcheck="false" placeholder="Load the graph, then change it here. Example:&#10;entity:new-thing a class:Tool ; skos:prefLabel &quot;New thing&quot; .&#10;- entity:old-thing skos:prefLabel &quot;Old thing&quot; ."></textarea>
+      <p class="smuted" id="stEditNote"></p>
+      <pre class="slog" id="stEditDiff" hidden></pre>
+    </section>
+    <section>
       <h3>Run log</h3>
       <pre class="slog" id="stLog">Nothing yet.</pre>
     </section>
@@ -145,11 +162,15 @@
   const importDrop = $('#stImportDrop'), importFiles = $('#stImportFiles');
   const chatLog = $('#stChatLog'), chatText = $('#stChatText');
   const chatEverything = $('#stChatEverything');
+  const editText = $('#stEditText'), editNote = $('#stEditNote');
+  const editDiff = $('#stEditDiff'), editAllow = $('#stEditAllow');
+  const editApply = $('#stEditApply');
   const progressEl = $('#stProgress'), pLabel = $('#stPLabel'), pPct = $('#stPPct');
   const pFill = $('#stPFill'), pDetail = $('#stPDetail');
   const promptName = $('#stPromptName'), promptText = $('#stPromptText');
   const promptNote = $('#stPromptNote'), promptPreview = $('#stPromptPreviewBox');
   let busy = false, lastStatus = null, prompts = [], scopes = {};
+  let editPatch = null, proposals = {};
 
   /* ---------- progress ---------- */
   function showProgress(state) {
@@ -169,7 +190,7 @@
     busy = on;
     ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse',
      '#stImportPick', '#stPromptSave', '#stPromptReset', '#stPromptPreview',
-     '#stChatSend', '#stChatReset'].forEach((s) => {
+     '#stChatSend', '#stChatReset', '#stEditLoad', '#stEditPreview'].forEach((s) => {
       const button = $(s); if (button) button.disabled = on;
     });
     dropEl.classList.toggle('busy', on);
@@ -401,17 +422,32 @@
     return `<div class="smeta">${scope.triples} triples selected${dropped}${focus}${button}</div>`;
   }
 
+  function proposalNote(turn) {
+    const proposal = turn.proposal;
+    if (!proposal) return '';
+    if (!proposal.ok) {
+      return `<div class="smeta">proposed change could not be checked: `
+        + `${esc(proposal.error || 'not valid')}</div>`;
+    }
+    const counts = proposal.counts || {};
+    return `<div class="smeta">proposed change: +${counts.added} \u2212${counts.removed}`
+      + ` <button class="lnk" data-proposal="${turn.index}">Apply this patch</button></div>`;
+  }
+
   function renderChat(turns) {
     const list = turns || [];
     scopes = {};
+    proposals = {};
     list.forEach((turn) => {
       if (turn.role === 'graph' && turn.view) scopes[turn.index] = turn;
+      if (turn.role === 'graph' && turn.proposal) proposals[turn.index] = turn.proposal;
     });
     chatLog.innerHTML = list.length ? list.map((turn) =>
       `<div class="msg ${turn.role === 'you' ? 'you' : 'graph'}">`
       + `<div class="who">${turn.role === 'you' ? 'you' : 'graph'}</div>`
       + `<div class="body">${esc(turn.text)}</div>`
       + (turn.role === 'graph' ? scopeNote(turn, turn.scope) : '')
+      + (turn.role === 'graph' ? proposalNote(turn) : '')
       + '</div>').join('')
       : '<div class="sempty">Nothing yet. Ask a question about the graph.</div>';
     chatLog.scrollTop = chatLog.scrollHeight;
@@ -419,6 +455,17 @@
   }
 
   chatLog.addEventListener('click', (event) => {
+    const applyButton = event.target.closest('[data-proposal]');
+    if (applyButton) {
+      const proposal = proposals[+applyButton.dataset.proposal];
+      if (!proposal) return;
+      run(() => op.editApply(proposal.patch_id),
+        'Applying the proposed patch\u2026', (result) => {
+          if (result.ok) showEditNote('The proposed patch was applied and recorded.');
+          reloadChat();
+        });
+      return;
+    }
     const button = event.target.closest('[data-scope]');
     if (!button) return;
     const turn = scopes[+button.dataset.scope];
@@ -454,11 +501,81 @@
     chatEverything.hidden = true;
     logEl.textContent = 'Showing the full dataset again.';
   };
+  async function reloadChat() {
+    const chat = await op.chatState();
+    if (chat && chat.turns) renderChat(chat.turns);
+  }
+
   $('#stChatReset').onclick = async () => {
     const answer = await op.chatReset();
     renderChat(answer && answer.turns ? answer.turns : []);
     logEl.textContent = 'Conversation cleared.';
   };
+
+  /* ---------- the editor ---------- */
+  function showEditNote(text, bad) {
+    editNote.textContent = text || '';
+    editNote.style.color = bad ? 'var(--warn)' : '';
+  }
+
+  function showDiff(answer) {
+    const sample = answer.sample || { added: [], removed: [] };
+    const lines = [];
+    (sample.added || []).forEach((line) => lines.push('+ ' + line));
+    if (sample.more_added) lines.push(`+ \u2026 ${sample.more_added} more addition(s)`);
+    (sample.removed || []).forEach((line) => lines.push('- ' + line));
+    if (sample.more_removed) lines.push(`- \u2026 ${sample.more_removed} more removal(s)`);
+    (answer.warnings || []).forEach((line) => lines.push('! ' + line));
+    (answer.errors || []).forEach((line) => lines.push('x ' + line));
+    editDiff.hidden = !lines.length;
+    editDiff.textContent = lines.join('\n');
+  }
+
+  function forgetEdit() {
+    editPatch = null;
+    editApply.disabled = true;
+  }
+
+  $('#stEditLoad').onclick = () => run(() => op.editCurrent(),
+    'Reading the data graph\u2026', (result) => {
+      if (!result.ok) return;
+      editText.value = result.turtle;
+      forgetEdit();
+      showDiff({});
+      showEditNote(`${result.triples} triples, ${Math.round(result.bytes / 1024)} kB. `
+        + 'Edit, then Preview changes.');
+    });
+
+  $('#stEditPreview').onclick = () => run(
+    () => op.editPreview(editText.value, editAllow.checked),
+    'Checking the patch\u2026', (result) => {
+      forgetEdit();
+      showDiff(result);
+      if (result.ok) {
+        editPatch = result.patch_id;
+        editApply.disabled = false;
+        showEditNote(`Ready: ${result.counts.added} addition(s), `
+          + `${result.counts.removed} removal(s). Apply to write exactly this.`);
+      } else {
+        showEditNote(result.error || 'the patch is not valid', true);
+      }
+    });
+
+  $('#stEditApply').onclick = () => {
+    if (!editPatch) { showEditNote('Preview the patch first.', true); return; }
+    run(() => op.editApply(editPatch), 'Applying the patch\u2026', (result) => {
+      if (result.ok) {
+        editText.value = result.turtle || editText.value;
+        forgetEdit();
+        showDiff({});
+        showEditNote('Applied and recorded in the provenance graph.');
+      }
+    });
+  };
+  editText.addEventListener('input', () => {
+    if (editPatch) showEditNote('The text changed since the preview: preview again.');
+    forgetEdit();
+  });
 
   /* ---------- connect ---------- */
   (async function connect() {

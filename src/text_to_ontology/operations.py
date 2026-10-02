@@ -119,6 +119,25 @@ def _chat_reset(workspace, payload):
     return workspace.chat_reset()
 
 
+def _edit_current(workspace, payload):
+    return workspace.edit_current()
+
+
+def _edit_preview(workspace, payload):
+    text = str(payload.get("text") or "")
+    if not text.strip():
+        return {"ok": False, "error": "the patch is empty"}
+    return workspace.edit_preview(
+        text, allow_new_vocabulary=_truthy(payload.get("allow_new_vocabulary")))
+
+
+def _edit_apply(workspace, payload):
+    patch_id = str(payload.get("patch_id") or "")
+    if not patch_id:
+        return {"ok": False, "error": "no patch id was given"}
+    return workspace.edit_apply(patch_id)
+
+
 def _operations(workspace, payload):
     return {"ok": True, "operations": describe()}
 
@@ -141,6 +160,12 @@ OPERATIONS = (
               background=True),
     Operation("chat.state", "the conversation so far", _chat_state),
     Operation("chat.reset", "forget the conversation", _chat_reset),
+    Operation("edit.current", "the data graph as editable Turtle",
+              _edit_current),
+    Operation("edit.preview", "check a patch and show exactly what it changes",
+              _edit_preview, args=("text", "allow_new_vocabulary")),
+    Operation("edit.apply", "apply exactly the patch that was previewed",
+              _edit_apply, args=("patch_id",)),
     Operation("operations.list", "this list of named capabilities", _operations),
     Operation("prompts.list", "the editable prompt templates and their state",
               _prompts_list),
@@ -185,6 +210,12 @@ def _started(workspace, job):
                 "error": "a job is already running; wait for it",
                 "status": workspace.status()}
     return {"ok": True, "job_id": job, "status": workspace.status()}
+
+
+def _truthy(value):
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _integer(value):

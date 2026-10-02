@@ -18,10 +18,11 @@ declarative directive a frontend applies, and `render_for_model()` as compact
 lines for the prompt or the transcript. Nothing here writes to a graph.
 """
 
+import re
 from dataclasses import dataclass, field
 
 from rdflib import BNode, Dataset, Graph, Literal, URIRef
-from rdflib.namespace import RDF, RDFS, SKOS
+from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from .graph_management import BASE
 from .prompt_budget import estimate_tokens
@@ -109,7 +110,15 @@ def select(text, graph, carry_over=(), limits=None):
     # Context items wrap their card under "value"; the card carries "uri".
     matched = [URIRef(item["value"]["uri"]) for item in context["resources"]
                if (item.get("value") or {}).get("uri")]
+    loose = False
+    if not matched:
+        # The strict layer matches whole words, so "tools" misses a class
+        # labelled "Tool". That is worth one bounded fallback.
+        matched = loose_matches(text, graph, limits["focus"])
+        loose = bool(matched)
     nodes, focus_source = _focus(matched, carry_over, graph, limits["focus"])
+    if loose and nodes:
+        focus_source = "loose"
     triples, dropped = _collect(graph, nodes, context, limits["triples"])
     return Scope(
         question=text,
@@ -121,8 +130,91 @@ def select(text, graph, carry_over=(), limits=None):
             "matched": len(matched),
             "carried_over": len([node for node in carry_over]),
             "concepts": len(context["concepts"]),
+            "loose": loose,
         },
     )
+
+
+def loose_matches(text, graph, limit=MAX_FOCUS):
+    """Individuals the question names, tolerating a plural or a suffix.
+
+    Used only when the strict selection found nothing: the question's words
+    (and their singular forms) are looked up in the labels of what the graph
+    names. A word that matches a *class* brings that class's instances, which
+    is what a person means by "what tools does the library have".
+    """
+    words = set()
+    for word in re.findall(r"[a-z0-9]+", str(text).lower()):
+        if len(word) > 2:
+            words |= _word_forms(word)
+    if not words:
+        return []
+
+    labelled = sorted(_labelled(graph), key=lambda pair: (pair[0], str(pair[1])))
+    chosen, seen = [], set()
+
+    def add(uri):
+        if isinstance(uri, URIRef) and uri not in seen:
+            seen.add(uri)
+            chosen.append(uri)
+
+    for label, subject in labelled:
+        tokens = set(re.findall(r"[a-z0-9]+", label.lower()))
+        if not tokens & words:
+            continue
+        if (subject, RDF.type, OWL.Class) in graph:
+            instances = _instances_of(graph, subject)
+            if instances:
+                for instance in instances:
+                    add(instance)
+                    if len(chosen) >= limit:
+                        return chosen
+            else:
+                # A class nobody instantiates yet is still worth showing.
+                add(subject)
+        else:
+            add(subject)
+        if len(chosen) >= limit:
+            break
+    return chosen
+
+
+def _instances_of(graph, class_uri, depth=1):
+    """Direct instances of a class, and of its subclasses, in a stable order."""
+    classes, frontier, seen = [class_uri], [class_uri], {class_uri}
+    for _hop in range(max(0, depth)):
+        below = []
+        for parent in frontier:
+            for child in graph.subjects(RDFS.subClassOf, parent):
+                if isinstance(child, URIRef) and child not in seen:
+                    seen.add(child)
+                    classes.append(child)
+                    below.append(child)
+        frontier = below
+    found = set()
+    for item in classes:
+        found |= {instance for instance in graph.subjects(RDF.type, item)
+                  if isinstance(instance, URIRef)}
+    return sorted(found, key=str)
+
+
+def _word_forms(word):
+    """A word and the singular forms a person would expect it to match."""
+    forms = {word}
+    if word.endswith("ies") and len(word) > 4:
+        forms.add(word[:-3] + "y")
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        forms.add(word[:-1])
+    return forms
+
+
+def _labelled(graph):
+    """(text, subject) for everything the graph gives a name, read only."""
+    for _s, predicate, label in graph.triples((None, None, None)):
+        if predicate not in (RDFS.label, SKOS.prefLabel, SKOS.altLabel):
+            continue
+        if isinstance(label, Literal):
+            yield str(label), label and _s
 
 
 def _focus(matched, carry_over, graph, limit):
