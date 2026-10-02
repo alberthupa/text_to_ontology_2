@@ -194,6 +194,10 @@ class StudioHttpTest(StudioTestBase):
         status, body = self.get("/")
         self.assertEqual(status, 200)
         self.assertIn(b"<title>Triple Lens", body)
+        # the controls the studio column promises: clear, reset, starter, drop
+        for control in (b'id="stClear"', b'id="stReset"', b'id="stCreate"',
+                        b'id="stDrop"', b'id="stStatus"', b'id="stLog"'):
+            self.assertIn(control, body, control)
 
         status, body = self.get("/api/dataset")
         self.assertEqual(status, 200)

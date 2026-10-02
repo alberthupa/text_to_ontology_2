@@ -286,12 +286,18 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
     <section>
       <h3>Dataset</h3>
       <p class="smuted" id="stStatus">Looking for the studio server…</p>
+      <div class="sactions">
+        <button class="btn" id="stClear" title="Unload the dataset from the graph view; nothing is deleted">Clear view</button>
+        <button class="btn danger" id="stReset" title="Delete the dataset file and every source in the inbox">Reset everything</button>
+      </div>
+      <p class="smuted" style="margin-top:6px">Reset deletes <code>ontology.trig</code> and the inbox and leaves the view empty. There is no undo.</p>
     </section>
     <section>
       <h3>1 · Starter ontology</h3>
       <p class="smuted">Describe the world in a few sentences. The model proposes the classes and relationships, and ingestion may then only use them.</p>
       <textarea id="stText" spellcheck="false" placeholder="Example: We are a coffee roaster. We track roasters, farms, coffee lots, retailers, and the shipments between them. A lot is grown at one farm, has a roast level and a price, and is sold by retailers."></textarea>
       <div class="sactions"><button class="btn primary" id="stCreate">Create starter ontology</button></div>
+      <p class="smuted" id="stWarn" style="margin-top:6px"></p>
       <div class="svocab" id="stVocab" hidden></div>
     </section>
     <section>
@@ -303,11 +309,6 @@ dialog .drow input{flex:1;min-width:140px;background:var(--bg);border:1px solid 
     <section>
       <h3>Run log</h3>
       <pre class="slog" id="stLog">Nothing yet.</pre>
-    </section>
-    <section>
-      <h3>Reset</h3>
-      <p class="smuted">Deletes the dataset file and every source in the inbox. There is no undo.</p>
-      <div class="sactions"><button class="btn danger" id="stReset">Reset everything</button></div>
     </section>
   </div>
 </aside>
@@ -1857,8 +1858,8 @@ function filterDefs(model) {
 
   const panel = $('#studio'), toggle = $('#btnStudio');
   const statusEl = $('#stStatus'), logEl = $('#stLog'), vocabEl = $('#stVocab');
-  const dropEl = $('#stDrop'), readyEl = $('#stReady');
-  let busy = false, loaded = [];
+  const dropEl = $('#stDrop'), readyEl = $('#stReady'), warnEl = $('#stWarn');
+  let busy = false, loaded = [], lastStatus = null;
 
   async function api(path, body) {
     const options = body === undefined ? undefined : {
@@ -1873,6 +1874,7 @@ function filterDefs(model) {
 
   function renderStatus(status) {
     if (!status) return;
+    lastStatus = status;
     const classes = status.classes || [], relations = status.relations || [], facts = status.facts || [];
     statusEl.innerHTML = `<b>${esc(status.graph)}</b> · ${fmt(status.triples)} triples`
       + (status.sources && status.sources.length ? `<br>${status.sources.length} source file(s) in the inbox` : '');
@@ -1882,15 +1884,31 @@ function filterDefs(model) {
         + `<div class="tagline">Relations: <code>${esc(relations.join(', ') || 'none')}</code></div>`
         + `<div class="tagline">Facts: <code>${esc(facts.join(', ') || 'none')}</code></div>`;
       readyEl.textContent = 'Ready. Dropped files may only use this vocabulary.';
+      warnEl.textContent = status.triples > 0
+        ? `A starter replaces the whole dataset, so this deletes the ${fmt(status.triples)} triples it holds now. Press Reset everything first if you want a clean start.`
+        : '';
     } else {
       vocabEl.innerHTML = '<div class="tagline">No starter ontology yet. Create one above first: ingestion has no classes or relationships to use until then.</div>';
       readyEl.textContent = '';
+      warnEl.textContent = status.triples > 0
+        ? `This dataset has ${fmt(status.triples)} triples but no starter vocabulary. Reset everything before creating one.`
+        : '';
     }
+  }
+
+  function clearView(message) {
+    const lens = window.__lens;
+    if (lens) {
+      lens.S.files = lens.S.files.filter((f) => loaded.indexOf(f.name) < 0);
+      lens.afterLoad([]);
+    }
+    loaded = [];
+    if (message) logEl.textContent = message;
   }
 
   function setBusy(on, message) {
     busy = on;
-    ['#stCreate', '#stPick', '#stReset', '#stCollapse'].forEach((s) => { $(s).disabled = on; });
+    ['#stCreate', '#stPick', '#stReset', '#stClear', '#stCollapse'].forEach((s) => { $(s).disabled = on; });
     dropEl.classList.toggle('busy', on);
     if (on && message) logEl.textContent = message;
   }
@@ -1913,7 +1931,8 @@ function filterDefs(model) {
     try {
       const result = await action();
       if (result.log) logEl.textContent = result.log;
-      if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
+      if (!result.ok && result.cancelled) logEl.textContent = result.error;
+      else if (!result.ok) logEl.textContent = (result.log || '') + '\nError: ' + (result.error || 'unknown error');
       if (result.status) renderStatus(result.status);
       if (result.ok) await loadDataset();
     } catch (error) {
@@ -1934,6 +1953,10 @@ function filterDefs(model) {
   $('#stCreate').onclick = () => run(() => {
     const text = $('#stText').value.trim();
     if (!text) throw new Error('paste some initial information first');
+    const held = lastStatus ? lastStatus.triples : 0;
+    if (held > 0 && !confirm(`A starter replaces the whole dataset and deletes its ${fmt(held)} triples.\n\nContinue?`)) {
+      return { ok: false, cancelled: true, error: 'Cancelled. Nothing was changed.' };
+    }
     return api('api/starter', { text });
   }, 'Asking the model for a starter ontology. This can take a minute…');
 
@@ -1943,6 +1966,8 @@ function filterDefs(model) {
     $('#stFiles').value = '';
     ingest(files);
   };
+
+  $('#stClear').onclick = () => clearView('View cleared. The dataset is untouched — press Reset everything to delete it.');
 
   $('#stReset').onclick = () => {
     if (!confirm('Delete the dataset and every ingested source? This cannot be undone.')) return;
@@ -1973,6 +1998,10 @@ function filterDefs(model) {
       toggle.hidden = false;
       renderStatus(status);
       await loadDataset();
+      logEl.textContent = status.triples > 0
+        ? `Loaded ${status.graph} with ${fmt(status.triples)} triples.\n`
+          + 'To start from scratch: Reset everything, paste a starter description, then drop sources.\n'
+        : 'Empty dataset. Paste a starter description above, then drop sources below.\n';
     } catch (error) {
       panel.hidden = true;   // opened from disk: the lens works as always
       toggle.hidden = true;
