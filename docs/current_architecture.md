@@ -668,6 +668,21 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
 - `find_page(explicit=None)` — the `scripts/triple-lens.html` page: the given
   path, then the working directory, then the repository root next to the
   package.
+- `Progress` — the one job the page polls: `claim(label)` takes the single job
+  slot (returns `None` when a job already runs), `update(percent, detail)`
+  moves the bar, `finish(result)` stores the answer, `snapshot(job_id)` returns
+  `{ok, job_id, running, label, detail, percent, result}` where `result` is
+  filled in only for the job id that asked (so a reloaded or stale page cannot
+  pick up an earlier run's answer). `running_now` is the test helper.
+- `_CountingExtractor(extractor, on_call)` — wraps the extractor so the starter
+  job can say which model call (and repair attempt) it is waiting for.
+- `_ProgressReporter(stream, file_name, file_number, files_total, progress)` —
+  a `RunReporter` subclass: the ordinary run log plus one progress step per
+  checkpoint (`source_started`, `document_staging`, `window_started`,
+  `model_replied`, `window_admitted`, `saved`). The pipeline runs once per file
+  and therefore always reports "1 of 1", so the studio supplies the real file
+  number and count; `_percent(within_file)` makes the bar span the whole drop
+  and never move backwards.
 - `Studio(graph_path, sources_dir, page_path, model=None, names=None,
   extractor=None)` — everything the studio does, with no HTTP in it:
   `canonical_graph()` (schema + configured data + target), `triple_count()`,
@@ -677,21 +692,33 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   file and every direct child file of the inbox, then re-open an empty store;
   `_check_reset_target` refuses when the inbox is the working directory, one of
   its parents, or the dataset's own directory),
-  `create_starter(text)` (propose + publish on the studio's own store),
-  `ingest(files, log)` (write each dropped text into the inbox, then run the
-  pipeline once per file with `MergeConfig(require_declared_vocabulary=True)`,
-  reporting into `log`), and `_write_source(name, text)` (safe name, never
-  overwrites).
+  `create_starter(text, progress=None)` (propose + publish on the studio's own
+  store, reporting model calls and the write step when a `progress` is given),
+  `ingest(files, log, progress=None)` (write each dropped text into the inbox,
+  then run the pipeline once per file with
+  `MergeConfig(require_declared_vocabulary=True)`, reporting into `log` and
+  moving the bar per file and window), `_write_source(name, text)` (safe name,
+  never overwrites), and the two job launchers the HTTP layer uses:
+  `start_starter(text)` / `start_ingest(files)` claim the slot, run the work in
+  a daemon thread, and return the job id (or `None` when one is already
+  running).
 - `StudioHandler` — `GET /` (the page), `GET /api/status`, `GET /api/dataset`,
-  `POST /api/reset`, `POST /api/starter` (`{text}`), `POST /api/ingest`
-  (`{files: [{name, text}]}`). Mutating answers are
-  `{ok, log, status, ...}`; failures answer `{ok: false, error, log, status}`
-  with HTTP 200, so the page can show the run log either way. JSON only — no
-  multipart, no cookies, no state outside the dataset and the inbox.
-- `create_server(studio, host="127.0.0.1", port=8765, tries=10)` — one plain
-  single-threaded `HTTPServer` with the studio bound to the handler class; a
-  taken port falls through to the next free one, and `main` prints the
-  `server_address` it actually got.
+  `GET /api/progress?job=N`, `POST /api/reset`, `POST /api/starter` (`{text}`),
+  `POST /api/ingest` (`{files: [{name, text}]}`). The two long POSTs only start
+  a job (`{ok, job_id}`) and the page polls `/api/progress` until
+  `running` is false and the matching `result` arrives; a second job while one
+  runs answers `{ok: false, error: "a job is already running…"}`. Reset stays
+  synchronous and answers `{ok, log, status, removed}`. Failures answer
+  `{ok: false, error, log, status}` with HTTP 200, so the page can show the run
+  log either way. JSON only — no multipart, no cookies, no state outside the
+  dataset and the inbox.
+- `StudioServer(ThreadingHTTPServer)` — `daemon_threads = True`; threading
+  exists only so the page can poll while a job runs, while the `Progress` slot
+  keeps graph writes strictly serial (one job at a time).
+- `create_server(studio, host="127.0.0.1", port=8765, tries=10)` — a
+  `StudioServer` with the studio bound to a handler subclass; a taken port
+  falls through to the next free one, and `main` prints the `server_address` it
+  actually got.
 - `build_parser()` / `main(argv)` — `text-to-ontology-studio [--graph]
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
@@ -825,7 +852,9 @@ items).
 | `starter` | `create_starter(text, graph_path, extractor, names)` | the proposal (already published) |
 | `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
 | `studio` | `Studio.ingest(files, log)` | list of saved source names |
-| `studio` | `create_server(studio, host, port)` | `HTTPServer` |
+| `studio` | `create_server(studio, host, port)` | `StudioServer` (a `ThreadingHTTPServer`) |
+| `studio` | `Studio.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
+| `studio` | `Studio.progress.snapshot(job_id)` | `{ok, job_id, running, label, detail, percent, result}` |
 | `publication_sources` | `materialize_sources(graph, document, merge, canonical)` | None (mutates the evidence graph) |
 | `view_report` | `build_report(path, graph, views)` | plain report dict for the HTML page |
 | `view_html` | `write_report(...)` | writes one self-contained HTML page |
@@ -968,10 +997,17 @@ initial information ──► starter_prompt() → extract_validated() → valid
                                                           │
                           schema + shapes graphs  =  the frozen starter vocabulary
                                                           ▼
-studio page ──► POST /api/starter        (above)          → reload the lens
+studio page ──► POST /api/starter        (above)          → {job_id}
             ──► POST /api/ingest  {files} → sources/inbox/ → run_text_to_graph(data_only)
             ──► POST /api/reset          → unlink dataset + inbox files → empty store
             ──► GET  /api/status|dataset → sizes, vocabulary, canonical TriG text
+            ──► GET  /api/progress?job=N → {running, label, detail, percent, result}
+
+Both long jobs run in one background thread at a time; the page polls
+/api/progress every 400 ms and moves the bar from the pipeline's own
+checkpoints (model call N for the starter; file, window, and publication for
+ingestion). `/api/progress` never touches the store, so polling while a
+publication is being applied cannot read a half-written graph.
 ```
 
 Identity scope: window admission sees only the source-local staging graph
@@ -1005,8 +1041,10 @@ publication only apply already-made decisions.
 | Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |
 | Starter caps | `MIN_CLASSES` 2, `MAX_CLASSES` 20, `MAX_ASSERTIONS` 40 (`starter.py`) |
 | Starter literal ranges | `XSD_TYPES`: string/text/integer/int/decimal/float/double/boolean/date/datetime/time/anyURI |
-| Studio | `DEFAULT_PORT` 8765 (next free port when taken), `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox`, page `scripts/triple-lens.html`, host `127.0.0.1`, single-threaded `HTTPServer` |
-| Studio API | `GET /` · `GET /api/status` · `GET /api/dataset` · `POST /api/reset` · `POST /api/starter {text}` · `POST /api/ingest {files:[{name,text}]}` |
+| Studio | `DEFAULT_PORT` 8765 (next free port when taken), `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox`, page `scripts/triple-lens.html`, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
+| Studio API | `GET /` · `GET /api/status` · `GET /api/dataset` · `GET /api/progress?job=N` · `POST /api/reset` · `POST /api/starter {text}` → `{job_id}` · `POST /api/ingest {files:[{name,text}]}` → `{job_id}` |
+| Studio jobs | starter: `model call N` (10 %, +25 % per call) → `writing the schema and shapes` (88 %) → 100 %; ingestion: per file (1/8 of the bar per file, half of it per window) with `starting`, `window k/n, asking the model`, `model replied`, `admitted`, `published` |
+| Studio polling | page polls `/api/progress?job=N` every 400 ms while `running` is true |
 | Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
 | Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |
 | Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 |
@@ -1114,7 +1152,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
 | `test_starter.py` | Proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, `starter_publication` roles and triples, `proposal_summary`, `create_starter` replacing an old dataset. |
 | `test_data_only.py` | The data-only gate end to end: declared extraction accepted with the schema and shapes unchanged, undeclared kind/predicate rejected and nothing written, no declarations in a data-only plan, and the permissive default still declaring as before. |
-| `test_studio.py` | `Studio` status/dataset/reset/`_write_source` round trips, data-only ingestion, error reporting; the HTTP API (`/`, `/api/status`, `/api/dataset`, `/api/starter`, `/api/ingest`, `/api/reset`, 404). |
+| `test_studio.py` | `Studio` status/dataset/reset/`_write_source` round trips, data-only ingestion, error reporting; the HTTP API (`/`, `/api/status`, `/api/dataset`, `/api/progress`, `/api/starter`, `/api/ingest`, `/api/reset`, 404, one job at a time); the job layer: progress from model calls and per-file/window checkpoints, a monotonic bar across several dropped files, a failed job still finishing with its error, and results handed only to the job id that asked. |
 
 ---
 
@@ -1214,6 +1252,16 @@ pattern numbers are pinned on the frozen miniature in
     from `file://` (the connection probe fails and the column stays hidden),
     and the page-specific column markup lives in its own `<script>` block after
     the lens IIFE, reaching the lens only through `window.__lens`.
+31. **Studio progress is real, not a spinner**: the starter counts model calls
+    (a repair attempt shows as `model call 2 (repairing the answer)`), and
+    ingestion moves per file and per window from the pipeline's own reporter
+    checkpoints. The bar is monotonic by construction — the file number comes
+    from the studio, not from the per-file run, so a three-file drop reads
+    0 % → 33 % → 67 % → 100 % instead of restarting at zero.
+32. **Only one studio job at a time**: the `Progress` slot serializes the two
+    long jobs even though the HTTP server is threaded, so graph writes never
+    interleave; reads the page makes during a job (`/api/progress`) do not touch
+    the store.
 
 ---
 

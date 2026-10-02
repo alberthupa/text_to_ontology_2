@@ -43,6 +43,12 @@ text-to-ontology-studio            # prints a localhost URL and opens it
    echo "We roast coffee and sell it to cafes." | text-to-ontology-starter - ontology.trig
    ```
 
+Both long steps run in the background while the page polls `/api/progress`, so
+the studio shows a progress bar pinned under its header: the starter counts
+model calls (including repairs), and ingestion counts files and windows
+(`n2.txt: window 1/1, asking the model` → `admitted` → `published`). Only one
+job runs at a time, so graph writes never interleave.
+
 2. **Ingest.** Drop `.txt` or `.md` files on the studio column. Each file is
    written into `sources/inbox/` and ingested through the ordinary pipeline.
    Ingestion is **data-only**: the starter's classes and relationships are
@@ -60,8 +66,9 @@ text-to-ontology-studio            # prints a localhost URL and opens it
    Without `--data-only` the older behaviour is unchanged: a new kind or a new
    predicate is declared as it is extracted. The studio always uses data-only.
 
-3. **Reset.** The studio's Reset button deletes the dataset file and every
-   source in the inbox. Without the page:
+3. **Reset.** The studio's **Reset everything** button deletes the dataset file
+   and every source in the inbox; **Clear view** only unloads the dataset from
+   the graph view and deletes nothing. Without the page:
 
    ```bash
    text-to-ontology-studio --reset

@@ -316,10 +316,11 @@
       <ul class="members">
         <li><span class="fn">vocabulary.py</span><span class="desc">declared classes / relations / facts read back out of a graph</span></li>
         <li><span class="fn">starter.py</span><span class="desc">paste → one checked proposal → one atomic publication (text-to-ontology-starter)</span></li>
-        <li><span class="fn">studio.py</span><span class="desc">local HTTP: page + status / dataset / reset / starter / ingest (text-to-ontology-studio)</span></li>
+        <li><span class="fn">studio.py</span><span class="desc">local HTTP: page + status / dataset / progress / reset / starter / ingest (text-to-ontology-studio)</span></li>
         <li><span class="fn">scripts/triple-lens.html</span><span class="desc">the viewer page; the studio column is one extra script block</span></li>
         <li><span class="const">--data-only</span><span class="desc">CLI name for MergeConfig(require_declared_vocabulary=True)</span></li>
-        <li><span class="const">studio</span><span class="desc">127.0.0.1:8765 · sources/inbox/ · reset = unlink dataset + inbox</span></li>
+        <li><span class="const">studio</span><span class="desc">127.0.0.1:8765 (next free port when taken) · sources/inbox/ · reset = unlink dataset + inbox</span></li>
+        <li><span class="const">studio jobs</span><span class="desc">one background job at a time, watched by a progress bar via /api/progress</span></li>
       </ul>
     </div>
   </section>
@@ -690,17 +691,21 @@
 
       <div class="card">
         <h3><span class="badge write">studio</span> studio.py</h3>
-        <p class="what">A deliberately plain local server: standard-library HTTP, one request at a time, localhost only. It serves the Triple Lens page and a tiny JSON API for starter, ingestion, and reset. It only ever touches the dataset file and the inbox directory.</p>
+        <p class="what">A deliberately plain local server: standard-library HTTP, localhost only. It serves the Triple Lens page and a tiny JSON API for starter, ingestion, reset, and progress. It only ever touches the dataset file and the inbox directory.</p>
         <ul class="members">
           <li><span class="fn">Studio(graph_path, sources_dir, page_path, …)</span><span class="desc">status / dataset_text / reset / create_starter / ingest — no HTTP inside</span></li>
-          <li><span class="fn">StudioHandler + create_server(studio, host, port)</span><span class="desc">single-threaded HTTPServer with the studio bound to the handler</span></li>
-          <li><span class="fn">GET / · /api/status · /api/dataset</span><span class="desc">the page; sizes + vocabulary; canonical TriG text (no provenance)</span></li>
-          <li><span class="fn">POST /api/reset · /api/starter {text} · /api/ingest {files}</span><span class="desc">{ok, log, status, …}; failures answer 200 with ok:false</span></li>
+          <li><span class="fn">StudioHandler + create_server(studio, host, port)</span><span class="desc">ThreadingHTTPServer (daemon threads) so the page can poll while a job runs</span></li>
+          <li><span class="fn">Progress</span><span class="desc">one job slot: claim / update(percent, detail) / finish(result) / snapshot(job_id)</span></li>
+          <li><span class="fn">start_starter(text) · start_ingest(files)</span><span class="desc">run in a background thread, answer {job_id}; a second job is refused</span></li>
+          <li><span class="fn">_ProgressReporter(RunReporter)</span><span class="desc">the run log plus one progress step per checkpoint, spanning every dropped file</span></li>
+          <li><span class="fn">GET / · /api/status · /api/dataset · /api/progress?job=N</span><span class="desc">the page; sizes + vocabulary; canonical TriG text (no provenance); the running job</span></li>
+          <li><span class="fn">POST /api/reset · /api/starter {text} · /api/ingest {files}</span><span class="desc">reset answers directly; both long jobs answer {ok, job_id}; failures answer 200 with ok:false</span></li>
           <li><span class="const">DEFAULT_PORT / DEFAULT_SOURCES / page</span><span class="desc">8765 (falls back to the next free port) / sources/inbox / scripts/triple-lens.html</span></li>
           <li><span class="const">main(argv)</span><span class="desc">text-to-ontology-studio … [--reset] [--no-browser]</span></li>
         </ul>
         <div class="outcome"><span class="tag">page</span>
-          <p class="line"><b>triple-lens.html</b>: a right-hand studio column appears only when the server answers <code>api/status</code>. Create starter → drop sources → reset, plus a run log. Opened from disk the page is unchanged: no server, no column, everything read in the browser.</p>
+          <p class="line"><b>triple-lens.html</b>: a right-hand studio column appears only when the server answers <code>api/status</code>. Dataset status with <b>Clear view</b> (unload the view, delete nothing) and <b>Reset everything</b>; create starter → drop sources → reset, plus a run log. Opened from disk the page is unchanged: no server, no column, everything read in the browser.</p>
+          <p class="line"><b>progress</b>: one bar pinned under the Studio header, labelled with the running job. Starter: model call 1, 2… (repairs included) then the write step. Ingestion: per file and per window — <code>n2.txt: window 1/1, asking the model</code> → <code>admitted</code> → <code>published</code>. The page polls <code>/api/progress</code> every 400 ms and the bar only moves forward.</p>
         </div>
       </div>
     </div>
@@ -952,7 +957,7 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_starter.py</h3><p class="what">Starter proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, the five-role publication, the summary, and create_starter replacing an old dataset.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_data_only.py</h3><p class="what">The data-only gate end to end: a declared extraction accepted with the schema and shapes unchanged, an undeclared kind or predicate rejected with nothing written, no declarations in a data-only plan, and the permissive default still declaring as before.</p></div>
-      <div class="card"><h3><span class="badge test">test</span> tests/test_studio.py</h3><p class="what">Studio status/dataset/reset/safe-name round trips, data-only ingestion and its error, and the HTTP API: page, status, dataset, starter, ingest, reset, 404.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_studio.py</h3><p class="what">Studio status/dataset/reset/safe-name round trips, data-only ingestion and its error, and the HTTP API: page, status, dataset, progress, starter, ingest, reset, 404, one job at a time. The job layer: real progress from model calls and per-file/window checkpoints, a monotonic bar across several files, a failed job finishing with its error, and results handed only to the job that asked.</p></div>
     </div>
   </section>
 
