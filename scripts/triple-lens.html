@@ -1788,6 +1788,14 @@ function filterDefs(model) {
       S.files = S.files.filter((f) => f.name !== file.name);
       addText(file.name, file.trig);
     }
+    // "This is a fresh set of files": forget the previous filters and let the
+    // lens pick its own defaults again (a small scope should not inherit the
+    // hiding that a big dataset needed).
+    if (view.resetFilters) {
+      S.disabled = {}; S.defaultDisabled = null; S.defaultsApplied = false;
+      S.bigDefault = null; S.allowHuge = false; S.lastGood = null;
+      S.store = {}; S.opts.hideIsolated = false;
+    }
     if (!S.files.length) { rebuild({ refit: true }); return; }
     if (view.mode && view.mode !== S.mode) setMode(view.mode);
     else rebuild({ refit: true });

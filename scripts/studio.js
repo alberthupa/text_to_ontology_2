@@ -112,14 +112,15 @@
     </section>
     <section>
       <h3>4 \u00b7 Chat with the graph</h3>
-      <p class="smuted">Ask about the graph. Each question gets only the relevant subgraph, and the note under an answer says how much was shown. <b>Show scope</b> draws exactly that part next to the full dataset.</p>
+      <p class="smuted">Ask about the graph. Each question is answered from only the relevant part of it: every answer says how many triples were selected, and <b>show the subgraph</b> draws exactly that part, so you can see what the answer was based on.</p>
       <div id="stChatLog" class="schat"></div>
       <textarea id="stChatText" class="schatbox" spellcheck="false" placeholder="What do we know about Poland and its population?"></textarea>
       <div class="sactions">
         <button class="btn primary" id="stChatSend">Ask</button>
-        <button class="btn" id="stChatEverything" hidden>Show everything</button>
+        <button class="btn" id="stChatEverything" hidden>Show the full graph again</button>
         <button class="btn" id="stChatReset">Clear conversation</button>
       </div>
+      <label class="scheck"><input type="checkbox" id="stChatAuto" checked> show the subgraph after every answer</label>
     </section>
     <section>
       <h3>5 \u00b7 Edit the graph</h3>
@@ -161,7 +162,7 @@
   const warnEl = $('#stWarn'), readyEl = $('#stReady'), dropEl = $('#stDrop');
   const importDrop = $('#stImportDrop'), importFiles = $('#stImportFiles');
   const chatLog = $('#stChatLog'), chatText = $('#stChatText');
-  const chatEverything = $('#stChatEverything');
+  const chatEverything = $('#stChatEverything'), chatAuto = $('#stChatAuto');
   const editText = $('#stEditText'), editNote = $('#stEditNote');
   const editDiff = $('#stEditDiff'), editAllow = $('#stEditAllow');
   const editApply = $('#stEditApply');
@@ -267,7 +268,7 @@
     if (!lens) return;
     const files = data.trig && data.trig.trim()
       ? [{ name: 'ontology.trig', trig: data.trig }] : [];
-    lens.applyView({ replace: true, files });
+    lens.applyView({ replace: true, files, resetFilters: true });
   }
   function clearView(message) {
     const lens = window.__lens;
@@ -417,9 +418,13 @@
     const focus = scope.nodes && scope.nodes.length
       ? ` \u00b7 focus: ${esc(shortName(scope.nodes[0]))}` : '';
     const dropped = scope.dropped ? `, ${scope.dropped} beyond the scope limit` : '';
-    const button = turn.view
-      ? ` <button class="lnk" data-scope="${turn.index}">Show scope</button>` : '';
-    return `<div class="smeta">${scope.triples} triples selected${dropped}${focus}${button}</div>`;
+    const buttons = turn.view
+      ? `<div class="sact">`
+        + `<button class="btn primary" data-scope="${turn.index}">Show the subgraph</button>`
+        + `<button class="btn" data-scope-full="${turn.index}">With the full graph</button>`
+        + `</div>` : '';
+    return `<div class="smeta">${scope.triples} triples selected${dropped}${focus}`
+      + `<br>what the answer was based on${buttons ? '' : ' (no subgraph stored)'}${buttons}</div>`;
   }
 
   function proposalNote(turn) {
@@ -454,7 +459,48 @@
     chatEverything.hidden = !Object.keys(scopes).length;
   }
 
+  function visibleNodes() {
+    const lens = window.__lens;
+    if (!lens || !lens.S || !lens.S.vis || !lens.S.vis.nodes) return null;
+    return lens.S.vis.nodes.length;
+  }
+
+  function showScope(turn, withFullGraph) {
+    const lens = window.__lens;
+    if (!lens || !turn || !turn.view) return;
+    const scope = turn.scope || {};
+    if (withFullGraph) {
+      lens.applyView({ ...turn.view, clearFilters: true, hideIsolated: false });
+      logEl.textContent = `Added the subgraph used for this answer `
+        + `(${scope.triples} triples) beside the full graph.`;
+    } else {
+      // Only the subgraph: the canvas is exactly what the model was shown.
+      lens.applyView({ replace: true, files: turn.view.files,
+                       mode: turn.view.mode, clearFilters: true,
+                       hideIsolated: false, focus: turn.view.focus });
+      logEl.textContent = `Showing only the subgraph used for this answer: `
+        + `${scope.triples} triples`
+        + (scope.dropped ? ` (${scope.dropped} more were beyond the scope limit)` : '')
+        + `. Press "Show the full graph again" to go back.`;
+    }
+    const shown = visibleNodes();
+    if (shown === 0) {
+      logEl.textContent += '\nNothing is visible with the current filters - press '
+        + '"Show the full graph again" to go back.';
+    } else if (shown !== null) {
+      logEl.textContent += `\n${shown} node(s) on the canvas.`;
+    }
+    chatEverything.hidden = false;
+  }
+
   chatLog.addEventListener('click', (event) => {
+    const onlyButton = event.target.closest('[data-scope]');
+    const fullButton = event.target.closest('[data-scope-full]');
+    if (onlyButton || fullButton) {
+      const key = (onlyButton || fullButton).dataset[onlyButton ? 'scope' : 'scopeFull'];
+      showScope(scopes[+key], !!fullButton);
+      return;
+    }
     const applyButton = event.target.closest('[data-proposal]');
     if (applyButton) {
       const proposal = proposals[+applyButton.dataset.proposal];
@@ -466,16 +512,6 @@
         });
       return;
     }
-    const button = event.target.closest('[data-scope]');
-    if (!button) return;
-    const turn = scopes[+button.dataset.scope];
-    if (!turn || !turn.view) return;
-    const lens = window.__lens;
-    if (lens) lens.applyView(turn.view);
-    const scope = turn.scope || {};
-    logEl.textContent = 'Showing the subgraph selected for: ' + turn.text.slice(0, 80)
-      + (scope.dropped ? ` (${scope.dropped} triples were beyond the scope limit)` : '')
-      + '. The full dataset is still loaded as another file.';
   });
 
   $('#stChatSend').onclick = () => {
@@ -483,7 +519,14 @@
     if (!message) { logEl.textContent = 'Type a question first.'; return; }
     chatText.value = '';
     run(() => op.chat(message), 'Selecting the relevant subgraph\u2026',
-      (result) => { if (result.turns) renderChat(result.turns); });
+      (result) => {
+        if (!result.turns) return;
+        renderChat(result.turns);
+        if (chatAuto.checked) {
+          const latest = result.turns.filter((turn) => turn.role === 'graph').pop();
+          if (latest) showScope(latest, false);
+        }
+      });
   };
   chatText.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -491,15 +534,16 @@
       $('#stChatSend').click();
     }
   });
-  chatEverything.onclick = () => {
+  chatEverything.onclick = async () => {
     const lens = window.__lens;
     const names = [];
     Object.keys(scopes).forEach((key) => {
       (scopes[key].view.replace || []).forEach((name) => names.push(name));
     });
-    if (lens) lens.applyView({ replace: names, files: [] });
+    if (lens) lens.applyView({ replace: names, files: [], clearFilters: true });
+    await loadDataset();          // brings the dataset back with fresh defaults
     chatEverything.hidden = true;
-    logEl.textContent = 'Showing the full dataset again.';
+    logEl.textContent = 'Showing the full graph again.';
   };
   async function reloadChat() {
     const chat = await op.chatState();

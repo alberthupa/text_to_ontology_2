@@ -34,8 +34,8 @@ text-to-ontology-studio            # prints a localhost URL and opens it
 
 The studio's panel has five parts: **Dataset** (status, Clear view, Reset
 everything), **1 Starter ontology**, **2 Add sources**, **3 Ingestion prompt**,
-and **4 Chat with the graph** (with **Show scope**, **Show everything**, and
-**Clear conversation**) — plus the run log.
+and **4 Chat with the graph** (with **Show the subgraph**, **Show the full
+graph again**, and **Clear conversation**) — plus the run log.
 
 1. **Create the starter ontology.** Paste a few sentences about the world
    ("We roast coffee, we buy green coffee from farms, we sell bags to cafes").
@@ -95,11 +95,18 @@ Only one job runs at a time, so graph writes never interleave.
    configuration, so a report always names the prompt that produced it.
 
 4. **Talk to the graph.** Section 4 is a chat. Every question is answered from
-   only the relevant part of the graph: the panel shows how many triples were
-   selected (and how many were left out), and **Show scope** loads exactly that
-   subgraph as its own file next to the full dataset, so you can see what the
-   answer was based on. **Show everything** removes it again, and **Clear
-   conversation** forgets the thread. A follow-up like "and Germany?" keeps the
+   only the relevant part of the graph, and **you see that part**: after each
+   answer the canvas switches to exactly the selected triples, with the matched
+   resource focused, and the answer's note says how many triples were selected
+   and how many were left out for space. Each answer keeps a **Show the
+   subgraph** button (and **With the full graph** if you would rather see it
+   beside everything); **Show the full graph again** restores the dataset.
+   The "show the subgraph after every answer" checkbox turns the automatic
+   part off, and **Clear conversation** forgets the thread.
+
+   <sub>Subgraph controls, exactly as they read: Show the subgraph · With the
+   full graph · Show the full graph again · show the subgraph after every
+   answer.</sub> A follow-up like "and Germany?" keeps the
    topic because the matched resources are carried over, and when something is
    not in the graph the answer says so and what would have to be added.
 

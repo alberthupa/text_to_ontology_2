@@ -963,8 +963,10 @@ page loads only when it is served over HTTP.
   `window.__lens.applyView(view)`, `clearFiles(names)`, `fileNames()`, plus the
   pre-existing `S`, `addText`, `afterLoad`, `setMode`, `tick`, `draw`. A view
   is one declarative record: `{replace, files: [{name, trig}], mode, focus,
-  filters: {defId: [keys]}, hideIsolated, clearFilters}`; the lens resolves
-  names to nodes and keys to filters itself. The page also owns the
+  filters: {defId: [keys]}, hideIsolated, clearFilters, resetFilters}`; the lens
+  resolves names to nodes and keys to filters itself. `resetFilters` says "this
+  is a fresh set of files", so a small scope does not inherit the hiding a big
+  dataset needed (the lens re-picks its own defaults). The page also owns the
   `#workspace` flex layout, so it renders standalone.
 - `scripts/studio.js` — the panel: builds its own markup, talks only through
   named operations (`api/op/<name>`), and changes the picture only through the
@@ -976,8 +978,10 @@ page loads only when it is served over HTTP.
   3 Ingestion prompt (template picker, monospace editor, validation and advice
   note, Preview, Save, Back to default), 4 Chat with the graph (a transcript
   where each answer shows how many triples were selected and how many were left
-  out, a **Show scope** button per answer, **Show everything**, and **Clear
-  conversation**), 5 Edit the graph (Load the graph, the Turtle editor, **allow
+  out, plus **Show the subgraph** — which replaces the canvas with exactly those
+  triples, focused — **With the full graph**, **Show the full graph again**,
+  **Clear conversation**, and a "show the subgraph after every answer" checkbox
+  that is on by default), 5 Edit the graph (Load the graph, the Turtle editor, **allow
   new classes and relations**, Preview changes with a `+`/`-` diff and the
   warnings, then Apply changes — which is only enabled for the exact patch that
   was previewed), and the Run log. A chat answer that contains a Turtle block
@@ -1611,27 +1615,35 @@ pattern numbers are pinned on the frozen miniature in
     Turtle block goes through the same path and is never applied by the model.
     Because the removal syntax is `- `, the parser shares the patch's prefix
     declarations with every removal line.
-39. **A chat answer can be a proposal**: `_with_proposals` finds a fenced Turtle
+39. **Showing a subgraph means showing only it**: the panel's default is to
+    replace the canvas with the scope's triples (`replace: true`, then the
+    scope file, `clearFilters`, `hideIsolated: false`, and the focus), because
+    adding a handful of triples beside a large dataset is invisible. "With the
+    full graph" keeps the additive behaviour, and "Show the full graph again"
+    reloads the dataset with `resetFilters` so it comes back with the lens's own
+    defaults. The panel also reports how many nodes the canvas ended up with, so
+    an unexpected empty view says so instead of looking broken.
+40. **A chat answer can be a proposal**: `_with_proposals` finds a fenced Turtle
     block in an answer and previews it, so the panel can offer to apply it; a
     proposal that would change the vocabulary or use undeclared names comes back
     with the same errors a hand patch gets, and the model's guess at the IRIs is
     exactly what that check catches.
-40. **The strict matcher misses plurals, so there is one bounded fallback**:
+41. **The strict matcher misses plurals, so there is one bounded fallback**:
     `loose_matches` runs only when the strict selection found no resources, and
     only against labels, with singular forms and one subclass level for class
     names. It is reported as `focus_source: "loose"`, so a reader can tell which
     path found the subgraph.
-41. **One route, every capability**: the transport is a dispatcher over
+42. **One route, every capability**: the transport is a dispatcher over
     `operations.call`, so a new capability is one function plus one `Operation`
     line in `operations.py` — `studio.py` does not change, and an unknown name
     is the only 404. `GET` carries arguments in the query string (as strings;
     the operation coerces), `POST` carries a JSON body.
-42. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
+43. **The panel is not in the page**: `scripts/triple-lens.html` holds no studio
     markup, style, or logic, and loads `studio.js` / `studio.css` only when it
     is not opened from `file://`. The page owns `#workspace` layout so it still
     renders standalone, and the only contract between the two files is the
     `window.__lens` view API.
-43. **A view is data, not code**: `applyView({replace, files, mode, focus,
+44. **A view is data, not code**: `applyView({replace, files, mode, focus,
     filters, hideIsolated, clearFilters})` is the whole picture-changing
     surface; the lens resolves IRIs to nodes and filter keys to internal sets,
     and ignores junk, so a backend bug can mislead the picture but cannot break
