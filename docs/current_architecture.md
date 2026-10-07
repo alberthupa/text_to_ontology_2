@@ -417,7 +417,7 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 
 ### 4.6 `llm.py` — OpenRouter client (stdlib only)
 
-- `DEFAULT_MODEL = "openrouter/pareto-code:nitro"`,
+- `DEFAULT_MODEL = "qwen/qwen3.5-35b-a3b:nitro"`,
   `SYSTEM_PROMPT = "Extract knowledge. Return only JSON."`.
 - `InvalidResponseError(RuntimeError)` — the answer is not one parseable JSON
   object (this is what `repair.py` catches).
@@ -1413,9 +1413,9 @@ publication only apply already-made decisions.
 | Auto-accept confidence | `0.80` (`AUTO_ACCEPT_MIN_CONFIDENCE`) |
 | Close-spelling threshold | `0.96` (`CLOSE_SPELLING_THRESHOLD`, review-only) |
 | Default repair attempts | `2` (`ExtractionConfig.repair_attempts`) |
-| Default LLM model | `openrouter/pareto-code:nitro` |
+| Default LLM model | `qwen/qwen3.5-35b-a3b:nitro` |
 | Env vars | `OPENROUTER_MODEL` / `OPENROUTER_API_KEY` |
-| LLM | `https://openrouter.ai/api/v1/chat/completions`, temperature `0`, timeout `60` s, title `"Simple Text to Ontology"`, system prompt `"Extract knowledge. Return only JSON."` |
+| LLM | `https://openrouter.ai/api/v1/chat/completions`, temperature `0`, max output `4,096` tokens, timeout `60` s, title `"Simple Text to Ontology"`, system prompt `"Extract knowledge. Return only JSON."` |
 | Accepted source extensions | `.txt .md .rst .csv .json .jsonl .yaml .yml .xml .html .log` |
 | Seed graph size | 8 triples |
 | Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |

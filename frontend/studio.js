@@ -105,7 +105,8 @@
   const SOURCES = `
     <p class="smuted">Each file is ingested through the data-only pipeline: it can add individuals and statements, never a class or a relationship. Those stay as the starter defines them.</p>
     <div id="stDrop" class="sdrop">
-      <b>Drop .txt or .md files here</b>
+      <b>Drop text files or folders here</b>
+      <span>folders are searched recursively; their structure is not retained</span>
       <span>an RDF or Turtle file is an ontology, not a source: import it under Starter ontology</span>
       <button class="btn primary" id="stPick" type="button">Choose files…</button>
     </div>
@@ -385,7 +386,11 @@
   /* A dropped file is RDF when its suffix says so; the backend also sniffs
      the content, so a mislabelled file still lands in the right place. */
   const RDF_SUFFIX = /\.(ttl|turtle|trig|nt|nq|n3|rdf|owl|jsonld|json)$/i;
+  const SOURCE_SUFFIX = /\.(txt|md|rst|csv|json|jsonl|yaml|yml|xml|html|log)$/i;
   function looksRdf(name) { return RDF_SUFFIX.test(name || ''); }
+  function looksSourceRdf(name) {
+    return looksRdf(name) && !/\.json$/i.test(name || '');
+  }
 
   async function importStarter(file) {
     const text = await file.text();
@@ -402,7 +407,50 @@
 
   /* A drop zone stops the events so the page's own "add to graph" drop
      handler never sees a file meant for the studio. */
-  function dropZone(zone, onFiles) {
+  function filesFromEntry(entry, insideDirectory) {
+    if (entry.isFile) {
+      if (insideDirectory && !SOURCE_SUFFIX.test(entry.name || '')) {
+        return Promise.resolve([]);
+      }
+      return new Promise((resolve) => entry.file(
+        (file) => resolve([file]), () => resolve([])));
+    }
+    if (!entry.isDirectory) return Promise.resolve([]);
+
+    const reader = entry.createReader();
+    return new Promise((resolve) => {
+      const entries = [];
+      function readBatch() {
+        reader.readEntries(async (batch) => {
+          if (batch.length) {
+            entries.push(...batch);
+            readBatch();
+            return;
+          }
+          entries.sort((left, right) =>
+            (left.fullPath || left.name).localeCompare(right.fullPath || right.name));
+          const nested = await Promise.all(entries.map((child) =>
+            filesFromEntry(child, true)));
+          resolve(nested.flat());
+        }, () => resolve([]));
+      }
+      readBatch();
+    });
+  }
+
+  async function filesFromDrop(dataTransfer) {
+    const items = [...(dataTransfer ? dataTransfer.items || [] : [])];
+    const entries = items.map((item) => item.webkitGetAsEntry
+      ? item.webkitGetAsEntry() : null).filter(Boolean);
+    if (!entries.length) return [...(dataTransfer ? dataTransfer.files : [])];
+    entries.sort((left, right) =>
+      (left.fullPath || left.name).localeCompare(right.fullPath || right.name));
+    const nested = await Promise.all(entries.map((entry) =>
+      filesFromEntry(entry, false)));
+    return nested.flat();
+  }
+
+  function dropZone(zone, onFiles, recursive) {
     ['dragenter', 'dragover'].forEach((type) => zone.addEventListener(type, (event) => {
       if (!event.dataTransfer || [...event.dataTransfer.types].indexOf('Files') < 0) return;
       event.preventDefault(); event.stopPropagation(); zone.classList.add('over');
@@ -410,11 +458,13 @@
     ['dragleave', 'dragend'].forEach((type) => zone.addEventListener(type, (event) => {
       event.stopPropagation(); zone.classList.remove('over');
     }));
-    zone.addEventListener('drop', (event) => {
+    zone.addEventListener('drop', async (event) => {
       event.preventDefault(); event.stopPropagation();
       zone.classList.remove('over');
-      const files = [...(event.dataTransfer ? event.dataTransfer.files : [])];
-      if (files.length) onFiles(files);
+      const files = recursive
+        ? await filesFromDrop(event.dataTransfer)
+        : [...(event.dataTransfer ? event.dataTransfer.files : [])];
+      if (files.length || recursive) onFiles(files);
     });
   }
   dropZone(importDrop, (files) => {
@@ -434,7 +484,11 @@
     ingest(files);
   };
   async function ingest(fileList) {
-    const rdf = fileList.filter((file) => looksRdf(file.name));
+    if (!fileList.length) {
+      readyEl.textContent = 'No supported source files were found in that folder.';
+      return;
+    }
+    const rdf = fileList.filter((file) => looksSourceRdf(file.name));
     if (rdf.length) {
       readyEl.textContent = `${rdf.map((f) => f.name).join(', ')} is RDF, not source text. `
         + 'Import it under Starter ontology instead.';
@@ -447,7 +501,7 @@
     return run(() => op.ingest(files),
       `Ingesting ${files.length} file${files.length > 1 ? 's' : ''}. This can take a minute per file…`);
   }
-  dropZone(dropEl, ingest);
+  dropZone(dropEl, ingest, true);
 
   /* ---------- the prompts dialog ---------- */
   function renderPrompts(list) {

@@ -424,6 +424,9 @@ class AssetsTest(unittest.TestCase):
                         b'id="stOpenPrompts"', b'id="stOpenEdit"',
                         b'id="stLog"', b'id="stChatText"', b'id="stChatSend"'):
             self.assertIn(control, script, control)
+        self.assertIn(b"webkitGetAsEntry", script)
+        self.assertIn(b"filesFromEntry", script)
+        self.assertIn(b"dropZone(dropEl, ingest, true)", script)
         _css, css_type = assets.body("/studio.css")
         self.assertEqual(css_type, "text/css; charset=utf-8")
 

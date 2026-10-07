@@ -363,7 +363,7 @@
             <tr><td>context_tokens</td><td>1,400</td><td class="effect-up">Usually more context</td><td>The direct ceiling and normal tuning knob. Lowering it drops lower-priority context sooner.</td></tr>
             <tr><td>total_limit</td><td>30,000</td><td class="effect-up">More arithmetic room</td><td>A bookkeeping limit, not a detected model window. At current defaults it normally does not bind because 1,400 is smaller.</td></tr>
             <tr><td>fixed_prompt_tokens</td><td>400</td><td class="effect-down">Less context</td><td>Reserved estimate for instructions and fixed prompt structure.</td></tr>
-            <tr><td>output_reserve</td><td>4,000</td><td class="effect-down">Less context</td><td>Space kept aside in the arithmetic for the answer. It is not passed to OpenRouter as a response-token limit.</td></tr>
+            <tr><td>output_reserve</td><td>4,000</td><td class="effect-down">Less context</td><td>Space kept aside in the arithmetic for the answer. The separate OpenRouter request cap is 4,096 output tokens.</td></tr>
             <tr><td>safety_margin</td><td>500</td><td class="effect-down">Less context</td><td>Extra protection against estimation error.</td></tr>
             <tr><td>source_tokens</td><td>Per window</td><td class="effect-down">Less context</td><td>Calculated by <code>budget_for()</code> from the window text — not configured in <code>PROMPT_BUDGET</code>.</td></tr>
             <tr><td>window target/overlap</td><td>800 / 100</td><td class="effect-down">Smaller windows, more overlap</td><td>Windowing affects source length per prompt; smaller windows mean more windows per document.</td></tr>

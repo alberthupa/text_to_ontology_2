@@ -7,7 +7,8 @@ import urllib.request
 from pathlib import Path
 
 
-DEFAULT_MODEL = "openrouter/pareto-code:nitro"
+DEFAULT_MODEL = "qwen/qwen3.5-35b-a3b:nitro"
+MAX_OUTPUT_TOKENS = 4_096
 SYSTEM_PROMPT = "Extract knowledge. Return only JSON."
 
 
@@ -51,6 +52,7 @@ def ask_llm_text(prompt, system=None):
     body = json.dumps({
         "model": model_name(),
         "temperature": 0,
+        "max_tokens": MAX_OUTPUT_TOKENS,
         "messages": [
             {"role": "system", "content": system or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},
@@ -88,6 +90,7 @@ def ask_llm(prompt, system=None):
     body = json.dumps({
         "model": model_name(),
         "temperature": 0,
+        "max_tokens": MAX_OUTPUT_TOKENS,
         "messages": [
             {"role": "system", "content": system or SYSTEM_PROMPT},
             {"role": "user", "content": prompt},

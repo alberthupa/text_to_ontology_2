@@ -67,8 +67,9 @@ starter counts model calls (including repairs), and ingestion counts files and
 windows (`n2.txt: window 1/1, asking the model` → `admitted` → `published`).
 Only one job runs at a time, so graph writes never interleave.
 
-2. **Ingest.** Press **Add sources…** and drop `.txt` or `.md` files on the
-   dialog, or choose them. Each file is
+2. **Ingest.** Press **Add sources…** and drop text files or folders on the
+   dialog, or choose files. Dropped folders are searched recursively and their
+   directory structure is not retained. Each file is
    written into `sources/inbox/` and ingested through the ordinary pipeline.
    Ingestion is **data-only**: the starter's classes and relationships are
    frozen, so a dropped text can add individuals and statements but can never
@@ -222,16 +223,21 @@ Create a `.env` file in the directory you run the program from:
 
 ```text
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=openrouter/pareto-code:nitro
+OPENROUTER_MODEL=qwen/qwen3.5-35b-a3b:nitro
 ```
 
-`OPENROUTER_MODEL` is optional; its default is the speed-optimized Pareto router
-`openrouter/pareto-code:nitro`. You can also use exported shell variables:
+`OPENROUTER_MODEL` is optional; its default is the speed-optimized Qwen model
+`qwen/qwen3.5-35b-a3b:nitro`. It keeps requests within the Qwen model family
+while selecting the fastest available provider. You can also use exported shell
+variables:
 
 ```bash
 export OPENROUTER_API_KEY="your-key"
-export OPENROUTER_MODEL="openrouter/pareto-code:nitro"
+export OPENROUTER_MODEL="qwen/qwen3.5-35b-a3b:nitro"
 ```
+
+Requests cap model output at 4,096 tokens so OpenRouter does not reserve the
+model's much larger default response allowance when checking available credits.
 
 ## Use
 
