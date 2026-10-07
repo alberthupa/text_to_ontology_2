@@ -153,6 +153,7 @@
       <div class="sback" id="stChatBack" hidden>
         <span>The canvas shows the subgraph of one answer.</span>
         <button class="lnk" id="stChatEverything" type="button">Show the full graph again</button>
+        <button class="lnk" id="stChatExport" type="button">Export subgraph</button>
       </div>
       <div class="sinput">
         <textarea id="stChatText" rows="1" spellcheck="false" placeholder="Ask about the graph…" aria-label="Your question"></textarea>
@@ -220,6 +221,7 @@
   const dropEl = $('#stDrop'), importDrop = $('#stImportDrop'), importFiles = $('#stImportFiles');
   const chatLog = $('#stChatLog'), chatText = $('#stChatText'), chatSend = $('#stChatSend');
   const chatBack = $('#stChatBack'), chatEverything = $('#stChatEverything');
+  const chatExport = $('#stChatExport');
   const chatAuto = $('#stChatAuto'), chatBudget = $('#stChatBudget');
   const editText = $('#stEditText'), editNote = $('#stEditNote');
   const editDiff = $('#stEditDiff'), editAllow = $('#stEditAllow'), editApply = $('#stEditApply');
@@ -227,7 +229,7 @@
   const promptName = $('#stPromptName'), promptText = $('#stPromptText');
   const promptNote = $('#stPromptNote'), promptPreview = $('#stPromptPreviewBox');
   let busy = false, lastStatus = null, prompts = [];
-  let turns = [], scopes = {}, proposals = {};
+  let turns = [], scopes = {}, proposals = {}, activeScope = null;
   let editPatch = null;
 
   /* ---------- the log: one line in the bar, everything in the dialog ---------- */
@@ -345,10 +347,13 @@
       ? [{ name, trig: data.trig }] : [];
     lens.applyView({ replace: true, files, resetFilters: true });
     chatBack.hidden = true;
+    activeScope = null;
   }
   function clearView(message) {
     const lens = window.__lens;
     if (lens) lens.applyView({ replace: true, files: [] });
+    chatBack.hidden = true;
+    activeScope = null;
     if (message) say(message);
   }
 
@@ -719,8 +724,22 @@
       say(logEl.textContent + '\nNothing is visible with the current filters: press '
         + '"Show the full graph again" to go back.');
     }
+    activeScope = turn;
     chatBack.hidden = false;
   }
+
+  chatExport.onclick = () => {
+    const file = activeScope && activeScope.view && activeScope.view.files[0];
+    if (!file || typeof file.trig !== 'string') return;
+    const url = URL.createObjectURL(new Blob([file.trig], { type: 'application/trig' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `subgraph-answer-${activeScope.index}.trig`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   chatLog.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-ask]');
@@ -788,6 +807,8 @@
   $('#stChatReset').onclick = async () => {
     const answer = await op.chatReset();
     renderChat(answer && answer.turns ? answer.turns : []);
+    chatBack.hidden = true;
+    activeScope = null;
     say('Conversation cleared.');
     chatText.focus();
   };

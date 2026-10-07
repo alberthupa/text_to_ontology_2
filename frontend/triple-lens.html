@@ -657,6 +657,26 @@ function splitIri(iri) {
   }
   return [iri.slice(0, cut + 1), iri.slice(cut + 1)];
 }
+const FILTER_NAMESPACE_FAMILIES = [
+  '/review/', '/candidate/', '/statement/', '/activity/', '/window/',
+  '/merge-proposed-activity/', '/merge-proposed-entity/', '/provisional/',
+  '/document/', '/source-file/', '/agent/', '/metric/'
+];
+function filterNamespace(iri) {
+  // Generated records often include document, window, or record IDs in the
+  // IRI. Group each record family while keeping every RDF resource distinct.
+  for (const group of FILTER_NAMESPACE_FAMILIES) {
+    const start = iri.indexOf(group);
+    if (start >= 0) return iri.slice(0, start + group.length);
+  }
+  return splitIri(iri)[0];
+}
+function filterNamespaceName(namespace, namer) {
+  if (FILTER_NAMESPACE_FAMILIES.some(group => namespace.endsWith(group))) {
+    return namer.short(namespace.slice(0, -1)) + '/';
+  }
+  return namer.nsName(namespace);
+}
 class Namer {
   constructor(prefixes) {
     this.ns = []; const seen = new Set();
@@ -801,7 +821,7 @@ function buildModel(files, opts = {}) {
     n.kind = k;
     const spec = n.types.filter(t => !GENERIC_TYPES.has(t));
     n.ftypes = spec.length ? spec : n.types.length ? n.types.slice() : [NO_TYPE];
-    n.ns = n.tk === 'iri' ? splitIri(n.id)[0] || '(other)' : n.tk === 'bnode' ? '(blank nodes)' : n.tk === 'lit' ? '(literals)' : '(quoted triples)';
+    n.ns = n.tk === 'iri' ? filterNamespace(n.id) || '(other)' : n.tk === 'bnode' ? '(blank nodes)' : n.tk === 'lit' ? '(literals)' : '(quoted triples)';
     n.qname = n.tk === 'iri' ? namer.short(n.id) : n.tk === 'bnode' ? bnodeDisplay(n.id) : n.tk === 'lit' ? litDisplay(n.lit, namer, 40) : 'quoted triple';
     n.deg = n.in.length + n.out.length;
   }
@@ -948,7 +968,7 @@ function filterDefs(model) {
   const defs = [
     { id: 'kind', title: 'Node kinds', on: 'node', keys: n => [n.kind], name: k => k },
     { id: 'type', title: 'Node types', on: 'node', keys: n => [n.ptype], name: k => k === NO_TYPE ? k : nm.short(k), full: true },
-    { id: 'ns', title: 'Namespaces', on: 'node', keys: n => [n.ns], name: k => k[0] === '(' ? k : nm.nsName(k) , full: true},
+    { id: 'ns', title: 'Namespaces', on: 'node', keys: n => [n.ns], name: k => k[0] === '(' ? k : filterNamespaceName(k, nm), full: true},
     { id: 'pred', title: 'Edge types', on: 'edge', keys: e => [e.p], name: k => nm.short(k), full: true },
     { id: 'graph', title: 'Named graphs', on: 'both', keys: x => [...x.graphs], name: k => k === DEFAULT_GRAPH ? 'default graph' : nm.short(k), full: true, hideIfSingle: true },
     { id: 'file', title: 'Files', on: 'both', keys: x => [...x.files], name: k => k, hideIfSingle: true }

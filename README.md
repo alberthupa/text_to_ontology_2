@@ -108,7 +108,8 @@ Only one job runs at a time, so graph writes never interleave.
    and how many were left out for space. Each answer keeps a **Show the
    subgraph** link (and **With the full graph** if you would rather see it
    beside everything); while a subgraph is on the canvas, **Show the full graph
-   again** sits above the question box and restores the dataset.
+   again** restores the dataset, and **Export subgraph** downloads all selected
+   triples as a TriG file, including nodes hidden by the canvas focus.
    The subgraph-size picker trades breadth for tokens: *compact* (2 500
    tokens) for a quick question, *normal* (6 000, the default) which fits a
    whole class listing, or *wide* (12 000) for a big comparison. Each answer
@@ -118,7 +119,7 @@ Only one job runs at a time, so graph writes never interleave.
    conversation** forgets the thread.
 
    <sub>Chat controls, exactly as they read: Show the subgraph · With the
-   full graph · Show the full graph again · show the subgraph after each
+   full graph · Show the full graph again · Export subgraph · show the subgraph after each
    answer · New conversation.</sub> A follow-up like "and Germany?" keeps the
    topic because the matched resources are carried over, and when something is
    not in the graph the answer says so and what would have to be added.

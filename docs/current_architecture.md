@@ -1070,7 +1070,9 @@ this section is the file-level detail of the frontend half.
     beyond the limit, how many reached the model, and the focus, with **Show
     the subgraph** (replaces the canvas with exactly those triples, focused)
     and **With the full graph**; while a subgraph is on the canvas, **Show the
-    full graph again** appears above the composer. The options under the
+    full graph again** and **Export subgraph** appear above the composer. Export
+    downloads the answer's stored TriG scope, including nodes outside the
+    canvas's one-node focus. The options under the
     composer are the subgraph size and the "show the subgraph after each
     answer" checkbox (on by default); **New conversation** in the column's
     header forgets the thread. A chat answer that contains a Turtle block also
