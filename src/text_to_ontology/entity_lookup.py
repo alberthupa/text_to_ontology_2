@@ -8,6 +8,7 @@ from rdflib import URIRef
 from rdflib.namespace import RDF, RDFS, SKOS
 
 from .graph_management import ONTO
+from .source_concepts import same_name_stem
 
 
 CLOSE_SPELLING_THRESHOLD = 0.96
@@ -168,6 +169,22 @@ def identity_decision(entity, catalog, planned_catalog=(), *,
                         identity_score=top,
                         suggestions=close,
                         reasons=("identity.close_spelling",))
+
+    # "Polpharmy" next to "Polpharma": maybe the same name, inflected. Never
+    # merged automatically; an alias or an existing_id settles it.
+    inflected = []
+    if preferred:
+        for item, _ in pool:
+            if not kind or identity_key(item["kind"]) != kind:
+                continue
+            if any(same_name_stem(entity.get("name"), name)
+                   for name in item["names"]):
+                inflected.append({"uri": item["id"], "method": "inflected_form",
+                                  "identity_score": None})
+    if inflected:
+        return decision("review", None, "inflected_form",
+                        suggestions=inflected,
+                        reasons=("identity.inflected_form",))
 
     confidence = entity.get("confidence")
     if confidence is not None and confidence >= min_new_confidence \

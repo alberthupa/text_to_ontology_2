@@ -33,7 +33,7 @@ text-to-ontology-studio            # prints a localhost URL and opens it
 ```
 
 The studio row reads, left to right: the dataset (file name, triples, sources),
-then **Starter ontology…**, **Add sources…**, **Prompts…**, **Edit the graph…**,
+the **view** switch, then **Starter ontology…**, **Add sources…**, **Prompts…**, **Edit the graph…**,
 then **Clear view** and **Reset everything**, the last thing the studio said,
 and **Log**. Each "…" button opens a dialog for that one action; the progress
 bar for a long job appears under the row. The right-hand column is only the
@@ -55,11 +55,8 @@ conversation with the graph.
    vocabulary, its individuals become data, and its own IRIs are kept — after
    the import, ingestion types and links new individuals with *those* names. A
    file that declares no classes or properties is refused, and a failed import
-   leaves the previous dataset untouched. On the command line:
-
-   ```bash
-   text-to-ontology-starter --import my_ontology.ttl ontology.trig
-   ```
+   leaves the previous dataset untouched. On the command line, see
+   [Bring your own ontology](#bring-your-own-ontology).
 
 Both long steps run in the background while the page polls the `progress`
 operation, so the studio shows a progress bar under the studio row: the
@@ -68,14 +65,30 @@ windows (`n2.txt: window 1/1, asking the model` → `admitted` → `published`).
 Only one job runs at a time, so graph writes never interleave.
 
 2. **Ingest.** Press **Add sources…** and drop text files or folders on the
-   dialog, or choose files. Dropped folders are searched recursively and their
-   directory structure is not retained. Each file is
-   written into `sources/inbox/` and ingested through the ordinary pipeline.
+   dialog, or choose files. Dropped folders are searched recursively and keep
+   their directory structure: each file is written into `sources/inbox/` under
+   its folders (`client/project/notes.md`) and ingested through the ordinary
+   pipeline. Every window's prompt shows that path, the document's title, and
+   the heading it sits under.
    Ingestion is **data-only**: the starter's classes and relationships are
    frozen, so a dropped text can add individuals and statements but can never
    add, rename, or retype a class or a relationship. A record that names
    vocabulary the starter does not declare is refused, and the model is asked
    to repair its answer using the declared vocabulary.
+
+   Data-only ingestion also keeps what it extracts connected:
+
+   - every window sees the **whole starter schema** (every class, every
+     relationship with its direction and meaning), not just the parts its
+     words happen to match;
+   - a relationship or fact between the wrong classes (`Lingaro --has
+     client-->` when `has client` starts at a Project) is sent back for
+     repair, and dropped on its own if the repair fails;
+   - later windows see the projects, clients, … earlier windows found
+     (*document anchors*), and files see those already published from their
+     own folder (*same folder*), with ids they may reuse;
+   - after a document, each missing **expected link** is asked about once,
+     and kept only with evidence quoted from the text (see *Expected links*).
 
    The same restriction on the command line is `--data-only`:
 
@@ -168,6 +181,22 @@ nothing else.
 Opened straight from disk, the same page is exactly the standalone viewer: no
 server, no studio, everything read in the browser.
 
+## The seed view
+
+A dataset holds more than the business knowledge: provenance (which document
+supports which statement — by far the biggest part), review material, SHACL
+shapes, and bookkeeping types on every entity. The **seed view**
+(`src/text_to_ontology/seed_view.py`) is only what the seed ontology covers:
+the schema, every statement whose predicate the schema declares, `rdf:type` to
+a declared class, and the names, descriptions, and kind of each entity.
+
+It is the one view used wherever the business ontology is read: the context
+of every extraction prompt, the graph chat, and the studio's graph view. The
+view switch in the studio row shows **Seed ontology** (the default) or
+**Everything** (every named graph, provenance and review included). Over the
+operations API it is `dataset?view=seed` or `dataset?view=all`. Nothing is
+deleted: provenance and review stay in the dataset file.
+
 ## Frontend and backend
 
 One rule: **the backend owns every fact and every decision; the frontend owns
@@ -201,6 +230,88 @@ Adding a capability is one function plus one `Operation(...)` line in
 the capability should change the picture it just returns a view directive.
 `docs/current_architecture.md` §1.1 is the detailed version of this map.
 
+## Bring your own ontology
+
+The studio dataset is TriG with **named graphs**: `graphs/schema` (classes
+and relationships), `graphs/data` (individuals and statements),
+`graphs/provenance`, `graphs/review`, and `graphs/shapes`. A plain RDF file —
+Turtle, RDF/XML, or even a `.trig` file with everything in the default graph —
+is not one, and must not be used as `ontology.trig` directly: the
+application reads and writes only its named graphs. Opening such a file is
+refused with a message (the studio status says *not a studio dataset*), so
+nothing is dropped by accident.
+
+Convert it once with `ttl_to_trig.py`:
+
+```bash
+python ttl_to_trig.py my_ontology.ttl ontology.trig            # new dataset
+python ttl_to_trig.py my_ontology.ttl ontology.trig --force    # replace one
+```
+
+Classes and properties become the schema graph, SHACL shapes the shapes
+graph, individuals and their statements the data graph; the file's own IRIs
+are kept, so ingestion uses *its* classes and relationships. The script
+writes only the output you name, refuses to replace an existing file without
+`--force`, and checks everything before writing, so a refused file (one that
+declares no classes or properties) never costs the old output.
+
+Many business vocabularies are **SKOS glossaries**: their terms ("Client",
+"Contract") are `skos:Concept`, not classes, so ingestion could not type
+anything with them — only the file's `owl:Class` declarations would count.
+Add `--concepts-as-classes` to declare every `skos:Concept` an `owl:Class`
+too (OWL 2 allows one IRI to be both), with `skos:broader` as
+`rdfs:subClassOf`, the `skos:prefLabel` as `rdfs:label`, and a short
+`rdfs:comment` from `dct:description` (else `skos:definition`). Every SKOS
+triple stays as it was:
+
+```bash
+python ttl_to_trig.py glossary.ttl ontology.trig --concepts-as-classes
+```
+
+`trig_to_ttl.py` is the way back: it exports the data graph as Turtle.
+
+## Expected links, names, and graph health
+
+Some links should almost always exist: a project is delivered for a client.
+Declare them once; they are standard SHACL warning shapes
+(`sh:minCount 1`, `sh:severity sh:Warning`) in the shapes graph:
+
+```bash
+text-to-ontology-expect ontology.trig Project "has client" "Which client is this project delivered for?"
+text-to-ontology-expect ontology.trig Proposal "proposal for client"
+text-to-ontology-expect ontology.trig --list
+```
+
+After each document, a project still missing its client gets one targeted
+question with the passages that mention it. A link is added only when the
+model quotes its evidence word for word from those passages; otherwise the run
+report says `not established`. A missing expected link never blocks a
+document. `--no-link-check` (or `ExtractionConfig(link_check=False)`) turns
+the questions off.
+
+**Teach it a name.** Names are matched exactly, plus one tolerance: a word
+with a different ending ("Polpharmy" for "Polpharma") makes the existing
+entity visible to the model and, if it still creates a new one, holds it for
+review instead of merging. To make other names resolve, open **Edit the
+graph…** and add aliases, for example:
+
+```turtle
+entity:pharmaceutical-assistant skos:altLabel "WAP", "Wirtualny Asystent Polpharmy" .
+entity:polpharma skos:altLabel "Polpharmy" .
+```
+
+**Measure it.** `text-to-ontology-health` prints read-only numbers: entities
+linked to nothing, entities typed only as `Entity`, statements between the
+wrong classes, missing expected links, duplicate suspects, source files that
+were never ingested, and how many links you know to be true are in the graph:
+
+```bash
+text-to-ontology-health ontology.trig --sources notes/ --gold eval/gold.local.json
+```
+
+The gold file lists links you know (`eval/gold.example.json` shows the
+shape); `eval/*.local.json` is git-ignored so real client names stay local.
+
 ## Install
 
 ```bash
@@ -218,27 +329,47 @@ The tests need the same editable install:
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-## Configure OpenRouter
+## Configure the model provider
 
-Create a `.env` file in the directory you run the program from:
+Create a `.env` file in the directory you run the program from. Two
+providers are supported; both speak the same chat-completions format, so
+nothing else changes.
+
+**Google (fast, recommended)** — a key from
+https://aistudio.google.com/app/api-keys:
+
+```text
+LLM_PROVIDER=google
+GEMINI_API_KEY=your-key
+GEMINI_MODEL=gemini-3.1-flash-lite        # optional; this is the default
+GEMINI_REASONING_EFFORT=none              # optional; this is the default
+```
+
+`gemini-3.1-flash-lite` with thinking off answers an extraction window in
+about 2 seconds. Some models refuse `none` and need `low`; an empty value
+sends no thinking setting at all. Gemma models are listed by the Gemini API
+too, but it serves them slowly (over a minute per window).
+
+**OpenRouter** (the default when `LLM_PROVIDER` is not set):
 
 ```text
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=qwen/qwen3.5-35b-a3b:nitro
+OPENROUTER_MODEL=google/gemma-4-31b-it
 ```
 
-`OPENROUTER_MODEL` is optional; its default is the speed-optimized Qwen model
-`qwen/qwen3.5-35b-a3b:nitro`. It keeps requests within the Qwen model family
-while selecting the fastest available provider. You can also use exported shell
-variables:
+Avoid reasoning-heavy models for extraction: `qwen/qwen3.5-35b-a3b` often
+spends its whole output allowance thinking and answers nothing.
 
-```bash
-export OPENROUTER_API_KEY="your-key"
-export OPENROUTER_MODEL="qwen/qwen3.5-35b-a3b:nitro"
-```
+A variable set in your shell wins over the same name in `.env`, so an old
+`export GEMINI_API_KEY=...` in your profile hides the new key. Busy or
+rate-limited answers (HTTP 429, 500, 502, 503) are retried three times,
+after 2, 5, and 15 seconds.
 
 Requests cap model output at 4,096 tokens so OpenRouter does not reserve the
 model's much larger default response allowance when checking available credits.
+Set `OPENROUTER_MAX_TOKENS` (for example `8192`) when a source's extraction
+is longer than that, such as a section listing a whole technology stack; the
+cap applies to both providers.
 
 ## Use
 
@@ -246,9 +377,9 @@ After installing, use one of three equivalent commands (the console script,
 the module entry point, or the legacy root wrapper):
 
 ```bash
-text-to-ontology notes.txt ontology.trig
+text-to-ontology notes.txt ontology.trig --report --data-only
 python3 -m text_to_ontology notes.txt ontology.trig
-python ontology.py notes.txt ontology.trig
+python ontology.py notes.txt ontology.trig --report --data-only
 ```
 
 Add another file to that same graph:
@@ -289,6 +420,10 @@ text-to-ontology documents/ ontology.trig --dry-run
 Passing a `.ttl` output path keeps the explicit legacy single-Turtle
 compatibility mode. New datasets should use `.trig`, which preserves target,
 provenance, review, schema, and shape graph roles.
+
+
+
+
 
 ## Call it from Python
 
@@ -418,6 +553,8 @@ links as documents are processed; old files are not automatically backfilled.
 All importable code lives in the `text_to_ontology` package under `src/`.
 The root scripts `ontology.py` and `view_ontology.py` are thin compatibility
 wrappers that call the packaged modules, so both old workflows keep working.
+`ttl_to_trig.py` turns a plain RDF file into a dataset, and `trig_to_ttl.py`
+exports the data graph back to Turtle.
 
 The pipeline that runs when you invoke the program:
 
@@ -434,6 +571,16 @@ The pipeline that runs when you invoke the program:
   answer keeps the subgraph it was written from
 - `src/text_to_ontology/graph_edit.py` — patches (additions plus `- ` removals):
   parse, check, preview, apply by id, with PROV evidence
+- `src/text_to_ontology/seed_view.py` — only what the seed ontology covers:
+  the view prompts, the chat, and the studio read
+- `src/text_to_ontology/schema_context.py` — the whole starter schema as one
+  prompt block, and the schema digest a run records
+- `src/text_to_ontology/document_context.py` — the per-window document
+  header, the document's anchors, and same-folder entities
+- `src/text_to_ontology/link_check.py` — expected links (SHACL warnings) and
+  one evidence-checked question per missing one (`text-to-ontology-expect`)
+- `src/text_to_ontology/graph_health.py` — the read-only connectivity numbers
+  (`text-to-ontology-health`)
 - `src/text_to_ontology/vocabulary.py` — the starter vocabulary read back out
   of a graph: which classes, relations, and facts ingestion may use, and which
   IRI each name means (so an imported ontology keeps its own)
@@ -477,7 +624,7 @@ The pipeline that runs when you invoke the program:
   the legacy direct merger) into the graph
 - `src/text_to_ontology/graph_management.py` — opening, seeding, naming, and
   atomically saving the graph
-- `src/text_to_ontology/llm.py` — the tiny OpenRouter client
+- `src/text_to_ontology/llm.py` — the tiny chat client (OpenRouter or Google)
 
 Choosing what the LLM gets to see. All read-only: none of these writes to the
 graph, and each one can be read, tested, or replaced on its own:

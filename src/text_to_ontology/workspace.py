@@ -22,7 +22,12 @@ from . import graph_edit
 from .document_publication import shape_graphs
 from .graph_chat import ChatSession
 from .graph_management import bind
-from .graph_store import GraphNames, RdflibGraphStore
+from .graph_store import (
+    GraphNames,
+    PlainRdfError,
+    RdflibGraphStore,
+    require_named_graphs,
+)
 from .llm import OpenRouterExtractor
 from .pipeline import MergeConfig, RunRequest, run_text_to_graph
 from .prompts import DEFAULT_FILE, PREVIEW_VALUES, PromptLibrary
@@ -31,6 +36,7 @@ from .starter import (
     import_publication, import_summary, proposal_summary, propose_starter,
     starter_publication,
 )
+from .seed_view import seed_graphs, seed_view, store_roles
 from .vocabulary import read_vocabulary
 
 DEFAULT_GRAPH = Path("ontology.trig")
@@ -222,14 +228,28 @@ class Workspace:
     def source_names(self):
         if not self.sources_dir.is_dir():
             return []
-        return sorted(path.name for path in self.sources_dir.iterdir()
+        return sorted(path.relative_to(self.sources_dir).as_posix()
+                      for path in self.sources_dir.rglob("*")
                       if path.is_file())
 
+    def require_dataset(self):
+        """Refuse a plain RDF file: reading shows nothing, writing drops it."""
+        require_named_graphs(self.store, self.graph_path)
+
     def status(self):
-        """One small record a frontend shows: sizes, starter, and inbox."""
+        """One small record a frontend shows: sizes, starter, and inbox.
+
+        `error` says why the dataset cannot be used (a plain RDF file).
+        """
         vocabulary = read_vocabulary(self.canonical_graph())
+        try:
+            self.require_dataset()
+            error = None
+        except PlainRdfError as problem:
+            error = str(problem)
         return {
             "ok": True,
+            "error": error,
             "graph": str(self.graph_path),
             "triples": self.triple_count(),
             "ready": not vocabulary.is_empty,
@@ -239,14 +259,32 @@ class Workspace:
             "sources": self.source_names(),
         }
 
-    def dataset_text(self):
-        """The canonical ontology as TriG, without provenance bookkeeping."""
-        wanted = [*self.names.schema_graphs, *self.names.shape_graphs,
-                  *self.names.data_graphs, self.names.target_graph]
+    def seed_graph(self):
+        """The seed view: schema plus business data, nothing else.
+
+        What the graph chat answers from; see `seed_view.py` for exactly what
+        is kept.
+        """
+        return seed_view(store_roles(self.store, self.names), self.names)
+
+    def dataset_text(self, view="seed"):
+        """The dataset as TriG, one named graph per role.
+
+        `view="seed"` is only what the seed ontology covers; `view="all"` is
+        every named graph, provenance and review included.
+        """
+        self.require_dataset()
+        roles = store_roles(self.store, self.names)
+        if view == "seed":
+            graphs = seed_graphs(roles, self.names)
+        elif view == "all":
+            graphs = roles
+        else:
+            raise ValueError(f"unknown view {view!r}; use 'seed' or 'all'")
         data = Dataset()
         bind(data)
-        for name in wanted:
-            for subject, predicate, object_ in self.store.get(name):
+        for name, graph in graphs.items():
+            for subject, predicate, object_ in graph:
                 data.add((subject, predicate, object_, name))
         return data.serialize(format="trig")
 
@@ -264,10 +302,14 @@ class Workspace:
             self.graph_path.unlink()
             removed.append(str(self.graph_path))
         if self.sources_dir.is_dir():
-            for path in sorted(self.sources_dir.iterdir()):
+            # Files first, then the folders they leave empty, deepest first.
+            for path in sorted(self.sources_dir.rglob("*")):
                 if path.is_file():
                     path.unlink()
                     removed.append(str(path))
+            for path in sorted(self.sources_dir.rglob("*"), reverse=True):
+                if path.is_dir() and not any(path.iterdir()):
+                    path.rmdir()
         self.store = RdflibGraphStore(path=self.graph_path)
         return removed
 
@@ -348,6 +390,7 @@ class Workspace:
         The ordinary run log goes to `log`; when a `progress` object is given,
         every pipeline checkpoint also moves its bar.
         """
+        self.require_dataset()
         written = []
         for name, text in files:
             if not text.strip():
@@ -360,6 +403,7 @@ class Workspace:
             log.write(f"\n=== {path.name} ===\n")
             result = run_text_to_graph(
                 RunRequest(source=path, graph_path=self.graph_path,
+                           source_root=self.sources_dir,
                            merge=MergeConfig(require_declared_vocabulary=True),
                            prompts=self.prompts),
                 graph_store=self.store,
@@ -368,7 +412,8 @@ class Workspace:
                                            len(written), progress),
             )
             log.write(f"\n{path.name}: {result.triples} triples in the dataset\n")
-        return [path.name for path in written]
+        return [path.relative_to(self.sources_dir).as_posix()
+                for path in written]
 
     # ---------- talking to the graph ----------
 
@@ -390,12 +435,14 @@ class Workspace:
 
     def edit_current(self):
         """The editable part of the graph: the target data graph as Turtle."""
+        self.require_dataset()
         text = graph_edit.data_turtle(self.store.get(self.names.target_graph))
         return {"ok": True, "turtle": text, "bytes": len(text.encode("utf-8")),
                 "triples": len(self.store.get(self.names.target_graph))}
 
     def edit_preview(self, text, allow_new_vocabulary=False, source="hand"):
         """Check one patch and remember exactly what applying it would do."""
+        self.require_dataset()
         if not str(text or "").strip():
             return {"ok": False, "error": "the patch is empty"}
         patch = graph_edit.preview(
@@ -411,6 +458,7 @@ class Workspace:
 
     def edit_apply(self, patch_id):
         """Apply exactly the triples one preview promised."""
+        self.require_dataset()
         patch = self.edits.get(str(patch_id or ""))
         if patch is None:
             return {"ok": False,
@@ -468,13 +516,16 @@ class Workspace:
     def chat_ask(self, message, on_step=None, budget=None):
         """One chat turn: select the relevant subgraph, ask, remember.
 
+        A plain RDF file is refused (see `require_dataset`).
+
         `budget` is how many tokens of subgraph the model may see; None keeps
         the default, and a frontend can offer a wider view per question.
         """
         if not str(message or "").strip():
             return {"ok": False, "error": "no question was given"}
         try:
-            outcome = self.chat.ask(message, self.canonical_graph(),
+            self.require_dataset()
+            outcome = self.chat.ask(message, self.seed_graph(),
                                     self.ask_text, on_step=on_step,
                                     budget=budget)
         except (RuntimeError, OSError, ValueError) as error:
@@ -564,14 +615,32 @@ class Workspace:
                 "values": dict(PREVIEW_VALUES.get(name, {}))}
 
     def _write_source(self, name, text):
-        """One dropped file, saved under a safe name in the inbox."""
+        """One dropped file, saved under a safe name in the inbox.
+
+        A dropped folder keeps its structure: "client/project/notes.md" is
+        saved as inbox/client/project/notes.md, because the folders say what
+        a note is about. Each part is cleaned; "..", ".", empty parts, and
+        absolute paths can never leave the inbox.
+        """
         self.sources_dir.mkdir(parents=True, exist_ok=True)
-        stem = "".join(character for character in Path(name).name
-                       if character.isalnum() or character in "._- ") or "source"
-        target = self.sources_dir / stem
+        parts = [_safe_part(part) for part in str(name).replace("\\", "/")
+                 .split("/")]
+        parts = [part for part in parts if part not in ("", ".", "..")]
+        stem = parts[-1] if parts else "source"
+        folder = self.sources_dir.joinpath(*parts[:-1])
+        if not folder.resolve().is_relative_to(self.sources_dir.resolve()):
+            folder = self.sources_dir
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / stem
         number = 2
         while target.exists():
-            target = self.sources_dir / f"{stem}-{number}"
+            target = folder / f"{stem}-{number}"
             number += 1
         target.write_text(text, encoding="utf-8")
         return target
+
+
+def _safe_part(part):
+    """One path part with only letters, digits, and ". _ -" and spaces."""
+    return "".join(character for character in part
+                   if character.isalnum() or character in "._- ").strip()

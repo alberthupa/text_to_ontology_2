@@ -58,10 +58,11 @@ def repair_prompt(original=None, raw_problem=None, issues=(),
 class ExtractionOutcome:
     """What one extract-and-repair round produced."""
 
-    def __init__(self, validation, raw_problem, repair_attempts):
+    def __init__(self, validation, raw_problem, repair_attempts, response=None):
         self.validation = validation      # None when nothing parsed as JSON
         self.raw_problem = raw_problem    # None when something parsed
         self.repair_attempts = repair_attempts
+        self.response = response          # the last parsed answer, if any
 
     @property
     def ok(self):
@@ -85,7 +86,7 @@ def extract_validated(extractor, prompt, validate, max_repair_attempts=0,
         )
         response, problem = _attempt(extractor, ask)
         validation = None if problem is not None else validate(response)
-    return ExtractionOutcome(validation, problem, repairs)
+    return ExtractionOutcome(validation, problem, repairs, response)
 
 
 def _attempt(extractor, prompt):

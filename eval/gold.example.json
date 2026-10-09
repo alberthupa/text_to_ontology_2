@@ -1,0 +1,6 @@
+{
+  "links": [
+    {"subject": "Virtual Assistant of Farmexa", "predicate": "has client", "object": "Farmexa"},
+    {"subject": "Route Pilot", "predicate": "has client", "object": "Northwind"}
+  ]
+}

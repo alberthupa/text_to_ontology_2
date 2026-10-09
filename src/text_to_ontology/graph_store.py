@@ -80,6 +80,35 @@ def _apply(dataset, publication):
         dataset.store.remove_graph(name)
 
 
+class PlainRdfError(RuntimeError):
+    """A dataset file whose triples sit outside every named graph.
+
+    The application reads and writes only its role graphs (schema, data,
+    provenance, ...). A plain RDF file saved as .trig keeps everything in the
+    default graph: it would look empty, and the next write would drop it.
+    """
+
+
+def unnamed_triples(store):
+    """How many triples a store holds outside every named graph."""
+    dataset = getattr(store, "dataset", None)
+    if dataset is None:
+        return 0
+    return len(dataset.graph(DATASET_DEFAULT_GRAPH_ID))
+
+
+def require_named_graphs(store, path=None):
+    """Refuse a plain RDF file before anything reads or writes it."""
+    count = unnamed_triples(store)
+    if count:
+        where = str(path) if path else "The dataset"
+        raise PlainRdfError(
+            f"{where} holds {count} triples outside its named graphs: it is "
+            f"a plain RDF file, not a studio dataset, and writing to it "
+            f"would drop them. Convert it first:\n"
+            f"    python ttl_to_trig.py {path or 'FILE'} NEW.trig")
+
+
 class RdflibGraphStore:
     """The local adapter: an rdflib Dataset, optionally persisted as TriG."""
 

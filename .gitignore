@@ -19,3 +19,6 @@ ontology_views.html
 /sources/*
 # Per-dataset prompt overrides edited in the studio
 prompts.local.json
+
+# Gold links for the health report: real client names stay local
+eval/*.local.json

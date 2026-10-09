@@ -38,7 +38,9 @@ def run_cli(argv, responses):
         return response() if callable(response) else response
 
     out, err = io.StringIO(), io.StringIO()
-    environment = dict(os.environ, OPENROUTER_MODEL="test-model")
+    # Pin the provider: a developer's .env may choose another one.
+    environment = dict(os.environ, LLM_PROVIDER="openrouter",
+                       OPENROUTER_MODEL="test-model")
     with mock.patch.object(llm, "ask_llm", fake_extract), \
             mock.patch.dict(os.environ, environment), \
             contextlib.redirect_stdout(out), \

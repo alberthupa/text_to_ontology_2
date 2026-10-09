@@ -17,6 +17,8 @@ dependencies = [
 text-to-ontology = "text_to_ontology.cli:main"
 text-to-ontology-starter = "text_to_ontology.starter:main"
 text-to-ontology-studio = "text_to_ontology.studio:main"
+text-to-ontology-health = "text_to_ontology.graph_health:main"
+text-to-ontology-expect = "text_to_ontology.link_check:main"
 
 # Development/test dependencies: none beyond the runtime requirements today.
 # When one is needed, add a PEP 735 dependency group here, for example:

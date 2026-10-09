@@ -204,3 +204,48 @@ def text_phrases(text, longest=MAX_MATCH_TOKENS):
         found.setdefault(
             " ".join(token["normalized"] for token in run), run[0]["start"])
     return found
+
+
+# Words shorter than this are never treated as inflected forms of each other.
+MIN_STEM_CHARACTERS = 5
+# How many trailing characters an inflected ending may change.
+MAX_ENDING_CHARACTERS = 2
+
+
+def same_word_stem(first, second):
+    """Whether two words are one word with a different ending.
+
+    Polish and many other languages inflect names: "Polpharma",
+    "Polpharmy", "Polpharmie". Two normalized words count as the same when
+    both are long enough, their lengths differ by at most two characters, and
+    they agree on everything except at most the last two characters of the
+    longer one. Identical words count too.
+    """
+    first, second = normalize(first), normalize(second)
+    if first == second:
+        return True
+    if " " in first or " " in second:
+        return False
+    if min(len(first), len(second)) < MIN_STEM_CHARACTERS:
+        return False
+    longer = max(len(first), len(second))
+    if abs(len(first) - len(second)) > MAX_ENDING_CHARACTERS:
+        return False
+    stem = longer - MAX_ENDING_CHARACTERS
+    # The shared part itself must be long enough to mean something.
+    return stem >= MIN_STEM_CHARACTERS and first[:stem] == second[:stem]
+
+
+def same_name_stem(first, second):
+    """Whether two names are the same words, some of them inflected.
+
+    Both names need the same number of words, and each pair must be the same
+    word or the same stem: "Polpharmy" / "Polpharma" match, "Bank Polski" /
+    "Banku Polskiego" do not (the second ending is too long).
+    """
+    first_words = normalize(first).split()
+    second_words = normalize(second).split()
+    if not first_words or len(first_words) != len(second_words):
+        return False
+    return all(same_word_stem(left, right)
+               for left, right in zip(first_words, second_words))

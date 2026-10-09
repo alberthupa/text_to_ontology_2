@@ -101,3 +101,4 @@
   #studio{width:auto;border-left:0;border-top:1px solid var(--line);max-height:50%}
   #studio.collapsed{width:auto;max-height:none}
 }
+.sview{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px;color:var(--ink)}

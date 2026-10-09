@@ -463,21 +463,23 @@ class ValidationGateTest(unittest.TestCase):
                 }))
         self.assertFalse(graph_path.exists())
 
-    def test_a_hallucinated_existing_id_is_rejected(self):
+    def test_a_hallucinated_existing_id_is_never_trusted(self):
         with tempfile.TemporaryDirectory() as folder:
             root, graph_path = Path(folder), Path(folder) / "graph.ttl"
             source = root / "notes.txt"
             source.write_text("Acme Corp exists.", encoding="utf-8")
-            ghost = str(ENTITY["not-in-the-prompt"])
-            with self.assertRaises(RuntimeError) as caught:
-                run_api(source, graph_path, FakeExtractor({
-                    "entities": [{
-                        "id": "e1", "name": "Acme Corp", "kind": "Company",
-                        "existing_id": ghost, "confidence": 0.9,
-                    }],
-                    "relations": [], "facts": [],
-                }), request=no_repair(source, graph_path))
-        self.assertIn("existing_id", str(caught.exception))
+            ghost = ENTITY["not-in-the-prompt"]
+            run_api(source, graph_path, FakeExtractor({
+                "entities": [{
+                    "id": "e1", "name": "Acme Corp", "kind": "Company",
+                    "existing_id": str(ghost), "confidence": 0.9,
+                }],
+                "relations": [], "facts": [],
+            }), request=no_repair(source, graph_path))
+            graph = graph_management.open_graph(graph_path)
+        self.assertFalse(any(ghost in triple for triple in graph))
+        self.assertTrue(any(str(value) == "Acme Corp" for value in
+                            graph.objects(None, SKOS.prefLabel)))
 
     def test_a_valid_existing_id_from_the_prompt_resolves(self):
         with tempfile.TemporaryDirectory() as folder:

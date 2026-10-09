@@ -215,7 +215,7 @@ def render_resource(entry, names, manager):
     lines = [f"- name: {preferred}"]
     if card["native"] and card["id"]:
         lines.append(f"  id: {card['id']}")
-    else:
+    elif not card.get("hide_uri"):
         # Gate 6: a generic resource is context, not a resolvable identity.
         lines.append(f"  uri: {card['uri']} ({GENERIC_NOTE})")
     types = [display(names, manager, type_) for type_ in card["types"]]

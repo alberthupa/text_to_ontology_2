@@ -1,0 +1,290 @@
+@prefix class: <http://example.org/text-ontology/class/> .
+@prefix fact: <http://example.org/text-ontology/fact/> .
+@prefix onto: <http://example.org/text-ontology/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix relation: <http://example.org/text-ontology/relation/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://example.org/text-ontology/graphs/provenance> {
+    onto:ontology a owl:Ontology .
+}
+
+<http://example.org/text-ontology/graphs/shapes> {
+    onto:EntityShape a sh:NodeShape ;
+        sh:property _:N6ece54e1e16d42379ba090a7e2e46331 ;
+        sh:targetClass onto:Entity .
+
+    _:N6ece54e1e16d42379ba090a7e2e46331 sh:minCount 1 ;
+        sh:path skos:prefLabel .
+}
+
+<http://example.org/text-ontology/graphs/schema> {
+    fact:assumptions a owl:DatatypeProperty ;
+        rdfs:label "assumptions" ;
+        rdfs:comment "assumptions underlying the proposal" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:attribution-rationale a owl:DatatypeProperty ;
+        rdfs:label "attribution rationale" ;
+        rdfs:comment "why this is classified as this entity type" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:business-context a owl:DatatypeProperty ;
+        rdfs:label "business context" ;
+        rdfs:comment "business context of the project" ;
+        rdfs:domain class:project ;
+        rdfs:range xsd:string .
+
+    fact:business-need a owl:DatatypeProperty ;
+        rdfs:label "business need" ;
+        rdfs:comment "business need addressed" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:canonical-filename a owl:DatatypeProperty ;
+        rdfs:label "canonical filename" ;
+        rdfs:comment "canonical filename of the note" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:canonical-name a owl:DatatypeProperty ;
+        rdfs:label "canonical name" ;
+        rdfs:comment "canonical entity name" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:client-description a owl:DatatypeProperty ;
+        rdfs:label "client description" ;
+        rdfs:comment "what this client is" ;
+        rdfs:domain class:client ;
+        rdfs:range xsd:string .
+
+    fact:commercial-shape a owl:DatatypeProperty ;
+        rdfs:label "commercial shape" ;
+        rdfs:comment "commercial model of the proposal" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:confidence a owl:DatatypeProperty ;
+        rdfs:label "confidence" ;
+        rdfs:comment "confidence level of the extraction" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:delivery-evidence a owl:DatatypeProperty ;
+        rdfs:label "delivery evidence" ;
+        rdfs:comment "evidence of project delivery" ;
+        rdfs:domain class:project ;
+        rdfs:range xsd:string .
+
+    fact:delivery-shape a owl:DatatypeProperty ;
+        rdfs:label "delivery shape" ;
+        rdfs:comment "how the offer is delivered" ;
+        rdfs:domain class:offer ;
+        rdfs:range xsd:string .
+
+    fact:engagement-state a owl:DatatypeProperty ;
+        rdfs:label "engagement state" ;
+        rdfs:comment "current state of the engagement" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:estimate-timeline a owl:DatatypeProperty ;
+        rdfs:label "estimate timeline" ;
+        rdfs:comment "estimate and timeline" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:exploration-backlog a owl:DatatypeProperty ;
+        rdfs:label "exploration backlog" ;
+        rdfs:comment "open items to explore for the offer" ;
+        rdfs:domain class:offer ;
+        rdfs:range xsd:string .
+
+    fact:lingaro-context a owl:DatatypeProperty ;
+        rdfs:label "lingaro context" ;
+        rdfs:comment "Lingaro's relationship and context with the client" ;
+        rdfs:domain class:client ;
+        rdfs:range xsd:string .
+
+    fact:offer-definition a owl:DatatypeProperty ;
+        rdfs:label "offer definition" ;
+        rdfs:comment "definition of the offer" ;
+        rdfs:domain class:offer ;
+        rdfs:range xsd:string .
+
+    fact:offer-status a owl:DatatypeProperty ;
+        rdfs:label "offer status" ;
+        rdfs:comment "status of the offer" ;
+        rdfs:domain class:offer ;
+        rdfs:range xsd:string .
+
+    fact:proposal-stage a owl:DatatypeProperty ;
+        rdfs:label "proposal stage" ;
+        rdfs:comment "stage of the proposal" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:proposed-solution a owl:DatatypeProperty ;
+        rdfs:label "proposed solution" ;
+        rdfs:comment "solution proposed to the client" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:relevant-technologies a owl:DatatypeProperty ;
+        rdfs:label "relevant technologies" ;
+        rdfs:comment "technologies relevant to the entity" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:reusability-evidence a owl:DatatypeProperty ;
+        rdfs:label "reusability evidence" ;
+        rdfs:comment "evidence that the offer is reusable" ;
+        rdfs:domain class:offer ;
+        rdfs:range xsd:string .
+
+    fact:review-flags a owl:DatatypeProperty ;
+        rdfs:label "review flags" ;
+        rdfs:comment "flags raised for review" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:review-required a owl:DatatypeProperty ;
+        rdfs:label "review required" ;
+        rdfs:comment "whether human review is required" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:scope a owl:DatatypeProperty ;
+        rdfs:label "scope" ;
+        rdfs:comment "scope and deliverables" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:solution-direction a owl:DatatypeProperty ;
+        rdfs:label "solution direction" ;
+        rdfs:comment "solution direction of the project" ;
+        rdfs:domain class:project ;
+        rdfs:range xsd:string .
+
+    fact:source-artifact-type a owl:DatatypeProperty ;
+        rdfs:label "source artifact type" ;
+        rdfs:comment "type of the source artifact" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:source-author a owl:DatatypeProperty ;
+        rdfs:label "source author" ;
+        rdfs:comment "author of the source material" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:source-note a owl:DatatypeProperty ;
+        rdfs:label "source note" ;
+        rdfs:comment "linked source note" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:staging-reasons a owl:DatatypeProperty ;
+        rdfs:label "staging reasons" ;
+        rdfs:comment "reasons the entity is held in staging" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:status-tags a owl:DatatypeProperty ;
+        rdfs:label "status tags" ;
+        rdfs:comment "status tags of the proposal" ;
+        rdfs:domain class:proposal ;
+        rdfs:range xsd:string .
+
+    fact:summary a owl:DatatypeProperty ;
+        rdfs:label "summary" ;
+        rdfs:comment "short summary of the entity" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:tags a owl:DatatypeProperty ;
+        rdfs:label "tags" ;
+        rdfs:comment "classification tags" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:string .
+
+    fact:target-context a owl:DatatypeProperty ;
+        rdfs:label "target context" ;
+        rdfs:comment "target market or context for the offer" ;
+        rdfs:domain class:offer ;
+        rdfs:range xsd:string .
+
+    fact:updated-at a owl:DatatypeProperty ;
+        rdfs:label "updated at" ;
+        rdfs:comment "last pipeline update" ;
+        rdfs:domain onto:Entity ;
+        rdfs:range xsd:dateTime .
+
+    relation:has-active-offer a owl:ObjectProperty ;
+        rdfs:label "has active offer" ;
+        rdfs:comment "client is interested in or offered this offer" ;
+        rdfs:domain class:client ;
+        rdfs:range class:offer .
+
+    relation:has-active-project a owl:ObjectProperty ;
+        rdfs:label "has active project" ;
+        rdfs:comment "client has an active project delivered for it" ;
+        rdfs:domain class:client ;
+        rdfs:range class:project .
+
+    relation:has-active-proposal a owl:ObjectProperty ;
+        rdfs:label "has active proposal" ;
+        rdfs:comment "client has an active proposal addressed to it" ;
+        rdfs:domain class:client ;
+        rdfs:range class:proposal .
+
+    relation:has-proposal a owl:ObjectProperty ;
+        rdfs:label "has proposal" ;
+        rdfs:comment "active proposal based on the offer" ;
+        rdfs:domain class:offer ;
+        rdfs:range class:proposal .
+
+    relation:has-related-project a owl:ObjectProperty ;
+        rdfs:label "has related project" ;
+        rdfs:comment "project related to the offer" ;
+        rdfs:domain class:offer ;
+        rdfs:range class:project .
+
+    relation:leads-to-project a owl:ObjectProperty ;
+        rdfs:label "leads to project" ;
+        rdfs:comment "project that originated from the proposal" ;
+        rdfs:domain class:proposal ;
+        rdfs:range class:project .
+
+    class:client a owl:Class ;
+        rdfs:label "Client" ;
+        rdfs:comment "an organization Lingaro works with or targets" ;
+        rdfs:subClassOf onto:Entity .
+
+    class:project a owl:Class ;
+        rdfs:label "Project" ;
+        rdfs:comment "a delivery engagement for a client" ;
+        rdfs:subClassOf onto:Entity .
+
+    class:offer a owl:Class ;
+        rdfs:label "Offer" ;
+        rdfs:comment "a reusable service offering" ;
+        rdfs:subClassOf onto:Entity .
+
+    class:proposal a owl:Class ;
+        rdfs:label "Proposal" ;
+        rdfs:comment "a proposed engagement submitted to a client" ;
+        rdfs:subClassOf onto:Entity .
+
+    onto:Entity a owl:Class ;
+        rdfs:label "Entity" ;
+        rdfs:comment "shared base for Client, Offer, Project and Proposal knowledge notes" ;
+        rdfs:subClassOf onto:Entity .
+}
+

@@ -9,10 +9,21 @@ from rdflib import Graph
 
 from . import prompts
 from .candidate_graph import build_candidate_graph
-from .candidate_validation import format_validation_failure, validate_candidates
+from .candidate_validation import (
+    drop_endpoint_mismatches,
+    format_validation_failure,
+    validate_candidates,
+)
+from .document_context import (
+    folder_anchors,
+    render_document_anchors,
+    render_document_header,
+    render_folder_anchors,
+)
 from .graph_management import save_graph
 from .graph_merge import apply_merge_plan
-from .graph_store import GraphNames, RdflibGraphStore
+from .graph_store import GraphNames, RdflibGraphStore, require_named_graphs
+from .link_check import MAX_LINK_CHECKS, check_document_links, expected_links
 from .ingest_sources import find_text_files, read_source
 from .llm import OpenRouterExtractor
 from .merge_policy import (
@@ -35,6 +46,8 @@ from .document_publication import (
 from .prompt_budget import PROMPT_BUDGET, estimate_tokens
 from .repair import extract_validated
 from .run_report import RunReporter
+from .schema_context import render_core_schema, schema_digest
+from .seed_view import seed_view
 from .source_parse import make_prompt
 from .source_staging import (
     final_graphs_snapshot,
@@ -99,6 +112,10 @@ class ExtractionConfig:
 
     model: str | None = None
     repair_attempts: int = 2
+    # After a document, ask once about each missing expected link (SHACL
+    # warning shapes in the shapes graph), at most this many times.
+    link_check: bool = True
+    max_link_checks: int = MAX_LINK_CHECKS
 
 
 @dataclass
@@ -144,6 +161,9 @@ class RunRequest:
 
     source: Path
     graph_path: Path = Path("ontology.trig")
+    # Where ingestion started, so prompts show "client/project/notes.md";
+    # by default the source directory (or a single file's folder).
+    source_root: Path | None = None
     windowing: WindowingConfig = field(default_factory=WindowingConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
     extraction: ExtractionConfig = field(default_factory=ExtractionConfig)
@@ -166,6 +186,7 @@ class DocumentResult:
     source_validation: SourceValidationResult
     publication_plan: DocumentPublicationPlan | None = None
     publication_validation: SourceValidationResult | None = None
+    link_check: dict | None = None
 
 
 @dataclass
@@ -191,6 +212,7 @@ class _StagedDocument:
     source_graph: Graph
     candidate_graphs: dict
     admission_plans: list
+    link_check: dict | None = None
 
 
 class Extractor(Protocol):
@@ -216,6 +238,7 @@ class Reporter(Protocol):
     def llm_input(self, system_prompt, user_prompt): ...
     def model_replied(self, extraction, elapsed): ...
     def validation(self, validation): ...
+    def link_check(self, summary): ...
     def window_admitted(self, number, total, counts, source_size): ...
     def reconciliation(self, report): ...
     def source_validation(self, result): ...
@@ -229,33 +252,92 @@ class Reporter(Protocol):
     def failed(self, error): ...
 
 
-def budget_for(text, budget):
-    """The configured prompt budget, with this source's own cost filled in."""
-    return dict(budget, source_tokens=estimate_tokens(text))
+def budget_for(text, budget, fixed_extra_tokens=0):
+    """The configured prompt budget, with this source's own cost filled in.
+
+    `fixed_extra_tokens` pays for the blocks every data-only prompt carries
+    (document header, core schema, anchors), so they never squeeze the
+    selected context below what the arithmetic allows.
+    """
+    result = dict(budget, source_tokens=estimate_tokens(text))
+    if fixed_extra_tokens and "fixed_prompt_tokens" in result:
+        result["fixed_prompt_tokens"] += fixed_extra_tokens
+    return result
 
 
-def _window_context(window_text, final_graph, source_graph, budget_config):
+@dataclass
+class _FixedContext:
+    """What data-only ingestion shows every window of one document.
+
+    `core_schema` is None when the whole schema is over its own budget; the
+    word-matched schema selection is used then, as before.
+    """
+
+    vocabulary: object
+    core_schema: str | None
+    display_path: str
+    window_total: int
+    folder_text: str = ""
+    folder_ids: tuple = ()
+
+
+def _fixed_blocks(fixed, document, window, source_graph):
+    """The document header, core schema, anchors, and same-folder block."""
+    blocks = [render_document_header(
+        fixed.display_path, document.text, window, fixed.window_total)]
+    if fixed.core_schema:
+        blocks.append(fixed.core_schema)
+    anchors = render_document_anchors(source_graph, fixed.vocabulary)
+    if anchors:
+        blocks.append(anchors)
+    if fixed.folder_text:
+        blocks.append(fixed.folder_text)
+    return blocks
+
+
+def _window_context(window_text, final_graph, source_graph, budget_config,
+                    blocks=(), drop_declared=False, extra_ids=()):
     """Select and budget what this window's prompt may see.
 
     Canonical knowledge comes from the final ontology; earlier-window
     knowledge comes from the source staging graph and is clearly marked as
-    such in the rendered prompt context. Returns the budgeted prompt context
-    and the canonical selection package, for reporting.
+    such in the rendered prompt context. `blocks` are always shown first and
+    are paid for outside the context allowance; with `drop_declared` the
+    word-matched schema is left out because the core schema already holds
+    all of it. Returns the budgeted prompt context and the canonical
+    selection package, for reporting.
     """
     canonical = build_task_context(window_text, final_graph)
     source = (build_task_context(window_text, source_graph)
               if len(source_graph) else None)
+    shown_canonical, shown_source = canonical, source
+    if drop_declared:
+        shown_canonical = dict(canonical, schema=[])
+        shown_source = dict(source, schema=[]) if source else None
     prompt_context = layered_context_text(
-        canonical, source, budget_config, count_tokens=estimate_tokens)
+        shown_canonical, shown_source, budget_config,
+        count_tokens=estimate_tokens)
+    if blocks:
+        prompt_context["text"] = "\n\n".join(
+            [block for block in blocks if block]
+            + ([prompt_context["text"]] if prompt_context["text"] else []))
+        prompt_context["existing_ids"] = sorted(
+            set(prompt_context["existing_ids"]) | set(extra_ids))
     return prompt_context, canonical
 
 
 def _extract_window(window, request, final_graph, source_graph, extractor,
-                    reporter, vocabulary=None):
+                    reporter, vocabulary=None, document=None, fixed=None):
     """Ask the model about one window and validate the answer."""
+    blocks = (_fixed_blocks(fixed, document, window, source_graph)
+              if fixed is not None else ())
+    extra_tokens = sum(estimate_tokens(block) for block in blocks)
     prompt_context, canonical_context = _window_context(
         window.text, final_graph, source_graph,
-        budget_for(window.text, request.context.budget))
+        budget_for(window.text, request.context.budget, extra_tokens),
+        blocks=blocks,
+        drop_declared=fixed is not None and bool(fixed.core_schema),
+        extra_ids=fixed.folder_ids if fixed is not None else ())
     reporter.context_selection(canonical_context, final_graph)
     reporter.prompt_context(prompt_context)
 
@@ -269,23 +351,35 @@ def _extract_window(window, request, final_graph, source_graph, extractor,
 
     # Send the prompt; a messy answer is repaired by the model itself,
     # under the same validation gate, at most repair_attempts times.
-    outcome = extract_validated(
-        extractor, prompt,
-        lambda data: validate_candidates(
+    def validate(data):
+        return validate_candidates(
             data, final_graph, prompt_context["existing_ids"],
-            vocabulary=vocabulary),
+            vocabulary=vocabulary)
+
+    outcome = extract_validated(
+        extractor, prompt, validate,
         max_repair_attempts=request.extraction.repair_attempts,
     )
+    validation = outcome.validation
+    # A wrongly connected relation or fact that survived every repair is
+    # dropped on its own; the rest of the window is kept.
+    if not outcome.ok and outcome.raw_problem is None and \
+            vocabulary is not None:
+        kept = drop_endpoint_mismatches(outcome.response, validation)
+        if kept is not None:
+            revalidated = validate(kept[0])
+            if revalidated["valid"]:
+                validation = dict(revalidated, dropped=kept[1])
     reporter.model_replied(
-        outcome.validation["candidates"] if outcome.validation else {},
-        time.monotonic() - started)
-    if outcome.validation is not None:
-        reporter.validation(outcome.validation)
-    if not outcome.ok:
+        validation["candidates"] if validation and validation["candidates"]
+        else {}, time.monotonic() - started)
+    if validation is not None:
+        reporter.validation(validation)
+    if outcome.raw_problem is not None or not validation["valid"]:
         raise RuntimeError(
             outcome.raw_problem
-            or format_validation_failure(outcome.validation))
-    return model, outcome.validation["candidates"]
+            or format_validation_failure(validation))
+    return model, validation["candidates"]
 
 
 def _admit_window(window, candidates, request, document, staging,
@@ -325,15 +419,50 @@ def _admit_window(window, candidates, request, document, staging,
     return updated, counts, plan
 
 
+def _display_path(path, request):
+    """The path a prompt shows: relative to where ingestion started."""
+    root = request.source_root or (
+        request.source if request.source.is_dir() else request.source.parent)
+    try:
+        return Path(path).relative_to(root).as_posix()
+    except ValueError:
+        return Path(path).name
+
+
+def _fixed_context(document, path, windows, request, final_graph, vocabulary,
+                   core_schema, provenance):
+    """The data-only context of one document, or None outside data-only."""
+    if vocabulary is None:
+        return None
+    folder = folder_anchors(final_graph, provenance, vocabulary,
+                            document.source_path)
+    return _FixedContext(
+        vocabulary=vocabulary,
+        core_schema=core_schema,
+        display_path=_display_path(path, request),
+        window_total=len(windows),
+        folder_text=render_folder_anchors(final_graph, folder),
+        folder_ids=tuple(str(entity) for entity in folder),
+    )
+
+
 def _process_document(document, request, final_graph, extractor, reporter,
-                      vocabulary=None):
+                      vocabulary=None, path=None, core_schema=None,
+                      expected=(), provenance=None):
     """Run every window of one document through staging.
+
+    `final_graph` is the seed view of the final ontology: everything the
+    prompts may draw on. `provenance` is read only to find what other files of
+    the same folder contributed.
 
     Returns the admitted window packages. The final ontology is never written
     to here; a snapshot taken before the first window must still be exact
     after every later one.
     """
     windows = plan_windows(document, request.windowing)
+    fixed = _fixed_context(document, path or Path(document.name), windows,
+                           request, final_graph, vocabulary, core_schema,
+                           provenance if provenance is not None else Graph())
     staging_name = source_staging_graph_name(document.document_id)
     reporter.document_staging(document.document_id, staging_name, len(windows))
 
@@ -348,7 +477,7 @@ def _process_document(document, request, final_graph, extractor, reporter,
             reporter.window_started(number, len(windows), window.window_id)
             model, candidates = _extract_window(
                 window, request, final_graph, source_graph, extractor,
-                reporter, vocabulary)
+                reporter, vocabulary, document, fixed)
             source_graph, counts, plan = _admit_window(
                 window, candidates, request, document, staging, source_graph,
                 model, reporter)
@@ -361,6 +490,23 @@ def _process_document(document, request, final_graph, extractor, reporter,
             packages.append((window, model, candidates))
             admission_plans.append({"window_id": window.window_id,
                                     "plan": plan})
+        link_summary = None
+        if fixed is not None and expected and request.extraction.link_check:
+            link_packages, link_summary = check_document_links(
+                document, fixed.display_path, windows, source_graph,
+                final_graph, expected, vocabulary, extractor, reporter,
+                library=request.prompts,
+                limit=request.extraction.max_link_checks)
+            model = extractor.model()
+            for window, candidates in link_packages:
+                source_graph, counts, plan = _admit_window(
+                    window, candidates, request, document, staging,
+                    source_graph, model, reporter)
+                staging.put(staging_name, source_graph)
+                packages.append((window, model, candidates))
+                admission_plans.append({"window_id": window.window_id,
+                                        "plan": plan})
+            reporter.link_check(link_summary)
     except BaseException:
         retained = request.processing.retain_staging_on_failure
         sidecar = (retain_staging(staging, document.document_id,
@@ -378,6 +524,7 @@ def _process_document(document, request, final_graph, extractor, reporter,
         source_graph=source_graph,
         candidate_graphs=candidate_graphs,
         admission_plans=admission_plans,
+        link_check=link_summary,
     )
 
 
@@ -420,12 +567,34 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
     names = request.graph_names
     names.validate()
     store = _final_store(graph_store, request)
+    require_named_graphs(store, request.graph_path)
     roles = initial_role_graphs(store, names)
     graph = union_graphs(roles.values())
+    # Prompts only ever see the seed view: schema plus the business data,
+    # never provenance, review, or shapes.
+    context = seed_view(roles, names)
     # Data-only ingestion locks the starter vocabulary: the same classes and
     # relationships stay valid for the whole run.
-    vocabulary = (read_vocabulary(graph)
+    vocabulary = (read_vocabulary(context)
                   if request.merge.require_declared_vocabulary else None)
+    schema_roles = [roles[name] for name in names.schema_graphs
+                    if name in roles]
+    schema_sha256 = schema_digest(schema_roles)
+    core_schema = None
+    expected = ()
+    if vocabulary is not None:
+        # The whole schema, once per run, when it fits its own budget;
+        # otherwise the word-matched selection stays, and the report says so.
+        core_schema = render_core_schema(context)
+        schema_cost = estimate_tokens(core_schema)
+        if schema_cost > request.context.budget.get(
+                "schema_tokens", schema_cost):
+            reporter.line(f"Core schema: {schema_cost} tokens is over the "
+                          f"schema budget; using word-matched schema "
+                          f"selection instead")
+            core_schema = None
+        expected = expected_links(union_graphs(
+            [roles[name] for name in names.shape_graphs if name in roles]))
     files = find_text_files(request.source, request.graph_path)
     if not files:
         raise RuntimeError("No text-like files found")
@@ -446,7 +615,9 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         before_size = len(graph)
         before_snapshot = final_graphs_snapshot(graph)
         staged = _process_document(
-            document, request, graph, extractor, reporter, vocabulary)
+            document, request, context, extractor, reporter, vocabulary,
+            path=path, core_schema=core_schema, expected=expected,
+            provenance=roles.get(names.provenance_graph))
         windows_processed += len(staged.packages)
 
         reconciliation = reconcile_document(
@@ -483,6 +654,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
                     "extraction_system", library=library),
                 "extraction_user_sha256": prompts.digest(
                     "extraction_user", library=library),
+                "schema_sha256": schema_sha256,
             })
         merge_plan = document_merge["merge_plan"]
         reporter.merge_plan(
@@ -511,6 +683,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         roles = dict(roles)
         roles.update(publication_plan.publication.graphs)
         graph = union_graphs(roles.values())
+        context = seed_view(roles, names)
         documents.append(DocumentResult(
             path=path,
             document_id=document.document_id,
@@ -519,6 +692,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
             source_validation=validation,
             publication_plan=publication_plan,
             publication_validation=publication_plan.proposed_validation,
+            link_check=staged.link_check,
         ))
     if request.dry_run:
         reporter.dry_run_finished(graph, request.graph_path)

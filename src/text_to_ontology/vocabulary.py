@@ -9,7 +9,7 @@ policy knows not to declare anything again.
 Nothing here writes to a graph.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from rdflib import BNode, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
@@ -45,6 +45,11 @@ class Vocabulary:
     classes: dict
     relations: dict
     facts: dict
+    # property IRI text -> class IRI text, as the starter declares them
+    domains: dict = field(default_factory=dict)
+    ranges: dict = field(default_factory=dict)
+    # class IRI text -> the IRIs of its declared parent classes
+    parents: dict = field(default_factory=dict)
 
     # ---------- matching by name ----------
 
@@ -88,6 +93,35 @@ class Vocabulary:
                 return URIRef(iri)
         return generated
 
+    # ---------- domains and ranges ----------
+
+    def is_a(self, class_iri, wanted_iri):
+        """True when a class is the wanted class or one of its subclasses."""
+        pending, seen = [str(class_iri)], set()
+        while pending:
+            current = pending.pop()
+            if current == str(wanted_iri):
+                return True
+            if current in seen:
+                continue
+            seen.add(current)
+            pending.extend(self.parents.get(current, ()))
+        return False
+
+    def domain_of(self, property_iri):
+        """The declared domain class IRI of a property, or None."""
+        return self.domains.get(str(property_iri))
+
+    def range_of(self, property_iri):
+        """The declared range class IRI of a relation, or None."""
+        return self.ranges.get(str(property_iri))
+
+    def label_of(self, iri):
+        """The readable name of a declared class or property."""
+        for declared in (self.classes, self.relations, self.facts):
+            if str(iri) in declared:
+                return declared[str(iri)]
+        return local_name(iri)
 
     @property
     def class_names(self):
@@ -119,8 +153,26 @@ def read_vocabulary(graph):
     """The declared classes, relations, and facts of one graph."""
     classes = _declared(graph, OWL.Class)
     classes.update(_declared(graph, RDFS.Class))
+    relations = _declared(graph, OWL.ObjectProperty)
+    facts = _declared(graph, OWL.DatatypeProperty)
+    domains, ranges = {}, {}
+    for prop in list(relations) + list(facts):
+        domain = graph.value(URIRef(prop), RDFS.domain)
+        if isinstance(domain, URIRef):
+            domains[prop] = str(domain)
+        target = graph.value(URIRef(prop), RDFS.range)
+        if prop in relations and isinstance(target, URIRef):
+            ranges[prop] = str(target)
+    parents = {}
+    for child, parent in graph.subject_objects(RDFS.subClassOf):
+        if isinstance(child, URIRef) and isinstance(parent, URIRef):
+            parents.setdefault(str(child), set()).add(str(parent))
     return Vocabulary(
         classes=classes,
-        relations=_declared(graph, OWL.ObjectProperty),
-        facts=_declared(graph, OWL.DatatypeProperty),
+        relations=relations,
+        facts=facts,
+        domains=domains,
+        ranges=ranges,
+        parents={child: tuple(sorted(found))
+                 for child, found in parents.items()},
     )

@@ -104,6 +104,34 @@ ${text}
 ---
 """.strip()
 
+LINK_CHECK_USER = """
+${question}
+
+Relationship: ${relation}
+
+SUBJECT
+${subject}
+
+CANDIDATES - the only things the subject may be linked to
+${candidates}
+
+PASSAGES - the only evidence
+---
+${passages}
+---
+
+Answer with one JSON object:
+{"links": [{"object": "c1", "evidence": "words copied exactly from PASSAGES",
+  "confidence": 0.9}]}
+
+Add a link only when PASSAGES state it or clearly imply it for this subject. A
+thing that is only compared with, mentioned next to, or proposed for the
+subject is not linked to it. "evidence" must be copied word for word from
+PASSAGES: the shortest sentence or phrase that shows the link. "confidence" is
+your confidence, from 0.0 to 1.0, that the evidence supports the link. If
+PASSAGES do not establish it, answer {"links": []}. Return JSON only.
+""".strip()
+
 CHAT_SYSTEM = """You answer questions about one knowledge graph, using only the
 subgraph you are given. You never invent facts, classes, or relationships, and
 you say plainly when the answer is not in the part you can see.
@@ -140,6 +168,7 @@ DEFAULT_PROMPTS = {
     "extraction_system": EXTRACTION_SYSTEM,
     "extraction_user": EXTRACTION_USER,
     "starter": STARTER,
+    "link_check_user": LINK_CHECK_USER,
     "chat_system": CHAT_SYSTEM,
     "chat_user": CHAT_USER,
 }
@@ -149,6 +178,8 @@ PROMPT_FIELDS = {
     "extraction_system": (),
     "extraction_user": ("context", "text"),
     "starter": ("min_classes", "max_classes", "xsd_names", "text"),
+    "link_check_user": ("question", "relation", "subject", "candidates",
+                        "passages"),
     "chat_system": (),
     "chat_user": ("question", "history", "scope_note", "subgraph"),
 }
@@ -156,6 +187,7 @@ REQUIRED_FIELDS = {
     "extraction_system": (),
     "extraction_user": ("context", "text"),
     "starter": ("text",),
+    "link_check_user": ("subject", "candidates", "passages"),
     "chat_system": (),
     "chat_user": ("question", "subgraph"),
 }
@@ -177,6 +209,14 @@ PREVIEW_VALUES = {
         "text": "We are a coffee roaster: farms, coffee lots, retailers, "
                 "and the shipments between them.",
     },
+    "link_check_user": {
+        "question": "Which client is this project delivered for?",
+        "relation": "Project --has client--> Client",
+        "subject": "- Virtual Assistant of Farmexa (kind: Project); also "
+                   "called VAF",
+        "candidates": "- c1: Farmexa (kind: Client); already in the graph",
+        "passages": "Comparison of Copilot with VAF for Farmexa's request.",
+    },
     "chat_system": {},
     "chat_user": {
         "question": "How many people live in Poland?",
@@ -195,6 +235,10 @@ ADVICE = {
         ("facts", 'the answer shape needs a "facts" list'),
         ("confidence", "every record needs a confidence from 0.0 to 1.0"),
         ("SOURCE", "the source text must be marked, e.g. SOURCE:"),
+    ],
+    "link_check_user": [
+        ("links", 'the answer shape needs a "links" list'),
+        ("evidence", "every link needs evidence quoted from the passages"),
     ],
     "starter": [
         ("classes", 'the answer shape needs a "classes" list'),

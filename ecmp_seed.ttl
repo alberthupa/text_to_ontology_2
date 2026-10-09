@@ -1,0 +1,729 @@
+# Lingaro knowledge assets and their relationships, exported from ECMP.
+# Classification of every asset below: Public.
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix ecmp: <https://example.org/ecmp/vocab#> .
+@prefix lg:   <https://example.org/ecmp/lingaro/asset/> .
+@prefix lgd:  <https://example.org/ecmp/lingaro/domain/> .
+
+### Vocabulary: classes and properties ECMP adds on top of SKOS
+
+ecmp:Domain
+    a owl:Class ;
+    rdfs:label "Domain"@en .
+
+ecmp:CompanyProfile
+    a owl:Class ;
+    rdfs:label "Company profile"@en .
+
+ecmp:DataAsset
+    a owl:Class ;
+    rdfs:label "Data asset"@en .
+
+ecmp:Process
+    a owl:Class ;
+    rdfs:label "Process"@en .
+
+ecmp:domain
+    a owl:ObjectProperty ;
+    rdfs:label "domain"@en .
+
+ecmp:classification
+    a owl:DatatypeProperty ;
+    rdfs:label "classification"@en .
+
+ecmp:sourceSystem
+    a owl:DatatypeProperty ;
+    rdfs:label "source system"@en .
+
+ecmp:formula
+    a owl:DatatypeProperty ;
+    rdfs:label "formula"@en .
+
+ecmp:unit
+    a owl:DatatypeProperty ;
+    rdfs:label "unit"@en .
+
+ecmp:grain
+    a owl:DatatypeProperty ;
+    rdfs:label "grain"@en .
+
+ecmp:whenToUse
+    a owl:DatatypeProperty ;
+    rdfs:label "when to use"@en .
+
+ecmp:howToUse
+    a owl:DatatypeProperty ;
+    rdfs:label "how to use"@en .
+
+ecmp:purpose
+    a owl:DatatypeProperty ;
+    rdfs:label "purpose"@en .
+
+ecmp:primaryKey
+    a owl:DatatypeProperty ;
+    rdfs:label "primary key"@en .
+
+ecmp:legalName
+    a owl:DatatypeProperty ;
+    rdfs:label "legal name"@en .
+
+ecmp:headquarters
+    a owl:DatatypeProperty ;
+    rdfs:label "headquarters"@en .
+
+ecmp:industry
+    a owl:DatatypeProperty ;
+    rdfs:label "industry"@en .
+
+ecmp:employeeBand
+    a owl:DatatypeProperty ;
+    rdfs:label "employee band"@en .
+
+ecmp:builtFrom
+    a owl:ObjectProperty ;
+    rdfs:label "Built from"@en ;
+    rdfs:comment "The assets this report is computed from. Points from the consumer to what it reads."@en ;
+    owl:inverseOf ecmp:feeds .
+
+ecmp:feeds
+    a owl:ObjectProperty ;
+    rdfs:label "Feeds"@en ;
+    rdfs:comment "The reports computed from this asset."@en ;
+    owl:inverseOf ecmp:builtFrom .
+
+ecmp:hasSubsidiary
+    a owl:ObjectProperty ;
+    rdfs:label "Has subsidiary"@en ;
+    rdfs:comment "The legal entities this company owns. Transitive, mirroring subsidiary_of."@en ;
+    owl:inverseOf ecmp:subsidiaryOf .
+
+ecmp:measuredBy
+    a owl:ObjectProperty ;
+    rdfs:label "Measured by"@en ;
+    rdfs:comment "The metric that quantifies this concept."@en ;
+    owl:inverseOf ecmp:measures .
+
+ecmp:measures
+    a owl:ObjectProperty ;
+    rdfs:label "Measures"@en ;
+    rdfs:comment "The concept this metric quantifies."@en ;
+    owl:inverseOf ecmp:measuredBy .
+
+ecmp:storedIn
+    a owl:ObjectProperty ;
+    rdfs:label "Stored in"@en ;
+    rdfs:comment "The data asset holding instances of this concept. Points from the definition to the data."@en ;
+    owl:inverseOf ecmp:stores .
+
+ecmp:stores
+    a owl:ObjectProperty ;
+    rdfs:label "Stores"@en ;
+    rdfs:comment "The concepts whose instances this data asset holds."@en ;
+    owl:inverseOf ecmp:storedIn .
+
+ecmp:subsidiaryOf
+    a owl:ObjectProperty ;
+    rdfs:label "Subsidiary of"@en ;
+    rdfs:comment "The parent company of this legal entity. Transitive: a subsidiary of a subsidiary is a subsidiary."@en ;
+    owl:inverseOf ecmp:hasSubsidiary .
+
+### Domains
+
+lgd:commercial-sales
+    a ecmp:Domain ;
+    rdfs:label "Commercial & Sales"@en .
+
+lgd:consulting-advisory
+    a ecmp:Domain ;
+    rdfs:label "Consulting & Advisory"@en .
+
+lgd:delivery
+    a ecmp:Domain ;
+    rdfs:label "Delivery"@en .
+
+lgd:legal-compliance
+    a ecmp:Domain ;
+    rdfs:label "Legal & Compliance"@en .
+
+lgd:marketing
+    a ecmp:Domain ;
+    rdfs:label "Marketing"@en .
+
+lgd:organization
+    a ecmp:Domain ;
+    rdfs:label "Organization"@en .
+
+lgd:technology-innovation
+    a ecmp:Domain ;
+    rdfs:label "Technology & Innovation"@en .
+
+### Glossaries, other assets, then concepts
+
+lg:lingaro-glossary
+    a skos:ConceptScheme ;
+    skos:prefLabel "Lingaro Glossary"@en ;
+    dct:description "Lingaro's own object types — the kinds of thing the business is modelled from."@en ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" .
+
+lg:lingaro-kpis
+    a skos:ConceptScheme ;
+    skos:prefLabel "Lingaro KPIs"@en ;
+    dct:description "Lingaro's own governed metrics — how they are computed and how to read them."@en ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:about-lingaro
+    a ecmp:CompanyProfile ;
+    skos:prefLabel "About Lingaro"@en ;
+    dct:description "Global Data & AI services company — strategy through operations for large enterprises, strongest in CPG."@en ;
+    skos:note "**You are working for Lingaro.**\n\nLingaro is a global Data & AI services company with European roots, building and running enterprise-scale data, analytics and AI solutions for large multinationals. It works end to end — strategy, architecture, platform build, governance, analytics, AI enablement, operations and adoption — rather than at a single stage. Its promise to clients and staff alike is to **achieve more with data and AI**.\n\nIts distinctive claim combines three things:\n\n- **Design** — human-centred design, change management and adoption.\n- **Domain** — deep industry knowledge, strongest in consumer packaged goods.\n- **Technology** — cloud, data engineering, analytics and AI at enterprise scale.\n\nIndustries served: consumer packaged goods, retail, life sciences and pharma, manufacturing, supply chain and logistics, and eCommerce. Clients most often cite ownership, transparency, and the ability to tie a technology choice to a business outcome.\n\nAs of 2026 the strategic push is agentic AI — enterprise AI platforms, AI readiness and governance, Model Context Protocol, multi-agent architectures, and reusable accelerators that shorten delivery.\n\nWorking assumptions when reasoning in a Lingaro context:\n\n- Lead with the business outcome, then the technology choice.\n- Governance and adoption weigh as heavily as implementation.\n- Prefer reusable accelerators and proven patterns over bespoke builds.\n- Optimise for global enterprises, not startups.\n- Assume Microsoft, Databricks, Snowflake, Google Cloud, AWS and SAP ecosystems."@en ;
+    ecmp:industry "Data & AI services (IT consulting)"@en ;
+    ecmp:howToUse "Treat the working assumptions as priors, not trivia: lead with business outcome, weigh governance and adoption alongside build, favour reusable accelerators, and assume a global enterprise on a major cloud data platform."@en ;
+    ecmp:legalName "Lingaro Group"@en ;
+    ecmp:whenToUse "Read it before answering anything about who Lingaro is, what it sells, which industries it serves, or how it prefers to deliver — and before any recommendation whose framing depends on enterprise scale."@en ;
+    ecmp:headquarters "Warsaw, Poland"@en ;
+    ecmp:employeeBand "~1,500"@en ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:sulu
+    a ecmp:DataAsset ;
+    skos:prefLabel "SULU"@en ;
+    dct:description "SULU is Lingaro’s integrated platform for project, resource, time, financial, and employee management, supporting delivery governance and workforce operations."@en ;
+    skos:note "SULU is Lingaro’s enterprise platform for managing project delivery, workforce operations, resource planning, financial governance, and employee information across the organization. It serves as a central system connecting project management, timesheets, staffing, reporting, organizational structures, employee development, and business operations into a single integrated environment.\n\nThe platform is used by employees, managers, project managers, PMO, finance teams, resource managers, and leadership to support the entire engagement lifecycle, from opportunity conversion and project setup through staffing, execution, reporting, and project closure. SULU maintains key engagement information such as project details, resource assignments, billing milestones, client and internal rates, status reports, financial data, and governance artifacts.\n\nCore capabilities include:\n\nProject & Engagement Management: creation and administration of projects, project governance, status reporting, billing milestones, baselines, valuations, and project closure processes.\nResource & Workforce Management: staffing, capacity planning, resource requests, organization structures, employee profiles, and team visibility.\nTime Tracking & Time-Off Management: timesheet submission, approval workflows, overtime tracking, utilization monitoring, and leave management.\nFinancial & Delivery Governance: project costing, internal and client rates, reporting, financial controls, compliance monitoring, and engagement oversight.\nPeople & Organizational Data: employee profiles, organizational charts, team structures, locations, skills, and workforce information.\nTalent Development & Performance: skills management, Growth Track, development plans, performance goals, and leadership capability frameworks.\nOperational Reporting & Automation: dashboards, automated notifications, audit trails, governance alerts, and management reporting.\n\nIn addition to operational management, SULU increasingly serves as an innovation platform within Lingaro, supporting capabilities such as AI-powered success story generation, integrations with Salesforce and other internal systems, and APIs/MCP integrations used by internal accelerators and knowledge management solutions"@en ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:accelerator
+    a skos:Concept ;
+    skos:prefLabel "Accelerator"@en ;
+    skos:altLabel "Jumpstart"@en ;
+    skos:altLabel "Reusable Component"@en ;
+    skos:altLabel "Pre-built Asset"@en ;
+    dct:description "A pre-built, reusable building block that measurably shortens delivery of a Standard Solution or Service."@en ;
+    skos:definition "A pre-built, reusable building block — code, pipeline, data model, prompt set, notebook, IaC module, test harness or document template — that measurably shortens delivery of a Standard Solution or a Service. Accelerators are harvested out of real delivery experience rather than designed up front. They are the mechanism by which an Offering matures along its Conceptual → Delivered → Accelerated lifecycle: the more delivery experience captured as accelerators, the further along that lifecycle the offering sits.\n\nHow it connects: an Accelerator is part of a Standard Solution and embedded in an Offering. It is applied in an Implemented Solution and uses Technology."@en ;
+    ecmp:primaryKey "assetId" ;
+    ecmp:sourceSystem "GitHub (<solution>-delivery-kit)" ;
+    ecmp:sourceSystem "SharePoint" ;
+    ecmp:sourceSystem "tech-registry" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" ;
+    skos:broader lg:asset ;
+    skos:broader lg:standard-solution .
+
+lg:asset
+    a skos:Concept ;
+    skos:prefLabel "Asset"@en ;
+    skos:altLabel "Reusable Asset"@en ;
+    skos:altLabel "IP Asset"@en ;
+    skos:altLabel "Intellectual Property"@en ;
+    dct:description "The master type for anything Lingaro builds once and reuses many times, independent of any one client or engagement."@en ;
+    skos:definition "Master object type for anything Lingaro builds once and reuses many times: a reusable artifact that is NOT client-specific and is NOT a per-engagement deliverable. An asset is owned by a squad or competency group, is versioned, has a maturity state, and can carry reuse/licensing rights. Every concrete asset is an instance of one of its subtypes (Accelerator, Standard Solution, White Paper, Framework, ...); Asset itself holds only the properties common to all of them — assetId, assetKind, owner, maturity, version, reuse rights, publication location. It exists so that offerings, services and engagements can point at \"our reusable IP\" without enumerating every subtype, and so that asset reuse can be counted.\n\nHow it connects: an Asset is packaged into an Offering and underpins a Service. It addresses a Use Case, is owned by a Group and authored by a Person, and is produced out of an Engagement. It uses Technology and is used in an Implemented Solution."@en ;
+    ecmp:primaryKey "assetId" ;
+    ecmp:sourceSystem "GitHub (<solution>-generic-knowledge, <solution>-delivery-kit, <solution>-marketplace)" ;
+    ecmp:sourceSystem "SharePoint" ;
+    ecmp:sourceSystem "PKE" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" ;
+    skos:narrower lg:accelerator ;
+    skos:narrower lg:framework ;
+    skos:narrower lg:white-paper .
+
+lg:availability
+    a skos:Concept ;
+    dct:type "KPI" ;
+    skos:prefLabel "Availability"@en ;
+    dct:description "Share of a person's contracted capacity still free to assign in a period."@en ;
+    ecmp:unit "percent of FTE (0-100)" ;
+    ecmp:grain "One value per person x period; the period is parametric - a week, a month, a quarter, or a custom window." ;
+    ecmp:formula "availability_% = max(0, FTE − (busy_man_days + time_off_days) ÷ working_days) × 100" ;
+    skos:definition "The share of a person's contracted capacity — measured in man-days across their own country's working days in the period — that is **not consumed** by bookings counted as busy under the selected scenario, nor by time off. It answers *how much of this person can I have*, not *when do they become free*: a capacity fraction, never a date and never a headcount.\n\nThree structural properties:\n\n- **A share of a full-time equivalent**, not of the person — a fully free 0.5-FTE contract correctly reads 50%, not 100%.\n- **Floored at zero** — someone booked at 150% reads 0% free, never −50%.\n- **Time off consumes only what a booking left** that day, which is why the number can never exceed 100%.\n\nA booking reduces it only when **both** its status is in the scenario's busy set **and** its project type qualifies:\n\n- `billable` and `governance` always count.\n- `investment` counts only for the *Investment - ELT* and *Presales* work categories, plus *Central Investments* outside Pessimistic.\n- `bench` — any project carrying none of the billable, governance or investment flags — counts only in Optimistic, and there only for *Account Assignment*.\n\nProject type is derived from those cost-category flags and must be resolved **before** the work-category filter, so a flagless *Presales* project is bench, not investment.\n\nThe scenarios differ only in what is held against the person: **Pessimistic** counts Confirmed and Requested; **Realistic** (the default) adds Planned, Prebooked and Recommended; **Optimistic** adds Alternative and bench Account Assignment. The adjectives describe confidence in the demand *pipeline*, not in this number, so the direction is the opposite of most readers' first guess — **Pessimistic reports the most free capacity and Optimistic the least**. One Confirmed 100% bench booking reads 100% available in Realistic against 0% in Optimistic, so always state which scenario a figure came from.\n\nTwo rules for reading it:\n\n- Across a multi-week window it is a **ratio of two sums** (total busy man-days ÷ total working days), *never the average of the weekly percentages* — one public holiday makes those disagree (55.6% correct against 50.0% averaged, in the canonical two-week case) and the error is silent, plausible-looking and always biased. For *free every week* questions use the minimum weekly value instead, skipping weeks with no working days.\n- It is a **free-capacity** measure and is **not comparable** to a booking-total or allocation row: that measures load, moves in the opposite direction, and can legitimately exceed 100% when leave stacks on a full booking.\n\nWhere it is scored against a demand, the standard transformation is `fit = min(availability ÷ required FTE, 1.0)`, so surplus is not rewarded and shortfall scales linearly. It is a ranking signal, not a hard eligibility gate."@en ;
+    ecmp:howToUse "Sum busy man-days under the chosen scenario, add time off net of what bookings already took, divide by the person's own country working days, subtract from their FTE and floor at zero. Over a multi-week window sum both sides — never average the weekly percentages."@en ;
+    ecmp:whenToUse "The standard measure of how much of a person is free to assign in a period, for resourcing and staffing decisions. Realistic is the default; always name the scenario a figure came from. Not a load measure and not a free-from date — never substitute a booking-total or allocation figure."@en ;
+    skos:inScheme lg:lingaro-kpis ;
+    skos:topConceptOf lg:lingaro-kpis ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:b2b-agreement
+    a skos:Concept ;
+    skos:prefLabel "B2B Agreement"@en ;
+    skos:altLabel "Contractor Agreement"@en ;
+    skos:altLabel "Freelance Contract"@en ;
+    skos:altLabel "Subcontracting Agreement"@en ;
+    skos:altLabel "B2B"@en ;
+    dct:description "The commercial contract between Lingaro and a self-employed individual or supplier company providing people or services."@en ;
+    skos:definition "The commercial contract between Lingaro and a self-employed individual or a supplier company — contractor, freelancer, subcontractor, partner — supplying people or services to Lingaro rather than entering an employment relationship. It carries its own confidentiality, IP-assignment and back-to-back clauses so that obligations Lingaro owes a client under an MSA or SoW are passed through to whoever actually does the work.\n\nHow it connects: a B2B Agreement engages a Person or a Group, and sits back-to-back with an MSA or a SoW. It may be amended by a Contract Amendment."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" ;
+    skos:broader lg:contract .
+
+lg:certificate
+    a skos:Concept ;
+    skos:prefLabel "Certificate"@en ;
+    skos:altLabel "Certification"@en ;
+    skos:altLabel "Credential"@en ;
+    skos:altLabel "Accreditation"@en ;
+    skos:altLabel "Badge"@en ;
+    dct:description "A formal, third-party credential attesting that a person or Lingaro meets a defined standard, subject to renewal."@en ;
+    skos:definition "A formal credential issued by an external authority attesting that a Person or Lingaro itself meets a defined standard, and which expires or requires renewal. It is third-party evidence, which is what separates it from a Competency: a competency is an ability Lingaro asserts a person has, a certificate is an assertion someone outside Lingaro is willing to make and stand behind. Certificates exist in the model because they are counted and demanded — partner tier with a hyperscaler or platform vendor depends on how many current certificates Lingaro holds, and clients require named certifications in RFPs, security reviews and contract clauses. Both facts need answering from stock at a point in time, not from a spreadsheet someone maintains by hand.\n\nHow it connects: a Certificate is issued by a Person and evidences a Competency, and is about a Technology. It is required by an Opportunity, a Contract or an Engagement, and qualifies for an Offering."@en ;
+    ecmp:primaryKey "certificateId" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" .
+
+lg:client
+    a skos:Concept ;
+    skos:prefLabel "Client"@en ;
+    skos:altLabel "Customer"@en ;
+    skos:altLabel "Account"@en ;
+    dct:description "An organization that purchases, or is being targeted to purchase, Lingaro services, offerings, or solutions."@en ;
+    skos:definition "An organization that purchases, has purchased, or is being targeted to purchase Lingaro services, offerings, or solutions. A client represents the company-level relationship and serves as the container for all related opportunities, engagements, projects, contacts, contracts, and knowledge assets. May also be called a customer or an Account (for example, in Salesforce).\n\nHow it connects: a Client has Engagements, Opportunities and Proposals."@en ;
+    ecmp:primaryKey "clientId" ;
+    ecmp:sourceSystem "Salesforce (client names, opportunity)" ;
+    ecmp:sourceSystem "Sulu (engagements)" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:commercial-sales ;
+    ecmp:classification "Public" ;
+    skos:related lg:client-knowledge .
+
+lg:client-knowledge
+    a skos:Concept ;
+    skos:prefLabel "Client Knowledge"@en ;
+    dct:description "Per-client knowledge, technical or business, reusable across that client's engagements."@en ;
+    skos:definition "Per-client knowledge reusable across that client's engagements. It may be both technical knowledge (standards, tech-stack, frameworks) and/or business knowledge like: industry, products or services the client sells, stakeholders working in Client, KPI, etc.\n\nHow it connects: Client Knowledge is derived into a Project Repo and relates to a Client."@en ;
+    ecmp:primaryKey "repoName" ;
+    ecmp:sourceSystem "GitHub" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:related lg:client .
+
+lg:competency
+    a skos:Concept ;
+    skos:prefLabel "Competency"@en ;
+    skos:altLabel "Skill"@en ;
+    skos:altLabel "Capability (individual)"@en ;
+    skos:altLabel "Expertise"@en ;
+    skos:altLabel "Proficiency"@en ;
+    skos:altLabel "Competency Center"@en ;
+    dct:description "A named, assessable ability — technical, methodological, domain or behavioural — that a person can hold and apply."@en ;
+    skos:definition "A named, assessable ability a Person can hold and apply — technical, methodological, domain or behavioural. It is the type, not the holding: competency describes what the ability is (e.g. \"dbt modelling\", \"Pharma commercial analytics\", \"stakeholder facilitation\"), while proficiency level, evidence and currency belong to the link between a Person and a Competency. A competency exists independently of who currently holds it and of any engagement, which is what makes supply (who can do this) answerable against demand (what this work needs). It is not an Asset: an Asset is a reusable artifact Lingaro owns, a Competency is a reusable ability a person carries.\n\nHow it connects: a Competency is held by a Person and is about a Technology. It is required by an Engagement, a Service or a Standard Solution, and may be confirmed by a Certificate."@en ;
+    ecmp:primaryKey "competencyId" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:contract
+    a skos:Concept ;
+    skos:prefLabel "Contract"@en ;
+    skos:altLabel "Agreement"@en ;
+    skos:altLabel "Legal Document"@en ;
+    dct:description "The master document type governing commercial terms between Lingaro and another party."@en ;
+    skos:definition "Master object type for the document or file governing an engagement and/or commercial terms for cooperation between Lingaro and a client, subcontractor, third party or employee. Every contract instance is one of its subtypes — MSA, SoW, NDA, DPA, Employment Agreement, B2B Agreement, or an Amendment to any of them. Contract itself holds only what all of them share: contractId, contractKind, parties, signature and effective dates, term, governing law, status and storage location.\n\nHow it connects: a Contract governs an Engagement, is signed with a Client, a Person or a Group, and is stored in a Data Source."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "SharePoint Sales Repo" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:legal-compliance ;
+    ecmp:classification "Public" ;
+    skos:narrower lg:employment-agreement ;
+    skos:narrower lg:nda ;
+    skos:narrower lg:sow ;
+    skos:narrower lg:contract-amendment ;
+    skos:narrower lg:msa ;
+    skos:narrower lg:b2b-agreement .
+
+lg:contract-amendment
+    a skos:Concept ;
+    skos:prefLabel "Contract Amendment"@en ;
+    skos:altLabel "Annex"@en ;
+    skos:altLabel "Addendum"@en ;
+    skos:altLabel "Change Request"@en ;
+    skos:altLabel "CR"@en ;
+    skos:altLabel "Extension"@en ;
+    skos:altLabel "Aneks"@en ;
+    dct:description "A signed change to an existing contract — annex, addendum, change request or extension — altering its scope, price or terms."@en ;
+    skos:definition "A signed change to an existing contract — annex, addendum, change request, extension or termination notice — altering scope, deliverables, price, rates, term or terms. Modelled as a Contract subtype so that a change is itself a dated, signed, attributable document rather than an untracked edit to the original, which is what makes contracted scope and contracted value reconstructable at any point in time.\n\nHow it connects: a Contract Amendment amends an MSA, a SoW, an Employment Agreement or a B2B Agreement, and changes an Engagement."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "SharePoint Sales Repo" ;
+    ecmp:sourceSystem "Sulu" ;
+    ecmp:sourceSystem "ADO (change requests)" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:broader lg:contract .
+
+lg:data-source
+    a skos:Concept ;
+    skos:prefLabel "Data Source / System or Records"@en ;
+    dct:description "A system of record backing object data — for example PKE, Sulu, ADO, Salesforce, SharePoint, or GitHub."@en ;
+    skos:definition "A system of record backing object data (Foundry 'backing datasource'). Instances include PKE, Sulu, ADO, Salesforce/SalesRepo, SharePoint, GitHub, LSF, and Solutioning Cockpit."@en ;
+    ecmp:primaryKey "sourceId" ;
+    ecmp:sourceSystem "ECMP" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" .
+
+lg:delivery-director
+    a skos:Concept ;
+    skos:prefLabel "Delivery Director"@en ;
+    dct:description "Delivery Director provides strategic leadership for delivery operations, ensuring business growth, client success, operational excellence, and execution across multiple engagements."@en ;
+    skos:definition "A Delivery Director is a senior leader responsible for defining and driving the strategic direction of delivery within a portfolio, account, or business area. They oversee complex engagements, manage senior stakeholder relationships, ensure operational excellence, and create conditions for sustainable business growth. Delivery Directors guide and mentor delivery leaders, shape delivery practices, drive innovation, and ensure that delivery capabilities support client objectives and organizational goals. They are accountable for overall delivery performance, customer success, organizational effectiveness, and long-term value creation."@en ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:related lg:delivery-leader .
+
+lg:delivery-leader
+    a skos:Concept ;
+    skos:prefLabel "Delivery Leader"@en ;
+    dct:description "Delivery Leader is accountable for successful service delivery, client satisfaction, team leadership, resource optimization, and execution of strategic initiatives across projects."@en ;
+    skos:definition "A Delivery Leader is responsible for leading the delivery of services and solutions for one or more client engagements. They ensure projects are executed effectively, teams are aligned and utilized efficiently, risks are managed, and client expectations are met or exceeded. Delivery Leaders drive operational excellence, support business growth, optimize resource allocation, and act as trusted advisors to clients. They lead delivery teams, mentor team members, and contribute to continuous improvement while maintaining strong accountability for delivery outcomes, quality, timelines, and customer satisfaction."@en ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:related lg:delivery-director .
+
+lg:employment-agreement
+    a skos:Concept ;
+    skos:prefLabel "Employment Agreement"@en ;
+    skos:altLabel "Employment Contract"@en ;
+    skos:altLabel "Umowa o pracę"@en ;
+    skos:altLabel "Labour Contract"@en ;
+    dct:description "The contract between Lingaro and an individual employed under labour law."@en ;
+    skos:definition "The contract between Lingaro and an individual employed under labour law, setting role, remuneration, working time, notice period, confidentiality and assignment of IP created at work. Together with the B2B Agreement it is how a Person becomes available to staff an Engagement, and the IP-assignment clause is what makes work produced in delivery reusable as an Asset.\n\nHow it connects: an Employment Agreement engages a Person and assigns them to a Group. It may be amended by a Contract Amendment."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" ;
+    skos:broader lg:contract .
+
+lg:engagement
+    a skos:Concept ;
+    skos:prefLabel "Engagement"@en ;
+    skos:altLabel "project"@en ;
+    dct:description "A client-specific commercial and delivery relationship established to provide services or solutions."@en ;
+    skos:definition "A client-specific commercial and delivery relationship established to provide services or solutions. It encompasses the work performed for a customer under a contract and may include one or multiple workstreams, or phases. It is Sulu-coded.\n\nHow it connects: an Engagement delivers an Implemented Solution and is governed by a SoW. It has a Project Repo and a Lesson Learned, and results in a Success Story."@en ;
+    ecmp:primaryKey "suluId" ;
+    ecmp:sourceSystem "Sulu" ;
+    ecmp:sourceSystem "PKE" ;
+    ecmp:sourceSystem "ADO" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:related lg:opportunity .
+
+lg:framework
+    a skos:Concept ;
+    skos:prefLabel "Framework (methodological)"@en ;
+    skos:altLabel "Methodology"@en ;
+    skos:altLabel "Approach"@en ;
+    skos:altLabel "Operating Model"@en ;
+    skos:altLabel "Maturity Model"@en ;
+    skos:altLabel "Playbook"@en ;
+    dct:description "A structured, reusable way of working — principles, phases, roles and criteria — applied to a class of problem, independent of client and technology."@en ;
+    skos:definition "A structured, reusable way of working: principles, phases, roles, artifacts and assessment criteria that Lingaro applies to a class of problem independently of client and technology. Examples: data governance operating model, data maturity assessment model, cloud migration methodology, FinOps framework, self-healing-data operating model. A Framework is consumed by Services and Standard Solutions and is applied inside Engagements; it is documentation and method, not software.\n\nHow it connects: a Framework underpins a Service, a Standard Solution and an Offering, and is applied in an Engagement. It is owned by a Group."@en ;
+    ecmp:primaryKey "assetId" ;
+    ecmp:sourceSystem "SharePoint" ;
+    ecmp:sourceSystem "PKE" ;
+    ecmp:sourceSystem "GitHub (<solution>-generic-knowledge)" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" ;
+    skos:broader lg:asset .
+
+lg:group
+    a skos:Concept ;
+    skos:prefLabel "Group"@en ;
+    dct:description "A collection of two or more people organized around a common business purpose, acting as a unit."@en ;
+    skos:definition "A collection of people organized around a common business purpose, responsibility, capability, client, initiative, or area of interest, acting as a unit within an organization, project, engagement, community, or governance structure. Consists of two or more people, may be permanent or temporary, and may be internal, external, or mixed. May own, contribute to, or consume knowledge, and can participate in opportunities, engagements, projects, governance processes, and communities.\n\n- **Organizational Group** — a formally defined organizational unit within Lingaro. Examples: Consulting & Advisory (C&A), Go-to-Market (GTM), Account Delivery Management (ADM) Team, Competency Centre (CC), Practice.\n- **Delivery Team** — a group assembled to deliver client work.\n- **Solution Squad** — a cross-functional group responsible for developing, maintaining, and promoting a standard solution.\n- **Working Group** — a temporary group established to achieve a specific objective or initiative."@en ;
+    ecmp:primaryKey "groupId" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:implemented-solution
+    a skos:Concept ;
+    skos:prefLabel "Implemented Solution"@en ;
+    dct:description "The client-specific, delivered instance of a Standard Solution or bespoke combination, applied to solve one client's problem."@en ;
+    skos:definition "The client-specific result of delivering a Standard Solution (or a bespoke combination of domain expertise, technology, data products, processes, and accelerators) to solve a particular client's problem (one or many use cases) and realize a defined business value for that client. It is the delivered instance, not a reusable catalog item — it is not itself sold, but is the outcome of selling and delivering a Service, Standard Solution, or Offering.\n\nHow it connects: an Implemented Solution is an instance of a Standard Solution or an Accelerator, and is the result of an Engagement. It is implemented at a Client, and results in a Success Story."@en ;
+    ecmp:primaryKey "solutionSlug" ;
+    ecmp:sourceSystem "PKE" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" .
+
+lg:lesson-learned
+    a skos:Concept ;
+    skos:prefLabel "Lesson Learned"@en ;
+    dct:description "A per-engagement documented insight, positive or negative, captured to increase delivery on future projects."@en ;
+    skos:definition "Per-engagement documented insights (both positive and negative) that can be used to increase delivery of future projects (learnings.md).\n\nHow it connects: a Lesson Learned describes an Engagement."@en ;
+    ecmp:primaryKey "lessonId" ;
+    ecmp:sourceSystem "PKE" ;
+    ecmp:sourceSystem "LSF (SULU)" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" .
+
+lg:msa
+    a skos:Concept ;
+    skos:prefLabel "Master Service Agreement"@en ;
+    skos:altLabel "MSA"@en ;
+    skos:altLabel "Master Agreement"@en ;
+    skos:altLabel "MA"@en ;
+    skos:altLabel "Framework Agreement"@en ;
+    skos:altLabel "General Terms"@en ;
+    dct:description "The umbrella agreement setting the standing legal and commercial terms that apply to all work performed under it."@en ;
+    skos:definition "The umbrella agreement between Lingaro and a client (or partner/subcontractor) setting the standing legal and commercial terms that apply to all work performed under it: liability, IP ownership, confidentiality, rate card, invoicing, warranties, governance and termination. An MSA does not by itself authorise or scope any work — deliverables, timeline and price come from a Statement of Work executed under it. One MSA typically governs many SoWs and therefore many Engagements.\n\nHow it connects: an MSA is signed with a Client or a Group, and is the parent of a SoW. It may be amended by a Contract Amendment."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "SharePoint Sales Repo" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:legal-compliance ;
+    ecmp:classification "Public" ;
+    skos:broader lg:contract .
+
+lg:nda
+    a skos:Concept ;
+    skos:prefLabel "Non-Disclosure Agreement"@en ;
+    skos:altLabel "NDA"@en ;
+    skos:altLabel "Confidentiality Agreement"@en ;
+    skos:altLabel "CDA"@en ;
+    skos:altLabel "Mutual NDA"@en ;
+    dct:description "The agreement restricting disclosure and use of confidential information exchanged between Lingaro and another party."@en ;
+    skos:definition "A mutual or one-way agreement restricting disclosure and use of confidential information exchanged between Lingaro and a client, prospect, partner, subcontractor or individual. Typically the first document signed in an Opportunity, before client data, architecture detail or proposal pricing is shared. It also sets the limits on what may later be reused or published — so it constrains Client Knowledge and what a Success Story may name.\n\nHow it connects: an NDA is signed with a Client, a Person or a Group, and governs an Opportunity. It constrains Client Knowledge and Success Stories."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "SharePoint Sales Repo" ;
+    ecmp:sourceSystem "Salesforce" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:legal-compliance ;
+    ecmp:classification "Public" ;
+    skos:broader lg:contract .
+
+lg:offering
+    a skos:Concept ;
+    skos:prefLabel "Offering"@en ;
+    dct:description "A packaged, sellable commercial proposition that addresses one or more use cases."@en ;
+    skos:definition "A packaged commercial proposition that addresses one or more use cases and responds to a market need. It combines one or more of: services, accelerators, methodologies, and Standard Solutions. Offerings are developed, marketed, and sold; they sit in Lingaro's portfolio and mature through a lifecycle (Conceptual → Delivered → Accelerated) reflecting how much delivery experience has been captured into reusable accelerators.\n\nHow it connects: an Offering includes a Service and a Standard Solution, addresses a Use Case, and is realized by an Engagement."@en ;
+    ecmp:primaryKey "offeringId" ;
+    ecmp:sourceSystem "SharePoint" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:consulting-advisory ;
+    ecmp:classification "Public" ;
+    skos:related lg:service .
+
+lg:opportunity
+    a skos:Concept ;
+    skos:prefLabel "Opportunity"@en ;
+    dct:description "A potential revenue-generating business case being pursued with a client."@en ;
+    skos:definition "A potential revenue-generating business case being pursued with a Client (customer or prospect). It is associated with a specific customer need, business outcome, budget, and initiative that Lingaro is actively exploring, proposing, or negotiating. It may convert to a project.\n\nHow it connects: an Opportunity is for a Client and converts to an Engagement."@en ;
+    ecmp:primaryKey "opportunityId" ;
+    ecmp:sourceSystem "Salesforce" ;
+    ecmp:sourceSystem "SalesRepo (SharePoint)" ;
+    ecmp:sourceSystem "Jira (tracking C&A, CC)" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:commercial-sales ;
+    ecmp:classification "Public" ;
+    skos:related lg:engagement .
+
+lg:person
+    a skos:Concept ;
+    skos:prefLabel "Person"@en ;
+    skos:altLabel "employee"@en ;
+    skos:altLabel "client stakeholder"@en ;
+    skos:altLabel "partner"@en ;
+    dct:description "An individual who participates in, governs, delivers, or benefits from a business activity."@en ;
+    skos:definition "An individual who participates in, influences, contributes to, governs, sponsors, delivers, consumes, or benefits from a business activity, opportunity, engagement, project, solution, or knowledge asset. May be internal or external to Lingaro, can have one or more roles over time, can be associated with clients, opportunities, engagements, projects, solutions, deliverables, and communities, and serves as the connection point between knowledge, relationships, and business activities.\n\nRecommended categories:\n\n- **Employee** — employed or contracted by Lingaro, contributing to business operations, sales, solutioning, delivery, enablement, or support, regardless of employment form.\n- **Client stakeholder** — represents a client organization and influences, sponsors, approves, funds, uses, or benefits from Lingaro's services, offerings, solutions, or engagements.\n- **Partner** — represents an external organization that collaborates with Lingaro.\n\nHow it connects: a Person is part of an Engagement, a Client, or a Group."@en ;
+    ecmp:primaryKey "personId" ;
+    ecmp:sourceSystem "Sulu" ;
+    ecmp:sourceSystem "PKE" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" .
+
+lg:product-engineer
+    a skos:Concept ;
+    skos:prefLabel "Product Engineer"@en ;
+    skos:altLabel "Technical Generalist"@en ;
+    dct:description "A Product Engineer is an AI-enabled, client-facing solution owner who takes products from idea to production, combining business, design, architecture, and delivery expertise."@en ;
+    skos:definition "A **Product Engineer** is an **AI-enabled technology generalist** who owns the **complete lifecycle** of a product or solution, from understanding a business need through design, implementation, deployment, and ongoing improvement. Unlike traditional delivery models that split responsibilities across business analysts, architects, developers, project managers, and product owners, a Product Engineer assumes **end-to-end accountability for delivering business outcomes**.\n\nThe role combines *product thinking*, *business understanding*, *solution design*, *technical delivery*, and *client engagement*. A Product Engineer works directly with stakeholders to understand problems, define requirements, design solutions, and ensure **measurable value** is delivered. Rather than specializing in a single technology domain, they maintain **broad competency across multiple disciplines** while applying **deep judgment** to business and product decisions.\n\nA distinguishing characteristic of the role is the ability to **leverage AI agents throughout the delivery process**. Product Engineers use **agentic and spec-driven development** approaches to accelerate analysis, design, coding, testing, documentation, and deployment activities. While AI agents perform much of the implementation work, the Product Engineer remains responsible for **defining objectives**, **validating results**, **managing risks**, **making architectural decisions**, and **ensuring quality**.\n\nThe role is built around **six core capability areas**:\n\n- **Client-Facing Product Ownership**: owning stakeholder relationships and product outcomes.\n- **End-to-End Delivery with AI**: guiding solutions from concept to production using AI-powered delivery models.\n- **Technical and Operational Ownership**: designing, deploying, and operating solutions responsibly.\n- **Agentic Development with Spec-Driven Delivery**: directing AI agents using clear specifications and measurable objectives.\n- **Solution Design**: creating and defending architecture and technology decisions.\n- **Solo Delivering**: independently delivering complete business solutions when required.\n\nProduct Engineers create value by **transforming business challenges into working solutions**, **reducing handoffs** between teams, **accelerating delivery cycles**, and **maintaining accountability for outcomes rather than tasks**. They combine **technical breadth with business insight**, enabling them to operate across product strategy, requirements gathering, user experience, architecture, software engineering, data, testing, security, deployment, and support.\n\nIn SULU, a Product Engineer is represented as a dedicated role with associated specializations (Role Aspects) and is assessed through competency and proficiency tracking across six core Product Engineer capability areas.\n\n**Role Expectations**:\n\nA Product Engineer owns the delivery of a product end to end, from shaping the vision with the client to a solution that runs in production and has been handed over. AI agents do most of the implementation. The Product Engineer defines the goals, makes the decisions, verifies the results and is accountable for the outcome.\n\nBy default, a Product Engineer works solo and covers every critical project role:\n\n- **Product Owner**: vision, scope, priorities, client relationship\n- **Analyst**: requirements and testable acceptance criteria\n- **Solution** Architect: the design and every technology decision\n- **Developer**: implementation through AI agents, including tests\n- **Delivery Lead**: planning, progress, risks, reporting\n- **Operations**: deployment, production support, handover\n**They lead and drive the delivery**. They set the direction, make decisions when information is incomplete, and push the product to a finished, working state. They are accountable for the result: measurable business value, running in production, and operable by its owner. Closing tasks is not the measure.\n\n**Setups vary**. Solo is the default, not a rule. A project may include specialists or other Product Engineers. Whatever the setup, it must always be clear who owns the outcome.\n\n**Help is always available.** Product Engineers can ask Lingaro experts for help at any time. Asking for advice is expected, but it does not transfer ownership. The Product Engineer still makes the decision and answers for it."@en ;
+    ecmp:sourceSystem "sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:organization ;
+    ecmp:classification "Public" ;
+    skos:related lg:sage .
+
+lg:project-repo
+    a skos:Concept ;
+    skos:prefLabel "Project Repo"@en ;
+    dct:description "The single repository holding an engagement's delivery documentation."@en ;
+    skos:definition "The per-engagement delivery repository. It contains all delivery documentation (both in the form of code and other files) including project management documentation.\n\nHow it connects: a Project Repo derives Client Knowledge and uses Technology."@en ;
+    ecmp:primaryKey "repoName" ;
+    ecmp:sourceSystem "GitHub" ;
+    ecmp:sourceSystem "SharePoint" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" .
+
+lg:proposal
+    a skos:Concept ;
+    skos:prefLabel "Proposal"@en ;
+    skos:altLabel "RFP response"@en ;
+    skos:altLabel "RFI response"@en ;
+    skos:altLabel "offer"@en ;
+    dct:description "A client-specific commercial document, prepared during an Opportunity, presenting Lingaro's proposed solution, scope and terms."@en ;
+    skos:definition "A client-specific commercial document prepared during an Opportunity that presents Lingaro's understanding of the client's need and the proposed solution, scope, approach, deliverables, timeline, team, assumptions, and commercial terms. It may be submitted proactively or in response to an RFI or RFP and may lead to an Engagement and a Statement of Work if accepted. A Proposal is a pre-signature sales artifact, not a contract and not evidence that the work has been commissioned.\n\nHow it connects: a Proposal relates to a Client, an Offering and an Opportunity, and results in an Engagement."@en ;
+    ecmp:primaryKey "proposal" ;
+    ecmp:sourceSystem "SharePoint Sales Repo" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:commercial-sales ;
+    ecmp:classification "Public" .
+
+lg:sage
+    a skos:Concept ;
+    skos:prefLabel "SAGE"@en ;
+    dct:description "SAGE (Sense And Generate, Evolve) is Lingaro's AI-driven delivery methodology focused on rapid iterations, continuous feedback, and faster value delivery."@en ;
+    skos:definition "Lingaro's AI-driven delivery methodology that combines rapid solution generation, continuous feedback, and iterative evolution to accelerate value delivery. SAGE emphasizes early delivery of working solutions, short feedback cycles, AI-assisted development, documentation-driven execution, and continuous adaptation of scope based on business needs. By treating change as inexpensive and leveraging AI to automate analysis, design, and development activities, SAGE enables faster time-to-value, improved transparency, reduced delivery risk, and higher alignment between delivered solutions and business outcomes. It complements Lingaro's AI-Accelerated Delivery model and Spec-Driven Development framework by providing a structured approach for planning, building, and evolving products in frequent increments."@en ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:related lg:product-engineer .
+
+lg:service
+    a skos:Concept ;
+    skos:prefLabel "Service"@en ;
+    dct:description "A repeatable capability that Lingaro can provide to a client, independent of any specific technology or client."@en ;
+    skos:definition "A repeatable capability provided to a client, delivered via personnel, methodologies, accelerators, and operational processes. Services describe what Lingaro executes, remain generally technology- and client-agnostic, and can be advisory, implementation, managed, or operational. A service can be brought to market as an independent offering or embedded within a larger packaged offering.\n\nHow it connects: a Service is part of an Offering and part of an Engagement."@en ;
+    ecmp:primaryKey "serviceId" ;
+    ecmp:sourceSystem "SharePoint" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:consulting-advisory ;
+    ecmp:classification "Public" ;
+    skos:related lg:offering .
+
+lg:standard-solution
+    a skos:Concept ;
+    skos:prefLabel "Standard Solution"@en ;
+    skos:altLabel "Solution"@en ;
+    dct:description "A standardized, reusable delivery pattern for a recurring class of client problem, designed to be applied across clients with tailoring."@en ;
+    skos:definition "A standardized, repeatable implementation pattern that addresses a recurring class of client problem (one or many use cases) and is designed to deliver a defined type of business value once applied. It combines domain expertise, technology, data products, processes, and accelerators, and is designed to be reused across clients with tailoring. It is not tied to any single client engagement. May be sold together with services, as part of an Offering, or alone."@en ;
+    ecmp:primaryKey "solutionSlug" ;
+    ecmp:sourceSystem "GitHub" ;
+    ecmp:sourceSystem "SharePoint" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:consulting-advisory ;
+    ecmp:classification "Public" ;
+    skos:narrower lg:accelerator .
+
+lg:sow
+    a skos:Concept ;
+    skos:prefLabel "Statement of Work"@en ;
+    skos:altLabel "SoW"@en ;
+    skos:altLabel "Scope of Work"@en ;
+    skos:altLabel "Work Order"@en ;
+    skos:altLabel "Project Order"@en ;
+    dct:description "The contract subtype that scopes one specific piece of work under a master agreement."@en ;
+    skos:definition "The agreement that authorises and scopes one specific piece of work: objectives, scope, deliverables, timeline, team and roles, acceptance criteria, price, billing model and payment schedule. Normally executed under an MSA, which supplies the standing legal terms; where no MSA exists the SoW carries the full terms itself. This is the contract subtype that actually governs an Engagement, so it is where contracted scope and contracted value come from.\n\nHow it connects: a SoW sits under an MSA and governs an Engagement. It results from an Opportunity and may be amended by a Contract Amendment."@en ;
+    ecmp:primaryKey "contractId" ;
+    ecmp:sourceSystem "SharePoint Sales Repo" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:delivery ;
+    ecmp:classification "Public" ;
+    skos:broader lg:contract .
+
+lg:success-story
+    a skos:Concept ;
+    skos:prefLabel "Success Story"@en ;
+    dct:description "Evidence of a delivered outcome, reused across sales and marketing."@en ;
+    skos:definition "Evidence of a delivered outcome; reused across sales and marketing. Contains information about client challenges, solution and value delivered.\n\nHow it connects: a Success Story describes an Engagement and an Implemented Solution."@en ;
+    ecmp:primaryKey "storyId" ;
+    ecmp:sourceSystem "SharePoint (ppt deck)" ;
+    ecmp:sourceSystem "SharePoint (success story library)" ;
+    ecmp:sourceSystem "PKE" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:commercial-sales ;
+    ecmp:classification "Public" .
+
+lg:technology
+    a skos:Concept ;
+    skos:prefLabel "Technology"@en ;
+    dct:description "A tool, platform, language, SaaS or framework used on projects."@en ;
+    skos:definition "A tool, platform, programming language, SaaS or framework used in computer science projects.\n\nHow it connects: Technology is used at an Engagement and relates to an Offering."@en ;
+    ecmp:primaryKey "techId" ;
+    ecmp:sourceSystem "Sulu" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:technology-innovation ;
+    ecmp:classification "Public" .
+
+lg:use-case
+    a skos:Concept ;
+    skos:prefLabel "Use Case"@en ;
+    dct:description "A class of business problem, independent of any one client, where data, analytics, AI, automation, or technology can drive a measurable outcome."@en ;
+    skos:definition "A class of business problem where data, analytics, AI, automation, or technology can be applied to achieve a measurable business outcome. It describes the nature of the challenge and the desired outcome, independent of any one client and independent of implementation.\n\n- Can be industry-specific or cross-industry.\n- May be addressed by multiple Standard Solutions and be part of multiple Offerings.\n- Often used during discovery, consulting, opportunity qualification, and solution design."@en ;
+    ecmp:primaryKey "ucId" ;
+    skos:inScheme lg:lingaro-glossary ;
+    skos:topConceptOf lg:lingaro-glossary ;
+    ecmp:domain lgd:consulting-advisory ;
+    ecmp:classification "Public" .
+
+lg:white-paper
+    a skos:Concept ;
+    skos:prefLabel "White Paper"@en ;
+    skos:altLabel "Point of View"@en ;
+    skos:altLabel "POV"@en ;
+    skos:altLabel "Thought Leadership Paper"@en ;
+    skos:altLabel "Position Paper"@en ;
+    dct:description "A published, externally shareable document presenting Lingaro's point of view on a business or technical problem."@en ;
+    skos:definition "A published, externally shareable document presenting Lingaro's point of view on a business or technical problem, an industry trend, or a class of use case. It is used in marketing, thought leadership and early-stage sales to establish credibility and to frame a client's problem before any solution is proposed. Distinct from a Success Story (which is evidence of one specific delivery) and from a Blueprint (which is an internal build spec): a white paper makes an argument, is client-agnostic, and is cleared for external publication.\n\nHow it connects: a White Paper describes a Use Case, a Standard Solution or a Technology, and supports an Offering. It is used in an Opportunity, and is authored by a Person and owned by a Group."@en ;
+    ecmp:primaryKey "assetId" ;
+    ecmp:sourceSystem "SharePoint (Marketing)" ;
+    ecmp:sourceSystem "PKE" ;
+    ecmp:sourceSystem "lingaro.com" ;
+    skos:inScheme lg:lingaro-glossary ;
+    ecmp:domain lgd:marketing ;
+    ecmp:classification "Public" ;
+    skos:broader lg:asset .

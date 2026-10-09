@@ -18,6 +18,7 @@ import unicodedata
 
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
+from .candidate_graph import PROVISIONAL
 from .entity_lookup import entity_catalog, identity_key
 from .graph_management import FACT, ONTO, RELATION
 from .graph_merge import class_uri, label, slug
@@ -301,33 +302,48 @@ def _normalize_entities(raw, state, allowed, catalog_by_id, vocabulary=None):
                   "existing_id must be a string or null")
             existing_id = None
 
+        # Only an id the prompt showed, and the graph still holds, may be
+        # reused. Anything else - a temporary staging IRI, an id the model
+        # guessed from the pattern of others - is cleared, never trusted:
+        # the entity is then matched by its name and kind, which can hold an
+        # ambiguous match for review but never merges on a guess.
         if existing_id is not None:
-            if existing_id not in allowed:
-                error("entity.existing_id_not_allowed", "existing_id",
-                      f"existing_id {existing_id!r} was not shown in the final prompt")
+            if existing_id.startswith(str(PROVISIONAL)):
+                why = "is a temporary identifier of this document"
+            elif existing_id not in allowed:
+                why = "was not shown in the final prompt"
             elif existing_id not in catalog_by_id:
-                error("entity.existing_id_not_allowed", "existing_id",
-                      f"existing_id {existing_id!r} is no longer in the graph")
+                why = "is no longer in the graph"
             else:
-                current_kind = catalog_by_id[existing_id]["kind"]
-                if original_kind and current_kind and \
-                        identity_key(original_kind) != identity_key(current_kind):
-                    _note(state, "entity.existing_id_kind_mismatch", "error",
-                          f"{base}.existing_id", [f"{base}.kind"],
-                          f"kind {original_kind!r} does not match the existing "
-                          f"kind {current_kind!r}",
-                          "entities", index, "existing_id")
-                    problems.append("entity.existing_id_kind_mismatch")
-                owner = existing_id_owner.get(existing_id)
-                if owner is not None:
-                    _note(state, "entity.duplicate_existing_id", "error",
-                          f"{base}.existing_id", [owner],
-                          f"existing_id {existing_id!r} is also claimed by "
-                          f"another entity",
-                          "entities", index, "existing_id")
-                    problems.append("entity.duplicate_existing_id")
-                else:
-                    existing_id_owner[existing_id] = f"{base}.id"
+                why = None
+            if why is not None:
+                _note(state, "entity.existing_id_cleared", "warning",
+                      f"{base}.existing_id", [],
+                      f"existing_id {existing_id!r} {why}; cleared, the "
+                      f"entity is matched by name and kind",
+                      "entities", index, "existing_id")
+                existing_id = None
+
+        if existing_id is not None:
+            current_kind = catalog_by_id[existing_id]["kind"]
+            if original_kind and current_kind and \
+                    identity_key(original_kind) != identity_key(current_kind):
+                _note(state, "entity.existing_id_kind_mismatch", "error",
+                      f"{base}.existing_id", [f"{base}.kind"],
+                      f"kind {original_kind!r} does not match the existing "
+                      f"kind {current_kind!r}",
+                      "entities", index, "existing_id")
+                problems.append("entity.existing_id_kind_mismatch")
+            owner = existing_id_owner.get(existing_id)
+            if owner is not None:
+                _note(state, "entity.duplicate_existing_id", "error",
+                      f"{base}.existing_id", [owner],
+                      f"existing_id {existing_id!r} is also claimed by "
+                      f"another entity",
+                      "entities", index, "existing_id")
+                problems.append("entity.duplicate_existing_id")
+            else:
+                existing_id_owner[existing_id] = f"{base}.id"
 
         confidence = _confidence(record, state, base, index, "entities")
 
@@ -575,6 +591,90 @@ def _check_references(record, section, state, id_to_path, valid_ids):
                   section, 0, field)
 
 
+def _check_endpoints(entities, relations, facts, valid_ids, catalog_by_id,
+                     vocabulary, state):
+    """Pass 4b: every relation and fact must connect the declared classes.
+
+    The kind of an entity that names an existing graph entity is that
+    entity's kind in the graph, not what the answer says.
+    """
+    kinds = {}
+    for entity in entities:
+        if entity["id"] not in valid_ids:
+            continue
+        existing = catalog_by_id.get(entity["existing_id"] or "")
+        kind = (existing["kind"] if existing and existing["kind"]
+                else entity["kind"])
+        kinds[entity["id"]] = (entity["name"], kind,
+                               vocabulary.class_iri(kind))
+
+    def check(record, section, field, wanted, code):
+        if wanted is None or record[field] not in kinds:
+            return
+        name, kind, class_iri = kinds[record[field]]
+        if vocabulary.is_a(class_iri, wanted):
+            return
+        predicate = record["predicate"]
+        if section == "relations":
+            iri = vocabulary.relation_iri(predicate)
+            shape = (f"{vocabulary.label_of(vocabulary.domain_of(iri) or '')}"
+                     f" --{predicate}--> "
+                     f"{vocabulary.label_of(vocabulary.range_of(iri) or '')}")
+        else:
+            iri = vocabulary.fact_iri(predicate)
+            shape = (f"{vocabulary.label_of(vocabulary.domain_of(iri) or '')}"
+                     f" . {predicate}")
+        _note(state, code, "error", record["_base"] + f".{field}", [],
+              f"{_SINGULAR[section]} {predicate!r} goes {shape}, but "
+              f"{record[field]} {name!r} is {kind}. Use a fitting "
+              f"relationship, change the kind if the source supports it, "
+              f"or drop the record", section, 0, field)
+
+    for record in relations:
+        iri = vocabulary.relation_iri(record["predicate"])
+        check(record, "relations", "subject", vocabulary.domain_of(iri),
+              "relation.domain_mismatch")
+        check(record, "relations", "object", vocabulary.range_of(iri),
+              "relation.range_mismatch")
+    for record in facts:
+        iri = vocabulary.fact_iri(record["predicate"])
+        check(record, "facts", "subject", vocabulary.domain_of(iri),
+              "fact.domain_mismatch")
+
+
+# The errors a window survives: after repair, only these records are dropped.
+ENDPOINT_CODES = {"relation.domain_mismatch", "relation.range_mismatch",
+                  "fact.domain_mismatch"}
+
+
+def drop_endpoint_mismatches(data, validation):
+    """The answer without its wrongly connected records, and what was dropped.
+
+    Returns None when any other error is present: those still fail the
+    window exactly as before.
+    """
+    errors = [issue for issue in validation["issues"]
+              if issue["severity"] == "error"]
+    if not errors or any(issue["code"] not in ENDPOINT_CODES
+                         for issue in errors):
+        return None
+    doomed = set()
+    for issue in errors:
+        match = _PATH.match(issue["path"])
+        doomed.add((match.group(1), int(match.group(2))))
+    kept = dict(data)
+    dropped = []
+    for section in ("relations", "facts"):
+        kept[section] = []
+        for index, record in enumerate(data[section]):
+            if (section, index) in doomed:
+                dropped.append({"section": section, "record": record})
+            else:
+                kept[section].append(record)
+    messages = [issue["message"] for issue in errors]
+    return kept, {"records": dropped, "messages": messages}
+
+
 def _label_collisions(records, section, state):
     """Pass 6 part 1: distinct labels mapping to one generated URI collide."""
     code = _SINGULAR[section]
@@ -656,7 +756,9 @@ def _check_graph_compatibility(entities, relations, facts, graph, state,
             _note(state, "kind.role_collision", "error", entity["_path"] + ".kind",
                   [], f"kind {kind!r} URI is already used as a property",
                   "entities")
-        if types & ENTITY_ROLE_TYPES:
+        # An IRI declared a class may also be a glossary term (a SKOS
+        # concept punned as a class): that is a class, not a collision.
+        if types & ENTITY_ROLE_TYPES and not types & CLASS_TYPES:
             _note(state, "kind.role_collision", "error", entity["_path"] + ".kind",
                   [], f"kind {kind!r} URI is already used as an entity",
                   "entities")
@@ -761,6 +863,11 @@ def validate_candidates(data, graph, allowed_existing_ids=(),
         _check_references(record, "relations", state, id_to_path, valid_ids)
     for record in facts:
         _check_references(record, "facts", state, id_to_path, valid_ids)
+
+    # Pass 4b: relation and fact endpoints against declared domains/ranges.
+    if vocabulary is not None:
+        _check_endpoints(entities, relations, facts, valid_ids, catalog_by_id,
+                         vocabulary, state)
 
     # Pass 6 part 1: label collisions within a section.
     _label_collisions(relations, "relations", state)

@@ -83,7 +83,9 @@ def validate_source_graph(source_graph, shape_graphs):
         inference="none",
         abort_on_first=False,
         allow_infos=False,
-        allow_warnings=False,
+        # A warning (an expected link that is missing) is reported, never
+        # blocking; only violations make a graph non-conformant.
+        allow_warnings=True,
         meta_shacl=False,
         advanced=False,
     )

@@ -407,22 +407,34 @@ class ExistingIdTest(unittest.TestCase):
         self.assertEqual(result["candidates"]["entities"][0]["existing_id"],
                          str(self.uri))
 
-    def test_an_id_absent_from_the_prompt_is_rejected(self):
+    def assert_cleared(self, result):
+        """A usable answer whose untrusted existing_id was dropped."""
+        self.assertTrue(result["valid"], result["issues"])
+        self.assertIsNone(result["candidates"]["entities"][0]["existing_id"])
+        self.assertIn("entity.existing_id_cleared", issue_codes(result))
+
+    def test_an_id_absent_from_the_prompt_is_cleared_not_trusted(self):
         result = validate_candidates(
             {"entities": [entity("e1", "Acme Corp", existing_id=str(self.uri))],
              "relations": [], "facts": []},
             self.graph, [])
-        self.assertFalse(result["valid"])
-        self.assertIn("entity.existing_id_not_allowed", issue_codes(result))
+        self.assert_cleared(result)
 
-    def test_an_allowed_id_missing_from_the_graph_is_rejected(self):
+    def test_an_allowed_id_missing_from_the_graph_is_cleared(self):
         result = validate_candidates(
             {"entities": [entity("e1", "Acme Corp",
                                  existing_id=str(ENTITY["ghost"]))],
              "relations": [], "facts": []},
             self.graph, [str(ENTITY["ghost"])])
-        self.assertFalse(result["valid"])
-        self.assertIn("entity.existing_id_not_allowed", issue_codes(result))
+        self.assert_cleared(result)
+
+    def test_a_temporary_staging_iri_is_cleared(self):
+        result = validate_candidates(
+            {"entities": [entity("e1", "Acme Corp", existing_id=(
+                "http://example.org/text-ontology/provisional/doc-1/acme"))],
+             "relations": [], "facts": []},
+            self.graph, [])
+        self.assert_cleared(result)
 
     def test_a_null_existing_id_is_left_for_merge_time_fallback(self):
         result = validate_candidates(

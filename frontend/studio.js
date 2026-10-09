@@ -46,7 +46,7 @@
 
   const op = {
     status: () => call('status'),
-    dataset: () => call('dataset'),
+    dataset: (view) => call('dataset', { view }),
     progress: (job) => call('progress', { job }),
     reset: () => call('reset', {}),
     starter: (text) => call('starter.create', { text }),
@@ -71,6 +71,10 @@
 
   const BAR = `
     <span class="sdataset" id="stStatus">Looking for the studio server…</span>
+    <select class="sview" id="stView" title="What the graph view shows: only what the seed ontology covers, or every named graph including provenance and review">
+      <option value="seed">Seed ontology</option>
+      <option value="all">Everything</option>
+    </select>
     <span class="sep"></span>
     <button class="btn" id="stOpenStarter" title="Create the starter ontology from a description, or import an RDF file">Starter ontology…</button>
     <button class="btn" id="stOpenSources" title="Ingest text files into the data graph">Add sources…</button>
@@ -321,7 +325,13 @@
       ? ` · ${status.sources.length} source file${status.sources.length > 1 ? 's' : ''}` : '';
     statusEl.title = status.graph;
     statusEl.innerHTML = `<b>${esc(fileName(status.graph))}</b> · ${fmt(status.triples)} triples${sources}`;
-    if (status.ready) {
+    if (status.error) {
+      // A plain RDF file: say so everywhere the user would act on it.
+      statusEl.innerHTML += ' · <b>not a studio dataset</b>';
+      vocabEl.innerHTML = `<div class="tagline">${esc(status.error)}</div>`;
+      readyEl.textContent = status.error;
+      warnEl.textContent = '';
+    } else if (status.ready) {
       vocabEl.innerHTML = `<div class="tagline">Classes: <code>${esc(classes.join(', '))}</code></div>`
         + `<div class="tagline">Relations: <code>${esc(relations.join(', ') || 'none')}</code></div>`
         + `<div class="tagline">Facts: <code>${esc(facts.join(', ') || 'none')}</code></div>`;
@@ -339,10 +349,13 @@
     if (!turns.length) renderChat(turns);   // the welcome depends on readiness
   }
   async function loadDataset() {
-    const data = await op.dataset();
+    const data = await op.dataset($('#stView').value);
     const lens = window.__lens;
     if (!lens) return;
-    const name = data.name || 'dataset.trig';   // the backend names the file
+    if (!data.ok) { say(data.error || 'The dataset could not be loaded.'); return; }
+    // The backend names the file; the view it shows is part of the name.
+    const name = (data.name || 'dataset.trig').replace(/\.trig$/, '')
+      + (data.view === 'all' ? '.trig' : '.seed.trig');
     const files = data.trig && data.trig.trim()
       ? [{ name, trig: data.trig }] : [];
     lens.applyView({ replace: true, files, resetFilters: true });
@@ -369,6 +382,7 @@
     logDlg.showModal();
     logEl.scrollTop = logEl.scrollHeight;
   };
+  $('#stView').onchange = () => loadDataset();
   $('#stClear').onclick = () => clearView('View cleared. The dataset is untouched — press Reset everything to delete it.');
   $('#stReset').onclick = () => {
     if (!confirm('Delete the dataset and every ingested source? This cannot be undone.')) return;
@@ -418,7 +432,12 @@
         return Promise.resolve([]);
       }
       return new Promise((resolve) => entry.file(
-        (file) => resolve([file]), () => resolve([])));
+        (file) => {
+          // Keep where the file sat in the dropped folder: the folders say
+          // which client or project a note is about.
+          file.sourcePath = (entry.fullPath || entry.name).replace(/^\/+/, '');
+          resolve([file]);
+        }, () => resolve([])));
     }
     if (!entry.isDirectory) return Promise.resolve([]);
 
@@ -500,7 +519,10 @@
       return;
     }
     const files = [];
-    for (const file of fileList) files.push({ name: file.name, text: await file.text() });
+    for (const file of fileList) {
+      const name = file.sourcePath || file.webkitRelativePath || file.name;
+      files.push({ name, text: await file.text() });
+    }
     if (!files.length) return;
     sourcesDlg.close();
     return run(() => op.ingest(files),

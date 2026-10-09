@@ -42,8 +42,15 @@ def _status(workspace, payload):
 
 
 def _dataset(workspace, payload):
-    """The canonical ontology as TriG, plus the name a viewer should show."""
-    return {"ok": True, "trig": workspace.dataset_text(),
+    """The dataset as TriG, plus the name a viewer should show.
+
+    `view` is "seed" (default: only what the seed ontology covers) or "all"
+    (every named graph, provenance and review included).
+    """
+    view = str(payload.get("view") or "seed")
+    if view not in ("seed", "all"):
+        return {"ok": False, "error": f"unknown view {view!r}; use seed or all"}
+    return {"ok": True, "trig": workspace.dataset_text(view), "view": view,
             "name": workspace.graph_path.name}
 
 
@@ -147,7 +154,8 @@ def _operations(workspace, payload):
 
 OPERATIONS = (
     Operation("status", "dataset size, starter vocabulary, and inbox", _status),
-    Operation("dataset", "the canonical ontology as one TriG text", _dataset),
+    Operation("dataset", "the dataset as TriG: the seed view, or every graph "
+              "(view=seed|all)", _dataset),
     Operation("progress", "the running job, and its answer for one job id",
               _progress, args=("job",)),
     Operation("reset", "delete the dataset file and the inbox", _reset),

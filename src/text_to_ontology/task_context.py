@@ -29,7 +29,13 @@ from rdflib.namespace import OWL, RDF, RDFS, SKOS, XSD
 from .entity_lookup import entity_catalog
 from .graph_patterns import STRUCTURAL, eligible
 from .ontology_views import build_ontology_views
-from .source_concepts import extract_source_concepts, normalize, text_phrases
+from .source_concepts import (
+    MIN_STEM_CHARACTERS,
+    extract_source_concepts,
+    normalize,
+    same_name_stem,
+    text_phrases,
+)
 
 
 NAME_PREDICATES = (RDFS.label, SKOS.prefLabel, SKOS.altLabel)
@@ -250,7 +256,36 @@ def match(candidate, query, tier, reason, position):
     }
 
 
-def name_match(candidate, phrases, concepts):
+def stem_index(phrases):
+    """Source phrases grouped by word count and first characters.
+
+    Only phrases in the same group can be inflected forms of a name, so
+    inflected matching compares a name with a handful of phrases, not all.
+    """
+    index = {}
+    for phrase, position in phrases.items():
+        words = phrase.split()
+        key = (len(words), words[0][:MIN_STEM_CHARACTERS])
+        index.setdefault(key, []).append((phrase, position))
+    return index
+
+
+def inflected_match(candidate, stems):
+    """A name the source uses in another grammatical form ("Polpharmy")."""
+    for name in candidate["names"]:
+        form = normalize(name)
+        if not form:
+            continue
+        words = form.split()
+        key = (len(words), words[0][:MIN_STEM_CHARACTERS])
+        for phrase, position in sorted(stems.get(key, ())):
+            if same_name_stem(form, phrase):
+                return match(candidate, name, CONCEPT, "inflected name match",
+                             position)
+    return None
+
+
+def name_match(candidate, phrases, concepts, stems=None):
     """The strongest name-based reason this candidate is relevant, if any."""
     best = None
     for name in candidate["names"]:
@@ -269,6 +304,8 @@ def name_match(candidate, phrases, concepts):
             continue
         if best is None or found["tier"] < best["tier"]:
             best = found
+    if best is None and stems is not None:
+        best = inflected_match(candidate, stems)
     return best
 
 
@@ -291,10 +328,11 @@ def direct_matches(text, concepts, indexes, limits):
     phrases = text_phrases(text, min(longest, limits["match_tokens"]))
     forms = {concept["normalized"]: concept["position"] for concept in concepts}
     words = {word for form in forms for word in form.split() if len(word) > 1}
+    stems = stem_index(phrases)
 
     matches = []
     for candidate in found:
-        best = name_match(candidate, phrases, forms)
+        best = name_match(candidate, phrases, forms, stems)
         if best is None:
             best = overlap_match(candidate, words, limits)
         if best is not None:

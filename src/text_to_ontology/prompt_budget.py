@@ -38,6 +38,11 @@ PROMPT_BUDGET = {
     # Raised from 1200 to 1400 on 2026-08-17: at 1200 the ceiling was clipping
     # observations about classes and properties the source named directly.
     "context_tokens": 1_400,
+    # Data-only ingestion shows the whole starter schema in every prompt,
+    # paid from this separate allowance so it never competes with the
+    # selected resources. A bigger schema falls back to word matching.
+    # 3000 fits a glossary of ~40 classes with one-line meanings.
+    "schema_tokens": 3_000,
     "fixed_prompt_tokens": 400,
     "output_reserve": 4_000,
     "safety_margin": 500,

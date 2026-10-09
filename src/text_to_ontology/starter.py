@@ -352,6 +352,7 @@ def _roles_from_parsed(parsed, names):
               names.target_graph, names.provenance_graph, names.review_graph)}
     if isinstance(parsed, Dataset):
         known = False
+        foreign = Graph()
         for context in list(parsed.contexts()):
             graph = Graph()
             for subject, predicate, object_ in parsed.triples(
@@ -361,16 +362,19 @@ def _roles_from_parsed(parsed, names):
                 continue
             role = role_names.get(str(context.identifier))
             if role is None:
-                # A named graph we do not own is data, not bookkeeping.
-                target = roles[names.target_graph]
                 for triple in graph:
-                    target.add(triple)
+                    foreign.add(triple)
             else:
                 known = True
                 for triple in graph:
                     roles[role].add(triple)
         if known:
+            # One of our own datasets: a named graph we do not own is data,
+            # not bookkeeping.
+            for triple in foreign:
+                roles[names.target_graph].add(triple)
             return roles
+        # Not one of our datasets: partition the whole file below, once.
     union = Graph()
     for triple in _triples(parsed):
         union.add(triple)
@@ -493,9 +497,6 @@ def build_parser():
                         help="the TriG dataset to write (default ontology.trig)")
     parser.add_argument("--model", default=None,
                         help="the OpenRouter model to use")
-    parser.add_argument("--import", dest="import_path", type=Path, default=None,
-                        help="import an RDF/Turtle/TriG file as the starter "
-                             "ontology instead of asking the model")
     return parser
 
 
@@ -511,19 +512,12 @@ def import_summary(summary):
 
 
 def main(argv=None):
-    """Import an RDF file, or read a description and propose the starter."""
+    """Read a description and let the model propose the starter.
+
+    An existing RDF ontology is not imported here: `python ttl_to_trig.py`
+    turns it into a dataset.
+    """
     args = build_parser().parse_args(argv)
-    if args.import_path is not None:
-        try:
-            summary = import_starter(
-                args.import_path.read_text(encoding="utf-8"),
-                args.import_path.name, graph_path=args.graph)
-        except (RuntimeError, OSError, ValueError) as error:
-            print(f"Error: {error}", file=sys.stderr)
-            raise SystemExit(1) from error
-        print(import_summary(summary))
-        print(f"Starter ontology imported into {args.graph}")
-        return
     if args.info is None or str(args.info) == "-":
         text = sys.stdin.read()
     else:

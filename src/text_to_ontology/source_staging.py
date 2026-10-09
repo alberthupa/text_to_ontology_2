@@ -136,9 +136,12 @@ def layered_context_text(canonical_package, source_package, budget_config,
 
 def _marked_source_items(source_package):
     package = dict(source_package)
-    # A provisional resource is never a resolvable existing_id.
+    # A provisional resource is never a resolvable existing_id, so its IRI is
+    # not shown at all: a model copies what it sees. Earlier-window entities
+    # are reused by exact name and kind instead.
     package["resources"] = [
-        {**entry, "value": {**entry["value"], "native": False}}
+        {**entry, "value": {**entry["value"], "native": False,
+                            "hide_uri": True}}
         for entry in source_package.get("resources", [])
     ]
     marked = []

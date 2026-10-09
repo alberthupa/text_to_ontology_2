@@ -415,28 +415,36 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 - `parse_source(text, context_text="", library=None)` =
   `parse_prompt(make_prompt(...))`; `parse_prompt(prompt)` = `ask_llm(prompt)`.
 
-### 4.6 `llm.py` — OpenRouter client (stdlib only)
+### 4.6 `llm.py` — chat client, OpenRouter or Google (stdlib only)
 
-- `DEFAULT_MODEL = "qwen/qwen3.5-35b-a3b:nitro"`,
-  `SYSTEM_PROMPT = "Extract knowledge. Return only JSON."`.
-- `InvalidResponseError(RuntimeError)` — the answer is not one parseable JSON
-  object (this is what `repair.py` catches).
-- `load_env(path=Path(".env"))` — `KEY=value` lines, `setdefault`, never
-  overrides existing env vars.
-- `model_name()` — `OPENROUTER_MODEL` or the default.
-- `ask_llm(prompt, system=None)` — POSTs `{"model", "temperature": 0,
-  "messages": [{system}, {user}]}` (`system` defaults to `SYSTEM_PROMPT`) to
-  `https://openrouter.ai/api/v1/chat/completions` with
-  bearer key, JSON content type, and `X-OpenRouter-Title: "Simple Text to
-  Ontology"`, timeout 60 s. Accepts Markdown-fenced JSON; raises
-  `RuntimeError` for HTTP errors, `InvalidResponseError` for non-JSON or
-  `JSONDecodeError`.
-- `OpenRouterExtractor(model=None, system_prompt=None)` — `model()` → override
-  or `model_name()`; `extract(prompt)` → `ask_llm(prompt,
-  system=self.system_prompt)`, so the pipeline can hand it the (possibly
+- `PROVIDERS` — one entry per provider: chat-completions URL, key variable,
+  model variable, default model, extra headers. `openrouter`
+  (`OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, default `DEFAULT_MODEL`,
+  `X-OpenRouter-Title`) and `google` (the Gemini API's OpenAI-compatible
+  endpoint; `GEMINI_API_KEY`, `GEMINI_MODEL`, default
+  `gemini-3.1-flash-lite`). `provider_name()` reads `LLM_PROVIDER`
+  (default `openrouter`; an unknown name is a `RuntimeError`).
+- `load_env(path=Path(".env"))` — `KEY=value` lines, `setdefault`: a shell
+  variable wins over `.env`.
+- `model_name()` — the provider's model variable or its default;
+  `max_output_tokens()` — `OPENROUTER_MAX_TOKENS` or `MAX_OUTPUT_TOKENS`
+  (4,096), for both providers.
+- `ask_choice(prompt, system=None, model=None)` — the one request: `{"model",
+  "temperature": 0, "max_tokens", "messages"}` plus, for Google,
+  `reasoning_effort` from `GEMINI_REASONING_EFFORT` (default `none`; empty
+  sends nothing). Bearer key, timeout 60 s. HTTP 429/500/502/503 are retried
+  after 2, 5, and 15 s; any other HTTP error is a `RuntimeError`.
+- `ask_llm(...)` — the JSON answer: an empty answer (a model that spent every
+  token reasoning) or non-JSON raises `InvalidResponseError` (what
+  `repair.py` catches); Markdown-fenced JSON is accepted. `ask_llm_text(...)`
+  — the same request, answer as plain text.
+- `OpenRouterExtractor(model=None, system_prompt=None)` — the adapter for
+  every provider despite its name. `model()` → override or `model_name()`;
+  `extract(prompt)` → `ask_llm(prompt, system=self.system_prompt)` (the model
+  override is sent when set), so the pipeline can hand it the (possibly
   edited) `extraction_system` text; `extract_text(prompt, system=None)` →
-  `ask_llm_text(...)` for the graph chat, where `system` wins over the client's
-  own message (the JSON contract) so a chat answer is prose, not JSON.
+  `ask_llm_text(...)` for the graph chat, where `system` wins over the
+  client's own message so a chat answer is prose, not JSON.
 
 ### 4.7 `repair.py` — bounded self-repair
 
@@ -710,6 +718,92 @@ two small helpers. `class_names` / `relation_names` /
 `fact_names` are sorted display names; `is_empty` is the "no starter yet"
 signal the studio shows.
 
+`read_vocabulary` also keeps each property's declared `rdfs:domain` /
+`rdfs:range` (`domains`, `ranges`) and each class's declared parents
+(`parents`). `is_a(class, wanted)` follows `rdfs:subClassOf` upward;
+`domain_of`, `range_of`, and `label_of` are the readers the endpoint check,
+the link check, and the health report use.
+
+### 4.30 Connectivity in data-only ingestion
+
+Data-only ingestion (the studio's mode) adds four things to every window and
+document. All of them are off in legacy (non data-only) runs.
+
+- **`schema_context.py`** — `render_core_schema(graph)` renders the whole
+  starter schema (classes, `Subject --relation--> Object` with meaning, facts)
+  plus three rules (no relations on `Entity` — or, for a schema without the
+  root class, "leave out anything no class fits" —, declared direction only,
+  base-form names). It is rendered once per run, placed first in every
+  window's context, and paid from `PROMPT_BUDGET["schema_tokens"]` (3,000),
+  not from `context_tokens`; the word-matched `declared` section is then
+  left out. A schema over its budget falls back to word matching, with a
+  report line. `schema_digest(graphs)` goes into the run configuration as
+  `schema_sha256`.
+- **`document_context.py`** — the per-window header (`Path:` relative to
+  `RunRequest.source_root`, `Title:`, `Section:` heading trail, `Window: k of
+  n`), the *document anchors* (this document's staging entities of an anchor
+  class — a class that is the subject of some relationship — most linked
+  first, at most 8, reuse by exact name + kind), and the *same folder* block
+  (canonical anchor entities whose `onto:sourceFile` record has an
+  `onto:sourcePath` in the same folder, shown with `id:` and allowed as
+  `existing_id`). These blocks are paid as fixed prompt tokens.
+- **Endpoint check** (`candidate_validation._check_endpoints`) — a relation's
+  subject/object and a fact's subject must have the declared domain/range
+  class (or a subclass); an `existing_id` entity is checked by its graph kind.
+  Codes `relation.domain_mismatch`, `relation.range_mismatch`,
+  `fact.domain_mismatch` go through repair first; if only those remain after
+  repair, `drop_endpoint_mismatches` removes just those records and the
+  window continues (`validation["dropped"]`, reported).
+- **`link_check.py`** — *expected links* are SHACL `sh:minCount 1` +
+  `sh:severity sh:Warning` property shapes in the shapes graph
+  (`text-to-ontology-expect`; SHACL validation now passes
+  `allow_warnings=True`, so warnings never block). After the last window,
+  `find_gaps` lists anchor entities missing one (skipping those whose
+  canonical twin already has it), at most `ExtractionConfig.max_link_checks`
+  (5). Each gap gets one `link_check_user` prompt with the subject, up to 20
+  range-class candidates (keys `c1…`), and passages (window 1 plus windows
+  naming the subject or a candidate, ≤ 2,500 tokens). The answer
+  `{"links": [{object, evidence, confidence}]}` is kept only when the
+  evidence is a word-for-word quote from the passages; it is then turned
+  into an ordinary candidate package, validated, and admitted as a synthetic
+  window `link-<hash>`, so reconciliation, provenance, and publication need
+  no special case. `DocumentResult.link_check` holds the summary.
+- **Names** — `source_concepts.same_word_stem` / `same_name_stem` treat
+  "Polpharma"/"Polpharmy" as one word (≥ 5 shared characters, ending ≤ 2).
+  `task_context` uses it as a `CONCEPT`-tier "inflected name match", so the
+  existing card (with its `id:`) is shown; `entity_lookup.identity_decision`
+  uses it only for a `review` decision (`inflected_form`), never a merge.
+  Aliases are `skos:altLabel`, added through **Edit the graph**.
+- **`graph_health.py`** (`text-to-ontology-health`) — read-only numbers:
+  isolated and root-only entities, endpoint violations, missing expected
+  links, duplicate suspects, never-ingested source files, gold-link recall
+  and precision.
+
+**`seed_view.py`** — `seed_graphs(roles, names)` keeps the schema graphs
+whole and filters every data graph to statements whose predicate is declared
+(in schema or data), `rdf:type` to declared classes, and the `NAMING`
+predicates (`skos:prefLabel`/`altLabel`/`definition`, `rdfs:label`/`comment`,
+`onto:kind`); provenance, review, shapes, `owl:NamedIndividual`, and
+`skos:Concept` are left out. `seed_view` is the same as one graph;
+`store_roles(store, names)` reads the role graphs of a store. The pipeline
+builds every prompt's context from it (rebuilt after each publication) and
+passes the provenance graph separately to `folder_anchors`;
+`Workspace.seed_graph()` feeds the chat; `Workspace.dataset_text(view)` and
+the `dataset` operation serve `view=seed` (default) or `view=all` to the
+studio's view switch.
+
+**Plain RDF guard** — `graph_store.require_named_graphs(store, path)` raises
+`PlainRdfError` when a store holds triples in the default graph (a plain RDF
+file saved as `.trig`): every read would see nothing and every publication
+would drop them. `run_text_to_graph` calls it before reading the roles;
+`Workspace.require_dataset()` guards the dataset view, ingestion, the graph
+editor, and the chat, and `status()` reports the message as `error`.
+
+The studio keeps dropped folder structure under `sources/inbox/`
+(`workspace._write_source` cleans each part and never leaves the inbox) and
+passes the inbox as `source_root`. Provenance `onto:sourcePath` is unchanged
+(the path as discovered).
+
 ### 4.21 `starter.py` — the starter ontology
 
 Constants: `DEFAULT_GRAPH = Path("ontology.trig")`, `MIN_CLASSES = 2`,
@@ -740,8 +834,9 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   publish; returns the proposal.
 - `proposal_summary(proposal)` — the short plain-text listing.
 - `build_parser()` / `main(argv)` — `text-to-ontology-starter [INFO|-] [GRAPH]
-  [--model] [--import FILE]`; reads a file or standard input, or imports an RDF
-  document with `--import`.
+  [--model]`; reads a file or standard input. Importing an RDF document from
+  the command line is the root script `ttl_to_trig.py SOURCE OUTPUT [--force]`
+  (`import_publication` in memory, then one publication to OUTPUT).
 - **Importing RDF instead of asking the model**: `RDF_SUFFIXES` (suffix →
   rdflib format), `RDF_FORMATS` (the order tried when the suffix says nothing),
   `RDF_SIGNS` (the content sniff). `looks_like_rdf(name, text)` trusts a known
@@ -1687,7 +1782,7 @@ pattern numbers are pinned on the frozen miniature in
     from the starter.
 35. **Importing RDF belongs to the starter step, not to ingestion**: a dropped
     RDF/Turtle/TriG file is parsed and replaces the dataset like any starter
-    (`starter.import`, or `text-to-ontology-starter --import`), while the Add
+    (`starter.import`, or `python ttl_to_trig.py`), while the Add
     sources zone refuses RDF and points at section 1 — feeding a syntax file to
     the extractor would only produce noise.
 36. **A chat answer is only as wide as its scope**: each turn shows the model

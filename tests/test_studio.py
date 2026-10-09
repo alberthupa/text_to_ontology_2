@@ -50,11 +50,13 @@ class FakeExtractor:
     def __init__(self, *answers):
         self.answers = list(answers)
         self.calls = 0
+        self.prompts = []
 
     def model(self):
         return "fake-model"
 
     def extract(self, prompt):
+        self.prompts.append(prompt)
         answer = self.answers[min(self.calls, len(self.answers) - 1)]
         self.calls += 1
         return answer
@@ -152,6 +154,33 @@ class WorkspaceTest(WorkspaceTestBase):
         self.assertEqual(first.name, "weird name.txt")
         self.assertEqual(second.name, "weird name.txt-2")
         self.assertEqual(second.read_text(encoding="utf-8"), "two")
+
+    def test_a_dropped_folder_keeps_its_structure_inside_the_inbox(self):
+        workspace = self.workspace()
+        kept = workspace._write_source("Farmexa/VAF/notes.md", "one")
+        self.assertEqual(kept, self.sources / "Farmexa" / "VAF" / "notes.md")
+        for name in ("a/../../etc/x.md", "/abs/x.md", "a//b/./c.md",
+                     "..\\..\\win.md"):
+            path = workspace._write_source(name, "x")
+            self.assertTrue(path.resolve().is_relative_to(
+                self.sources.resolve()), name)
+        self.assertEqual(workspace._write_source("a//b/./c.md", "x"),
+                         self.sources / "a" / "b" / "c.md-2")
+        self.assertIn("Farmexa/VAF/notes.md", workspace.source_names())
+
+    def test_reset_also_empties_dropped_folders(self):
+        workspace = self.workspace()
+        workspace._write_source("Farmexa/VAF/notes.md", "one")
+        workspace.reset()
+        self.assertEqual(list(self.sources.iterdir()), [])
+
+    def test_ingested_folders_reach_the_prompt_as_relative_paths(self):
+        workspace = self.workspace(PROPOSAL, DECLARED)
+        workspace.create_starter("people and companies")
+        workspace.ingest([("Acme/people/note.txt", "Alice works for Acme.")],
+                         io.StringIO())
+        prompt = workspace.extractor.prompts[-1]
+        self.assertIn("Path: Acme/people/note.txt", prompt)
 
     def test_reset_removes_the_dataset_and_the_inbox(self):
         workspace = self.workspace(PROPOSAL, DECLARED)
@@ -344,7 +373,7 @@ class PromptOperationsTest(WorkspaceTestBase):
         names = [item["name"] for item in listed["prompts"]]
         self.assertEqual(names, ["chat_system", "chat_user",
                                  "extraction_system", "extraction_user",
-                                 "starter"])
+                                 "link_check_user", "starter"])
         for item in listed["prompts"]:
             self.assertIn("text", item)
             self.assertIn("default", item)

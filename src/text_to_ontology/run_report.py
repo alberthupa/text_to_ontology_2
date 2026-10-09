@@ -324,6 +324,10 @@ class RunReporter:
                    f"{counts['normalized']['relations']} relations, "
                    f"{counts['normalized']['facts']} facts; "
                    f"{duplicate_total} duplicates removed")
+        dropped = validation.get("dropped")
+        if dropped:
+            summary += (f"; {len(dropped['records'])} wrongly connected "
+                        f"record(s) dropped after repair")
         if not self.verbose:
             self.line(summary)
             return
@@ -349,8 +353,26 @@ class RunReporter:
             self.line(f"      {issue['code']}: {issue['message']}")
             if issue["related_paths"]:
                 self.line("      related: " + ", ".join(issue["related_paths"]))
+        if dropped:
+            self.line("  Dropped after repair (wrongly connected):")
+            for message in dropped["messages"]:
+                self.line(f"    {message}")
         if not validation["valid"]:
             self.line("  Result: whole extraction rejected; graph unchanged")
+
+    def link_check(self, summary):
+        """Report the expected links a document lacked and what was found."""
+        self.line(f"  Link check: {summary['gaps']} gap(s), "
+                  f"{len(summary['filled'])} filled, "
+                  f"{len(summary['not_established'])} not established")
+        if not self.verbose:
+            return
+        for item in summary["filled"]:
+            self.line(f"    filled: {item}")
+        for item in summary["not_established"]:
+            self.line(f"    not established: {item}")
+        for item in summary["dropped"]:
+            self.line(f"    dropped: {item}")
 
     def merge_plan(self, plan, candidates, graph):
         """Report identity, entity-field, and assertion decisions."""
