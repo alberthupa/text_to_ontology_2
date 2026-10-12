@@ -120,7 +120,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(body)
+        self._write(body)
 
     def _json(self, payload, status=200):
         body = json.dumps(payload).encode("utf-8")
@@ -129,7 +129,19 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(body)
+        self._write(body)
+
+    def _write(self, body):
+        """Send the body; a client that already hung up is not an error.
+
+        A browser tab closed mid-load, a reload, or an editor probing the
+        port can drop the connection before the page is sent. Nothing is
+        lost: there is nobody left to answer.
+        """
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _payload(self):
         length = int(self.headers.get("Content-Length") or 0)

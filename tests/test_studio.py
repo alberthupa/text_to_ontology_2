@@ -608,5 +608,19 @@ class StudioHttpTest(WorkspaceTestBase):
             self.assertEqual(caught.exception.code, 404, path)
 
 
+
+class ClientGoneTest(unittest.TestCase):
+    def test_a_client_that_hung_up_is_not_an_error(self):
+        from text_to_ontology.studio import StudioHandler
+
+        class Gone:
+            def write(self, body):
+                raise BrokenPipeError(32, "Broken pipe")
+
+        handler = StudioHandler.__new__(StudioHandler)
+        handler.wfile = Gone()
+        handler._write(b"page")  # must not raise
+
+
 if __name__ == "__main__":
     unittest.main()
