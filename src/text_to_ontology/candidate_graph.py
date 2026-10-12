@@ -25,18 +25,15 @@ from decimal import Decimal
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import PROV, RDF, RDFS, SKOS, XSD
 
-# DQV is not bundled with rdflib's namespace module; it is a W3C vocabulary.
-DQV = Namespace("http://www.w3.org/ns/dqv#")
-
-from .graph_management import FACT, RELATION, bind
+from .graph_management import DQV, FACT, RELATION, TRACE, bind
 from .graph_merge import class_triples, class_uri, slug
 
 # Bumped whenever the mapping rules change meaningfully.
 CANDIDATE_MAPPING_VERSION = 2
 
-CANDIDATE_BASE = "http://example.org/text-ontology/"
-PROVISIONAL = Namespace(CANDIDATE_BASE + "provisional/")
-EXTRACTION_CONFIDENCE_METRIC = URIRef(CANDIDATE_BASE + "metric/extraction-confidence")
+# Every candidate, window, activity, and provisional IRI is tracing.
+PROVISIONAL = Namespace(TRACE + "provisional/")
+EXTRACTION_CONFIDENCE_METRIC = TRACE["metric/extraction-confidence"]
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -71,8 +68,6 @@ def build_candidate_graph(candidates, document_id, window_id, activity_id,
     """One validated package in, one candidate graph out. Deterministic."""
     graph = Graph()
     bind(graph)
-    graph.bind("prov", PROV)
-    graph.bind("dqv", DQV)
 
     _declare_metric(graph)
     _declare_provenance_chain(graph, document_id, window_id, activity_id,
@@ -112,7 +107,7 @@ def build_candidate_graph(candidates, document_id, window_id, activity_id,
 
 def _record_iri(document_id, window_id, section, index):
     return URIRef(
-        f"{CANDIDATE_BASE}candidate/{document_id}/{window_id}/{section}/{index}")
+        f"{TRACE}candidate/{document_id}/{window_id}/{section}/{index}")
 
 
 def _declare_metric(graph):
@@ -123,10 +118,10 @@ def _declare_metric(graph):
 
 def _declare_provenance_chain(graph, document_id, window_id, activity_id,
                               extractor_model):
-    document = URIRef(f"{CANDIDATE_BASE}document/{document_id}")
-    window = URIRef(f"{CANDIDATE_BASE}window/{window_id}")
-    activity = URIRef(f"{CANDIDATE_BASE}activity/{activity_id}")
-    agent = URIRef(f"{CANDIDATE_BASE}agent/{slug(extractor_model)}")
+    document = URIRef(f"{TRACE}document/{document_id}")
+    window = URIRef(f"{TRACE}window/{window_id}")
+    activity = URIRef(f"{TRACE}activity/{activity_id}")
+    agent = URIRef(f"{TRACE}agent/{slug(extractor_model)}")
 
     graph.add((document, RDF.type, PROV.Entity))
     graph.add((window, RDF.type, PROV.Entity))
@@ -155,7 +150,7 @@ def _entity_triples(record, iri):
 
 def _emit_record(graph, record_iri, activity_id, confidence, triples):
     """Assert the triples, then attach them to the record as reified members."""
-    activity = URIRef(f"{CANDIDATE_BASE}activity/{activity_id}")
+    activity = URIRef(f"{TRACE}activity/{activity_id}")
     graph.add((record_iri, RDF.type, PROV.Collection))
     graph.add((record_iri, PROV.wasGeneratedBy, activity))
 

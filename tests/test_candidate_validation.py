@@ -431,7 +431,7 @@ class ExistingIdTest(unittest.TestCase):
     def test_a_temporary_staging_iri_is_cleared(self):
         result = validate_candidates(
             {"entities": [entity("e1", "Acme Corp", existing_id=(
-                "http://example.org/text-ontology/provisional/doc-1/acme"))],
+                "http://example.org/text-ontology/trace/provisional/doc-1/acme"))],
              "relations": [], "facts": []},
             self.graph, [])
         self.assert_cleared(result)

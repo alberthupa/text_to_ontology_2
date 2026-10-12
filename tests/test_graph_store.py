@@ -180,7 +180,7 @@ class GraphNamesTest(unittest.TestCase):
         names = GraphNames()
         self.assertEqual(
             str(names.source_staging_graph("doc-abc123")),
-            "http://example.org/text-ontology/staging/doc-abc123")
+            "http://example.org/text-ontology/trace/staging/doc-abc123")
 
 
 class ViewerDatasetTest(unittest.TestCase):

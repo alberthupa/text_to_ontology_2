@@ -8,7 +8,7 @@ from rdflib import Dataset, Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from connectivity_fixtures import schema_graph, starter_store
-from text_to_ontology.graph_management import CLASS, ONTO, RELATION
+from text_to_ontology.graph_management import CLASS, ONTO, RELATION, SRC
 from text_to_ontology.graph_store import GraphNames, Publication
 from text_to_ontology.operations import call
 from text_to_ontology.seed_view import seed_graphs, seed_view
@@ -32,6 +32,10 @@ def roles():
         data.add((entity, SKOS.prefLabel, Literal(name)))
     data.add((VAF, RELATION["has-client"], FARMEXA))
     data.add((VAF, UNDECLARED, FARMEXA))
+    # Source links live in the data graph, but are not part of what was said.
+    data.add((VAF, SRC.fromFile, SRC["file/1"]))
+    data.add((SRC["file/1"], RDFS.label, Literal("notes.md")))
+    data.add((SRC["statement/1"], RDF.subject, VAF))
     provenance, review, shapes = Graph(), Graph(), Graph()
     provenance.add((VAF, ONTO.sourceFile, URIRef("http://x/file")))
     review.add((URIRef("http://x/review"), RDFS.label, Literal("held")))
@@ -67,6 +71,12 @@ class SeedViewTest(unittest.TestCase):
         for triple in ((VAF, RDF.type, OWL.NamedIndividual),
                        (VAF, RDF.type, SKOS.Concept),
                        (VAF, UNDECLARED, FARMEXA)):
+            self.assertNotIn(triple, self.view)
+
+    def test_source_links_are_left_out(self):
+        for triple in ((VAF, SRC.fromFile, SRC["file/1"]),
+                       (SRC["file/1"], RDFS.label, Literal("notes.md")),
+                       (SRC["statement/1"], RDF.subject, VAF)):
             self.assertNotIn(triple, self.view)
 
     def test_provenance_review_and_shapes_are_left_out(self):

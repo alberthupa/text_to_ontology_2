@@ -19,7 +19,7 @@ from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from .entity_lookup import entity_catalog, identity_decision, identity_key
-from .graph_management import ENTITY, FACT, ONTO, RELATION
+from .graph_management import ENTITY, FACT, ONTO, RELATION, TRACE
 from .graph_merge import class_triples, class_uri, label, slug
 
 
@@ -49,7 +49,7 @@ def proposed_entity_uri(entity):
     A proposed URI is audit metadata, never typed as onto:Entity and never
     visible through entity_catalog().
     """
-    return ONTO["merge-proposed-entity/" + record_digest(entity)]
+    return TRACE["merge-proposed-entity/" + record_digest(entity)]
 
 
 def build_provenance(source_path, source_text, model):
@@ -174,11 +174,11 @@ class _Planner:
                 "configuration_sha256"),
             "package_sha256": self.package_digest(),
         })
-        return ONTO["merge-event/" + hashlib.sha256(
+        return TRACE["merge-event/" + hashlib.sha256(
             seed.encode("utf-8")).hexdigest()]
 
     def candidate_uri(self, event_sha, section, index, record):
-        return ONTO["merge-candidate/" + event_sha + "/"
+        return TRACE["merge-candidate/" + event_sha + "/"
                     + f"{section}-{index}-{record_digest(record)}"]
 
     # ---------- entity field policy ----------
@@ -409,15 +409,15 @@ class _Planner:
 
     def event_audit_triples(self, event_uri):
         return {
-            (event_uri, RDF.type, ONTO.ExtractionEvent),
-            (event_uri, ONTO.sourcePath,
+            (event_uri, RDF.type, TRACE.ExtractionEvent),
+            (event_uri, TRACE.sourcePath,
              Literal(self.provenance["source_path"])),
-            (event_uri, ONTO.sourceSha256,
+            (event_uri, TRACE.sourceSha256,
              Literal(self.provenance["source_sha256"])),
-            (event_uri, ONTO.modelName, Literal(self.provenance["model"])),
-            (event_uri, ONTO.mergePolicyVersion,
+            (event_uri, TRACE.modelName, Literal(self.provenance["model"])),
+            (event_uri, TRACE.mergePolicyVersion,
              Literal(MERGE_POLICY_VERSION)),
-            (event_uri, ONTO.candidatePackageSha256,
+            (event_uri, TRACE.candidatePackageSha256,
              Literal(self.package_digest())),
         }
 
@@ -425,30 +425,30 @@ class _Planner:
                                 outcome, reasons, resolved=None, triple=None,
                                 fields=None, proposed=None):
         triples = {
-            (candidate_uri, RDF.type, ONTO.MergeCandidate),
-            (candidate_uri, ONTO.wasExtractedIn, self.event),
-            (candidate_uri, ONTO.candidateSection, Literal(section)),
-            (candidate_uri, ONTO.candidateIndex, Literal(index)),
-            (candidate_uri, ONTO.normalizedCandidate,
+            (candidate_uri, RDF.type, TRACE.MergeCandidate),
+            (candidate_uri, TRACE.wasExtractedIn, self.event),
+            (candidate_uri, TRACE.candidateSection, Literal(section)),
+            (candidate_uri, TRACE.candidateIndex, Literal(index)),
+            (candidate_uri, TRACE.normalizedCandidate,
              Literal(canonical_json(record), datatype=RDF_JSON)),
-            (candidate_uri, ONTO.extractionConfidence,
+            (candidate_uri, TRACE.extractionConfidence,
              _decimal_confidence(record["confidence"])),
-            (candidate_uri, ONTO.mergeDecision, Literal(outcome)),
+            (candidate_uri, TRACE.mergeDecision, Literal(outcome)),
         }
         for code in sorted(set(reasons)):
-            triples.add((candidate_uri, ONTO.decisionReason, Literal(code)))
+            triples.add((candidate_uri, TRACE.decisionReason, Literal(code)))
         if resolved is not None:
-            triples.add((candidate_uri, ONTO.resolvedEntity, resolved))
+            triples.add((candidate_uri, TRACE.resolvedEntity, resolved))
         if proposed is not None:
             # The review-only provisional identity, so a later review tool can
             # reference it without re-running the model.
-            triples.add((candidate_uri, ONTO.proposedEntity, proposed))
+            triples.add((candidate_uri, TRACE.proposedEntity, proposed))
         if triple is not None:
             triples.add((candidate_uri, RDF.subject, triple[0]))
             triples.add((candidate_uri, RDF.predicate, triple[1]))
             triples.add((candidate_uri, RDF.object, triple[2]))
         if fields is not None:
-            triples.add((candidate_uri, ONTO.fieldDecisions,
+            triples.add((candidate_uri, TRACE.fieldDecisions,
                          Literal(canonical_json(fields), datatype=RDF_JSON)))
         return triples
 

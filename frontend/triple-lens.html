@@ -658,6 +658,9 @@ function splitIri(iri) {
   return [iri.slice(0, cut + 1), iri.slice(cut + 1)];
 }
 const FILTER_NAMESPACE_FAMILIES = [
+  // All run tracing is one filter entry (trace:), all source links another
+  // (src:); the rest are record families of datasets made before that split.
+  '/text-ontology/trace/', '/text-ontology/source/',
   '/review/', '/candidate/', '/statement/', '/activity/', '/window/',
   '/merge-proposed-activity/', '/merge-proposed-entity/', '/provisional/',
   '/document/', '/source-file/', '/agent/', '/metric/'

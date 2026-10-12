@@ -28,7 +28,7 @@ from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import RDF, RDFS, SKOS
 
 from .entity_lookup import identity_key
-from .graph_management import ONTO
+from .graph_management import ONTO, TRACE
 from .graph_store import GraphNames, RdflibGraphStore
 from .ingest_sources import find_text_files, read_source
 from .link_check import expected_links
@@ -37,7 +37,7 @@ from .vocabulary import read_vocabulary
 from .windowing import make_source_document
 
 NAME_PREDICATES = (SKOS.prefLabel, SKOS.altLabel, RDFS.label)
-DOCUMENT = ONTO["document/"]
+DOCUMENT = TRACE["document/"]
 
 
 # ---------- small helpers ----------

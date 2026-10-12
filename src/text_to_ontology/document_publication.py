@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import PROV, RDF, RDFS
 
-from .candidate_graph import CANDIDATE_BASE, provisional_entity_iri
-from .graph_management import seed_graph
+from .candidate_graph import provisional_entity_iri
+from .graph_management import TRACE, seed_graph
 from .graph_partition import partition_graph
 from .publication_sources import (
-    link_statement_sources, materialize_sources, source_records,
+    document_uri, link_statement_sources, source_attribution, trace_sources,
 )
 from .graph_store import GraphNames, Publication, RdflibGraphStore
 from .source_validation import embedded_shape_graph, validate_source_graph
@@ -118,8 +118,13 @@ def shape_graphs(roles, names):
 
 def compile_document_publication(document, document_merge, candidate_graphs,
                                  packages, admission_plans, roles, names,
-                                 validation_shapes=None):
-    """Build proposed target/provenance/review replacements without writing."""
+                                 validation_shapes=None, trace=False):
+    """Build proposed target/provenance/review replacements without writing.
+
+    The data graph gets the accepted triples plus their `src:` source links.
+    The provenance graph always gets the document record; the full candidate
+    evidence (every window answer, PROV/DQV) only when `trace` is on.
+    """
     merge_plan = document_merge["merge_plan"]
     target = copy_graph(roles[names.target_graph])
     for triple in merge_plan["domain_triples"]:
@@ -128,9 +133,16 @@ def compile_document_publication(document, document_merge, candidate_graphs,
     proposed_roles = dict(roles)
     proposed_roles[names.target_graph] = target
     proposed_data = canonical_graph(proposed_roles, names)
-    evidence = remap_candidate_evidence(
-        document, document_merge, candidate_graphs, packages, admission_plans)
-    materialize_sources(evidence, document, document_merge, proposed_data)
+    for triple in source_attribution(document, document_merge, proposed_data):
+        target.add(triple)
+    evidence = trace_sources(document, document_merge, proposed_data)
+    if trace:
+        for triple in remap_candidate_evidence(
+                document, document_merge, candidate_graphs, packages,
+                admission_plans):
+            evidence.add(triple)
+        link_statement_sources(evidence, document)
+    proposed_data = canonical_graph(proposed_roles, names)
     provenance = copy_graph(roles[names.provenance_graph])
     for triple in evidence:
         provenance.add(triple)
@@ -228,7 +240,7 @@ def _copy_evidence(source, target, term_mapping):
 def build_review_graph(document, document_merge):
     """Represent withheld candidates with standard RDF/PROV in the review graph."""
     graph = Graph()
-    document_uri = URIRef(f"{CANDIDATE_BASE}document/{document.document_id}")
+    document_ = document_uri(document)
     merge_plan = document_merge["merge_plan"]
     candidates = document_merge["candidates"]
 
@@ -240,7 +252,7 @@ def build_review_graph(document, document_merge):
         resource = _review_uri(document.document_id, "entity", local_id)
         graph.add((resource, RDF.type, PROV.Collection))
         graph.add((resource, RDFS.label, Literal(record["name"])))
-        graph.add((resource, PROV.wasDerivedFrom, document_uri))
+        graph.add((resource, PROV.wasDerivedFrom, document_))
 
     for section in ("relations", "facts"):
         for item in merge_plan[section]:
@@ -249,7 +261,7 @@ def build_review_graph(document, document_merge):
             resource = _review_uri(
                 document.document_id, section, str(item["index"]))
             graph.add((resource, RDF.type, PROV.Collection))
-            graph.add((resource, PROV.wasDerivedFrom, document_uri))
+            graph.add((resource, PROV.wasDerivedFrom, document_))
             if item.get("triple") is None:
                 continue
             statement = URIRef(str(resource) + "/statement")
@@ -259,15 +271,14 @@ def build_review_graph(document, document_merge):
             graph.add((statement, RDF.object, item["triple"][2]))
             graph.add((resource, PROV.hadMember, statement))
     if len(graph):
-        document_uri, file_uri = source_records(graph, document)
-        link_statement_sources(graph, document_uri, file_uri)
+        link_statement_sources(graph, document)
     return graph
 
 
 def _review_uri(document_id, section, value):
     digest = hashlib.sha256(
         f"{document_id}|{section}|{value}".encode("utf-8")).hexdigest()
-    return URIRef(f"{CANDIDATE_BASE}review/{document_id}/{digest[:20]}")
+    return URIRef(f"{TRACE}review/{document_id}/{digest[:20]}")
 
 
 def _publication_counts(merge_plan, evidence, review):

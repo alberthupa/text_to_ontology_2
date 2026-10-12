@@ -29,7 +29,7 @@ import hashlib
 
 from rdflib import Graph, URIRef
 
-from .candidate_graph import CANDIDATE_BASE, PROVISIONAL
+from .candidate_graph import PROVISIONAL
 from .context_render import (
     allowance,
     assemble_context,
@@ -41,10 +41,11 @@ from .merge_policy import (
     canonical_json,
     plan_graph_merge,
 )
+from .graph_management import TRACE
 from .graph_merge import slug
 from .prompt_budget import fit_context_items
 
-STAGING_NAMESPACE = CANDIDATE_BASE + "staging/"
+STAGING_NAMESPACE = TRACE + "staging/"
 
 
 def source_staging_graph_name(document_id):

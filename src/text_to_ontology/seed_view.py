@@ -10,7 +10,7 @@ is needed to *read* the ontology. The seed view is the part that is:
     statements whose predicate is declared     shapes
     rdf:type to a declared class               owl:NamedIndividual, skos:Concept
     names and descriptions of entities         statements with undeclared predicates
-    onto:kind (entity identity needs it)
+    onto:kind (entity identity needs it)       src: source links, trace: tracing
 
 "Declared" means declared in the schema or data graphs, so the view also works
 for datasets built without the data-only lock.
@@ -23,7 +23,7 @@ view. Nothing here writes to a graph.
 from rdflib import Graph
 from rdflib.namespace import RDF, RDFS, SKOS
 
-from .graph_management import ONTO, bind
+from .graph_management import ONTO, bind, is_source_attribution, is_tracing
 from .vocabulary import read_vocabulary
 
 # Names, descriptions, and the kind an entity was given: what a reader and the
@@ -45,6 +45,8 @@ def keep_in_seed(triple, declared_terms, declared_classes,
                  declared_properties):
     """Whether one data statement belongs to the seed view."""
     subject, predicate, object_ = triple
+    if is_source_attribution(triple) or is_tracing(triple):
+        return False  # which file said it is not part of what was said
     if str(subject) in declared_terms:
         return True  # a declaration made in a data graph (legacy runs)
     if predicate == RDF.type:

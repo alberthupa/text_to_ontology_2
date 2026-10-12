@@ -10,13 +10,12 @@ from rdflib.namespace import OWL, PROV, RDF, RDFS, SKOS, XSD
 from text_to_ontology.candidate_graph import DQV
 
 from text_to_ontology.candidate_graph import (
-    CANDIDATE_BASE,
     EXTRACTION_CONFIDENCE_METRIC,
     build_candidate_graph,
     literal_value,
     provisional_entity_iri,
 )
-from text_to_ontology.graph_management import CLASS, FACT, ONTO, RELATION
+from text_to_ontology.graph_management import CLASS, FACT, ONTO, RELATION, TRACE
 
 
 def sample_package():
@@ -92,7 +91,7 @@ class DeterminismTest(unittest.TestCase):
     def test_provisional_entity_iris_come_from_document_and_local_id(self):
         self.assertEqual(
             provisional_entity_iri("doc-abc123", "e1"),
-            URIRef(CANDIDATE_BASE + "provisional/doc-abc123/e1"))
+            URIRef(TRACE + "provisional/doc-abc123/e1"))
 
 
 class AssertionAndEvidenceTest(unittest.TestCase):
@@ -129,9 +128,9 @@ class AssertionAndEvidenceTest(unittest.TestCase):
             "subject": "e1", "predicate": "programmed", "object": "e2",
             "confidence": 0.55})
         graph = built(doubled)
-        relation = (URIRef(CANDIDATE_BASE + "provisional/doc-abc123/e1"),
+        relation = (URIRef(TRACE + "provisional/doc-abc123/e1"),
                     RELATION["programmed"],
-                    URIRef(CANDIDATE_BASE + "provisional/doc-abc123/e2"))
+                    URIRef(TRACE + "provisional/doc-abc123/e2"))
         self.assertIn(relation, graph)
         supporters = []
         for record in graph.subjects(PROV.hadMember, None):
@@ -179,9 +178,9 @@ class ProvenanceChainTest(unittest.TestCase):
         self.graph = built()
 
     def test_the_chain_runs_from_document_to_activity(self):
-        document = URIRef(CANDIDATE_BASE + "document/doc-abc123")
-        window = URIRef(CANDIDATE_BASE + "window/win-def456")
-        activity = URIRef(CANDIDATE_BASE + "activity/act-789")
+        document = URIRef(TRACE + "document/doc-abc123")
+        window = URIRef(TRACE + "window/win-def456")
+        activity = URIRef(TRACE + "activity/act-789")
         agent = self.graph.value(activity, PROV.wasAssociatedWith)
         self.assertIn((window, PROV.wasDerivedFrom, document), self.graph)
         self.assertIn((activity, PROV.used, window), self.graph)
@@ -190,7 +189,7 @@ class ProvenanceChainTest(unittest.TestCase):
                          "test-model")
 
     def test_records_and_measurements_name_the_activity(self):
-        activity = URIRef(CANDIDATE_BASE + "activity/act-789")
+        activity = URIRef(TRACE + "activity/act-789")
         generated = set(self.graph.subjects(PROV.wasGeneratedBy, activity))
         records = set(self.graph.subjects(RDF.type, PROV.Collection))
         measurements = set(self.graph.subjects(RDF.type,
@@ -220,7 +219,7 @@ class VocabularyTest(unittest.TestCase):
 
     def test_kind_strings_became_types_not_literals(self):
         graph = built()
-        ada = URIRef(CANDIDATE_BASE + "provisional/doc-abc123/e1")
+        ada = URIRef(TRACE + "provisional/doc-abc123/e1")
         person = CLASS["person"]
         self.assertIn((ada, RDF.type, person), graph)
         self.assertIsNone(graph.value(ada, ONTO.kind),
@@ -250,7 +249,7 @@ class EntityMappingTest(unittest.TestCase):
 
     def test_entity_names_descriptions_and_aliases_use_rdfs_and_skos(self):
         graph = built()
-        ada = URIRef(CANDIDATE_BASE + "provisional/doc-abc123/e1")
+        ada = URIRef(TRACE + "provisional/doc-abc123/e1")
         self.assertEqual(str(graph.value(ada, RDFS.label)), "Ada Lovelace")
         self.assertEqual(str(graph.value(ada, SKOS.definition)),
                          "Wrote the first program.")

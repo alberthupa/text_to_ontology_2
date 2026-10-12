@@ -133,7 +133,7 @@ class MergeConfig:
 
 @dataclass
 class ProcessingConfig:
-    """How source staging graphs behave when a window fails.
+    """How much a run keeps for diagnosis.
 
     With `retain_staging_on_failure`, the failed document's source staging
     graph and window candidate graphs are exported to a sidecar TriG file
@@ -141,6 +141,10 @@ class ProcessingConfig:
     """
 
     retain_staging_on_failure: bool = False
+    # Also keep every window's candidate evidence (each model answer as
+    # reified PROV/DQV records under trace:candidate/) in the provenance
+    # graph. Off by default: it is most of a dataset and nothing reads it.
+    trace: bool = False
 
 
 @dataclass
@@ -430,11 +434,11 @@ def _display_path(path, request):
 
 
 def _fixed_context(document, path, windows, request, final_graph, vocabulary,
-                   core_schema, provenance):
+                   core_schema, sources):
     """The data-only context of one document, or None outside data-only."""
     if vocabulary is None:
         return None
-    folder = folder_anchors(final_graph, provenance, vocabulary,
+    folder = folder_anchors(final_graph, sources, vocabulary,
                             document.source_path)
     return _FixedContext(
         vocabulary=vocabulary,
@@ -448,12 +452,12 @@ def _fixed_context(document, path, windows, request, final_graph, vocabulary,
 
 def _process_document(document, request, final_graph, extractor, reporter,
                       vocabulary=None, path=None, core_schema=None,
-                      expected=(), provenance=None):
+                      expected=(), sources=None):
     """Run every window of one document through staging.
 
     `final_graph` is the seed view of the final ontology: everything the
-    prompts may draw on. `provenance` is read only to find what other files of
-    the same folder contributed.
+    prompts may draw on. `sources` (the data graph, with its `src:` links) is
+    read only to find what other files of the same folder contributed.
 
     Returns the admitted window packages. The final ontology is never written
     to here; a snapshot taken before the first window must still be exact
@@ -462,7 +466,7 @@ def _process_document(document, request, final_graph, extractor, reporter,
     windows = plan_windows(document, request.windowing)
     fixed = _fixed_context(document, path or Path(document.name), windows,
                            request, final_graph, vocabulary, core_schema,
-                           provenance if provenance is not None else Graph())
+                           sources if sources is not None else Graph())
     staging_name = source_staging_graph_name(document.document_id)
     reporter.document_staging(document.document_id, staging_name, len(windows))
 
@@ -617,7 +621,7 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         staged = _process_document(
             document, request, context, extractor, reporter, vocabulary,
             path=path, core_schema=core_schema, expected=expected,
-            provenance=roles.get(names.provenance_graph))
+            sources=canonical_graph(roles, names))
         windows_processed += len(staged.packages)
 
         reconciliation = reconcile_document(
@@ -663,7 +667,8 @@ def run_text_to_graph(request, graph_store=None, extractor=None, reporter=None):
         publication_plan = compile_document_publication(
             document, document_merge, staged.candidate_graphs,
             staged.packages, staged.admission_plans, roles, names,
-            validation_shapes=validation_shapes)
+            validation_shapes=validation_shapes,
+            trace=request.processing.trace)
         reporter.publication_validation(
             publication_plan.proposed_validation)
         if not publication_plan.proposed_validation.conforms:

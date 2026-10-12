@@ -34,14 +34,14 @@ from dataclasses import dataclass, field
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import OWL, PROV, RDF, RDFS
 
-from .candidate_graph import CANDIDATE_BASE
-from .graph_management import ONTO, bind
+from .graph_management import TRACE, bind
+from .publication_sources import forget_statement
 from .graph_store import GraphNames, Publication
 from .source_validation import validate_source_graph
 from .starter import parse_rdf
 from .vocabulary import read_vocabulary
 
-EDIT_BASE = CANDIDATE_BASE + "edit/"
+EDIT_BASE = TRACE + "edit/"
 REMOVAL = "-"
 PREVIEW_LIMIT = 40
 VOCABULARY_TYPES = (OWL.Class, RDFS.Class, OWL.ObjectProperty,
@@ -324,26 +324,22 @@ def _patch_id(text, allow_new_vocabulary, source):
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
 
 
-def statement_uri(triple):
-    """The stable statement IRI for one triple, as publishing uses it."""
-    key = " ".join(term.n3() for term in triple)
-    return ONTO["statement/" + hashlib.sha256(key.encode("utf-8")).hexdigest()]
-
-
 def provenance_for(patch, edit_iri=None):
-    """The PROV evidence one applied patch leaves behind."""
+    """The PROV evidence one applied patch leaves behind (all under trace:)."""
     edit_iri = edit_iri or URIRef(EDIT_BASE + patch.patch_id)
     evidence = Graph()
     bind(evidence)
     evidence.add((edit_iri, RDF.type, PROV.Activity))
     evidence.add((edit_iri, RDFS.label, Literal("manual edit")))
-    evidence.add((edit_iri, ONTO.editSource, Literal(patch.source)))
-    evidence.add((edit_iri, ONTO.editAdded, Literal(len(patch.added))))
-    evidence.add((edit_iri, ONTO.editRemoved, Literal(len(patch.removed))))
-    for relationship, triples in ((PROV.wasGeneratedBy, patch.added),
-                                  (PROV.wasInvalidatedBy, patch.removed)):
+    evidence.add((edit_iri, TRACE.editSource, Literal(patch.source)))
+    evidence.add((edit_iri, TRACE.editAdded, Literal(len(patch.added))))
+    evidence.add((edit_iri, TRACE.editRemoved, Literal(len(patch.removed))))
+    for relationship, section, triples in (
+            (PROV.wasGeneratedBy, "added", patch.added),
+            (PROV.wasInvalidatedBy, "removed", patch.removed)):
         for triple in triples:
-            statement = statement_uri(triple)
+            statement = URIRef(f"{edit_iri}/{section}/"
+                               + _triple_digest(triple))
             evidence.add((statement, RDF.type, RDF.Statement))
             evidence.add((statement, RDF.type, PROV.Entity))
             for predicate, value in zip((RDF.subject, RDF.predicate,
@@ -353,12 +349,22 @@ def provenance_for(patch, edit_iri=None):
     return edit_iri, evidence
 
 
+def _triple_digest(triple):
+    key = " ".join(term.n3() for term in triple)
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:20]
+
+
 def publication(store, names, patch):
-    """The one atomic publication that applies a checked patch."""
+    """The one atomic publication that applies a checked patch.
+
+    A removed relation or fact also loses its `src:statement` node, so no
+    source file is left claiming a statement that is gone.
+    """
     target = store.get(names.target_graph)
     provenance = store.get(names.provenance_graph)
     for triple in patch.removed:
         target.remove(triple)
+        forget_statement(target, triple)
     for triple in patch.added:
         target.add(triple)
     _edit_iri, evidence = provenance_for(patch)

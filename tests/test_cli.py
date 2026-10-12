@@ -72,6 +72,27 @@ class CliSuccessTest(unittest.TestCase):
         self.assertIn("Asking test-model (this can take a minute)...", out)
         self.assertIn(f"Saved {len(graph)} triples to {graph_path}", out)
 
+    def test_trace_flag_keeps_the_candidate_evidence(self):
+        from text_to_ontology.graph_management import TRACE
+        from text_to_ontology.graph_store import GraphNames, RdflibGraphStore
+
+        def candidates_after(extra):
+            with tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                source = root / "notes.txt"
+                source.write_text("Acme Corp exists.", encoding="utf-8")
+                graph_path = root / "graph.trig"
+                with run_cli([str(source), str(graph_path), *extra],
+                             [entity_response("Acme Corp")]) as (code, _, _):
+                    self.assertEqual(code, 0)
+                provenance = RdflibGraphStore(graph_path).get(
+                    GraphNames().provenance_graph)
+            return [subject for subject in provenance.subjects()
+                    if str(subject).startswith(TRACE + "candidate/")]
+
+        self.assertFalse(candidates_after([]))
+        self.assertTrue(candidates_after(["--trace"]))
+
 
 class CliFailureTest(unittest.TestCase):
     def test_a_validation_failure_exits_one_with_an_error_line(self):

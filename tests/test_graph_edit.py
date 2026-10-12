@@ -10,11 +10,11 @@ from rdflib.namespace import OWL, PROV, RDF, RDFS, SH, SKOS
 from text_to_ontology import graph_edit
 from text_to_ontology.graph_edit import (
     Patch, fenced_turtle, parse_patch, preview, provenance_for, publication,
-    statement_uri,
 )
 from text_to_ontology.graph_store import GraphNames, RdflibGraphStore
 from text_to_ontology.operations import call
-from text_to_ontology.publication_sources import materialize_sources
+from text_to_ontology.graph_management import SRC, TRACE, is_tracing
+from text_to_ontology.publication_sources import statement_uri
 from text_to_ontology.workspace import Workspace
 
 EX = Namespace("http://example.org/lib#")
@@ -184,10 +184,13 @@ ex:saw a ex:Tool .
 
 
 class ProvenanceTest(unittest.TestCase):
-    def test_the_statement_iri_matches_the_publishing_convention(self):
-        triple = (EX.drill, EX.serial, Literal("1234"))
-        self.assertEqual(statement_uri(triple),
-                         materialize_statement_uri(triple))
+    def test_all_edit_evidence_is_tracing(self):
+        patch = preview(library_graph(),
+                        PREFIXES + 'ex:saw a ex:Tool .\n'
+                        '- ex:drill ex:serial "1234" .\n')
+        edit_iri, evidence = provenance_for(patch)
+        self.assertTrue(str(edit_iri).startswith(str(TRACE)))
+        self.assertTrue(all(is_tracing(triple) for triple in evidence))
 
     def test_one_activity_and_one_record_per_triple(self):
         patch = preview(library_graph(),
@@ -215,6 +218,18 @@ class PublicationTest(unittest.TestCase):
         self.names = GraphNames()
         self.store = RdflibGraphStore()
         self.store.put(self.names.target_graph, library_graph())
+
+    def test_a_removed_triple_loses_its_source_statement(self):
+        triple = (EX.drill, EX.serial, Literal("1234"))
+        target = self.store.get(self.names.target_graph)
+        node = statement_uri(triple)
+        target.add((node, RDF.subject, triple[0]))
+        target.add((node, SRC.fromFile, SRC["file/x"]))
+        self.store.put(self.names.target_graph, target)
+        patch = preview(target, PREFIXES + '- ex:drill ex:serial "1234" .\n')
+        bundle, _evidence = publication(self.store, self.names, patch)
+        self.assertFalse(list(bundle.graphs[self.names.target_graph]
+                              .triples((node, None, None))))
 
     def test_applying_reaches_exactly_the_previewed_state(self):
         patch = preview(self.store.get(self.names.target_graph),
@@ -304,14 +319,6 @@ class EditWorkspaceTest(unittest.TestCase):
         second = call(self.workspace, "edit.preview", {"text": text})
         self.assertEqual(first["patch_id"], second["patch_id"])
         self.assertEqual(len(self.workspace.edits), 1)
-
-
-def materialize_statement_uri(triple):
-    """The same IRI the publishing path builds, cross-checked here."""
-    import hashlib
-    from text_to_ontology.graph_management import ONTO
-    key = " ".join(term.n3() for term in triple)
-    return ONTO["statement/" + hashlib.sha256(key.encode("utf-8")).hexdigest()]
 
 
 class _NoModel:

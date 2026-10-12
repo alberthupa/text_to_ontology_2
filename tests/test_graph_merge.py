@@ -5,7 +5,7 @@ import unittest
 from rdflib import Graph, Literal
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
-from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
+from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION, TRACE
 from text_to_ontology.graph_merge import (
     apply_merge_plan, label, merge_into_graph, new_entity_uri, slug,
 )
@@ -392,7 +392,7 @@ class MaterializerTest(unittest.TestCase):
                          set(updated))
         self.assertEqual(result["review"], 1)
         # The proposal survives as audit metadata under merge-proposed-entity.
-        proposals = [o for o in updated.objects(None, ONTO.proposedEntity)]
+        proposals = [o for o in updated.objects(None, TRACE.proposedEntity)]
         self.assertTrue(any("merge-proposed-entity" in str(o)
                             for o in proposals))
         self.assertNotIn((ENTITY["shaky-thing"], RDF.type, ONTO.Entity),

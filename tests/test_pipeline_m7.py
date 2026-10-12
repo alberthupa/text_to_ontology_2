@@ -22,6 +22,7 @@ from text_to_ontology.candidate_graph import DQV
 from text_to_ontology.document_publication import PublicationValidationError
 from text_to_ontology.graph_management import CLASS, ENTITY, FACT, ONTO, RELATION
 from text_to_ontology.graph_store import GraphNames, RdflibGraphStore
+from text_to_ontology.pipeline import ProcessingConfig
 from text_to_ontology.run_report import RunReporter
 from text_to_ontology.windowing import make_source_document, plan_windows
 
@@ -301,8 +302,10 @@ class EvidenceTest(unittest.TestCase):
             (root / "02.txt").write_text(
                 "Ada Lovelace works at Acme Corp.", encoding="utf-8")
             store = CountingStore()
+            # Per-window confidences are candidate evidence: --trace only.
             result = run(RunRequest(source=root,
-                                    graph_path=root / "dataset.trig"),
+                                    graph_path=root / "dataset.trig",
+                                    processing=ProcessingConfig(trace=True)),
                          FakeExtractor(relation_package(0.9),
                                        relation_package(0.7)), store)
 

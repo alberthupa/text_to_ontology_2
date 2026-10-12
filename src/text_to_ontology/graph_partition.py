@@ -16,17 +16,16 @@ SCHEMA_TYPES = {
     OWL.DatatypeProperty, OWL.AnnotationProperty,
 }
 
-# Merge-audit roots (Proposal 07): extraction events and merge candidates are
-# support metadata. The base namespace is restated here because this module
-# deliberately depends on rdflib only.
-AUDIT_TYPES = {
-    URIRef("http://example.org/text-ontology/ExtractionEvent"),
-    URIRef("http://example.org/text-ontology/MergeCandidate"),
-}
+# Run tracing (trace:) and source links (src:) are support metadata. The
+# namespaces are restated here because this module deliberately depends on
+# rdflib only; graph_management.TRACE and SRC are the same strings.
+TRACE_NAMESPACE = "http://example.org/text-ontology/trace/"
+SOURCE_NAMESPACE = "http://example.org/text-ontology/source/"
 
-SOURCE_PREDICATES = {
-    URIRef("http://example.org/text-ontology/" + name)
-    for name in ("sourceDocument", "sourceFile", "sourcePath")
+# Merge-audit roots (Proposal 07): extraction events and merge candidates.
+AUDIT_TYPES = {
+    URIRef(TRACE_NAMESPACE + "ExtractionEvent"),
+    URIRef(TRACE_NAMESPACE + "MergeCandidate"),
 }
 
 # Declaring a resource with one of these types makes it supporting material.
@@ -141,7 +140,11 @@ def choose_view(triple, support_nodes, restrictions, schema_nodes,
     """Name the view one triple belongs to, in decreasing order of certainty."""
     subject, predicate, target = triple
 
-    if predicate in SOURCE_PREDICATES:
+    # Source links and tracing predicates. A trace: *subject* is not enough:
+    # a staging graph's provisional entities (trace:provisional/...) are
+    # still the instances a later window must see.
+    if str(predicate).startswith((TRACE_NAMESPACE, SOURCE_NAMESPACE)) \
+            or str(subject).startswith(SOURCE_NAMESPACE):
         return "support"
     if subject in support_nodes or target in support_nodes:
         return "support"

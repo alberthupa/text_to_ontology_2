@@ -5,25 +5,52 @@ from pathlib import Path
 from typing import Protocol
 
 from rdflib import BNode, Graph, Literal, Namespace
-from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
+from rdflib.namespace import OWL, PROV, RDF, RDFS, SH, SKOS
 
 
 # Change this when you want permanent URIs of your own.
 BASE = "http://example.org/text-ontology/"
+
+# Business data: what the texts say.
 ONTO = Namespace(BASE)
 ENTITY = Namespace(BASE + "entity/")
 CLASS = Namespace(BASE + "class/")
 RELATION = Namespace(BASE + "relation/")
 FACT = Namespace(BASE + "fact/")
 
+# Source attribution, kept with the business data: which file said it.
+#   src:file/<hash>       one node per source file (rdfs:label, src:path)
+#   src:statement/<hash>  one relation or fact, with src:fromFile links
+SRC = Namespace(BASE + "source/")
+
+# Tracing: how the run got there (candidates, windows, model calls, review).
+# Everything under this prefix can be filtered out without losing business
+# data: a triple is tracing when its subject or its predicate is in `trace:`.
+TRACE = Namespace(BASE + "trace/")
+
+# DQV is not bundled with rdflib's namespace module; it is a W3C vocabulary.
+DQV = Namespace("http://www.w3.org/ns/dqv#")
+
 
 def bind(graph):
     for prefix, namespace in {
         "onto": ONTO, "entity": ENTITY, "class": CLASS, "relation": RELATION,
-        "fact": FACT, "owl": OWL, "rdf": RDF, "rdfs": RDFS, "sh": SH,
-        "skos": SKOS,
+        "fact": FACT, "src": SRC, "trace": TRACE, "owl": OWL, "rdf": RDF,
+        "rdfs": RDFS, "sh": SH, "skos": SKOS, "prov": PROV, "dqv": DQV,
     }.items():
         graph.bind(prefix, namespace)
+
+
+def is_tracing(triple):
+    """Whether one triple is run tracing rather than business data."""
+    subject, predicate, _object = triple
+    return str(subject).startswith(TRACE) or str(predicate).startswith(TRACE)
+
+
+def is_source_attribution(triple):
+    """Whether one triple says which file something came from."""
+    subject, predicate, _object = triple
+    return str(subject).startswith(SRC) or str(predicate).startswith(SRC)
 
 
 def open_graph(path):

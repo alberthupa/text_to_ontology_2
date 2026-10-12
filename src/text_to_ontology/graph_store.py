@@ -212,7 +212,7 @@ class GraphNames:
     target_graph: URIRef = URIRef(BASE_NAMESPACE + "graphs/data")
     provenance_graph: URIRef = URIRef(BASE_NAMESPACE + "graphs/provenance")
     review_graph: URIRef = URIRef(BASE_NAMESPACE + "graphs/review")
-    staging_namespace: str = BASE_NAMESPACE + "staging/"
+    staging_namespace: str = BASE_NAMESPACE + "trace/staging/"
 
     def validate(self):
         """Fail loudly on duplicate roles or an unusable staging namespace."""

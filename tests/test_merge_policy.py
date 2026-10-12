@@ -6,7 +6,7 @@ from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
 from text_to_ontology.entity_lookup import identity_decision, identity_key
-from text_to_ontology.graph_management import ENTITY, ONTO
+from text_to_ontology.graph_management import ENTITY, ONTO, TRACE
 from text_to_ontology.merge_policy import (
     AUTO_ACCEPT_MIN_CONFIDENCE, canonical_json, proposed_entity_uri,
     record_digest, resolve_entities,
@@ -243,7 +243,7 @@ class NewEntityTest(unittest.TestCase):
                          ["identity.new_below_confidence"])
         self.assertIsNotNone(decision["uri"])
         self.assertTrue(str(decision["uri"]).startswith(
-            str(ONTO["merge-proposed-entity/"])))
+            str(TRACE["merge-proposed-entity/"])))
 
     def test_the_boundary_value_itself_is_new(self):
         allocate, _ = self.mint()
@@ -1017,8 +1017,8 @@ class AuditMetadataTest(unittest.TestCase):
     def test_the_event_retains_path_digest_model_policy_and_package(self):
         predicates = {t[1] for t in self.event_triples()}
         self.assertEqual(predicates, {
-            RDF.type, ONTO.sourcePath, ONTO.sourceSha256, ONTO.modelName,
-            ONTO.mergePolicyVersion, ONTO.candidatePackageSha256})
+            RDF.type, TRACE.sourcePath, TRACE.sourceSha256, TRACE.modelName,
+            TRACE.mergePolicyVersion, TRACE.candidatePackageSha256})
         values = {str(t[1]).rsplit("/", 1)[-1]: str(t[2])
                   for t in self.event_triples() if t[1] != RDF.type}
         self.assertEqual(values["sourcePath"], "sources/notes.md")
@@ -1036,20 +1036,20 @@ class AuditMetadataTest(unittest.TestCase):
 
     def test_every_candidate_record_retains_the_full_contract(self):
         candidates = {t[0] for t in self.plan["audit_triples"]
-                      if t[1] == RDF.type and t[2] == ONTO.MergeCandidate}
+                      if t[1] == RDF.type and t[2] == TRACE.MergeCandidate}
         self.assertEqual(len(candidates), 5)
         for subject in candidates:
             predicates = {t[1] for t in self.plan["audit_triples"]
                           if t[0] == subject}
-            for required in (ONTO.wasExtractedIn, ONTO.candidateSection,
-                             ONTO.candidateIndex, ONTO.normalizedCandidate,
-                             ONTO.extractionConfidence, ONTO.mergeDecision):
+            for required in (TRACE.wasExtractedIn, TRACE.candidateSection,
+                             TRACE.candidateIndex, TRACE.normalizedCandidate,
+                             TRACE.extractionConfidence, TRACE.mergeDecision):
                 self.assertIn(required, predicates)
 
     def test_normalized_candidate_json_round_trips_the_record(self):
         found = False
         for triple in self.plan["audit_triples"]:
-            if triple[1] == ONTO.normalizedCandidate:
+            if triple[1] == TRACE.normalizedCandidate:
                 record = json.loads(str(triple[2]))
                 self.assertIn("confidence", record)
                 found = True
@@ -1059,7 +1059,7 @@ class AuditMetadataTest(unittest.TestCase):
         decision = self.plan["relations"][0]
         self.assertEqual(decision["outcome"], "review")
         subject = {t[0] for t in self.plan["audit_triples"]
-                   if t[1] == ONTO.candidateSection
+                   if t[1] == TRACE.candidateSection
                    and str(t[2]) == "relations"}.pop()
         reification = {t[1]: t[2] for t in self.plan["audit_triples"]
                        if t[0] == subject}
@@ -1081,7 +1081,7 @@ class AuditMetadataTest(unittest.TestCase):
 
     def test_resolved_entities_are_linked(self):
         links = {str(t[2]) for t in self.plan["audit_triples"]
-                 if t[1] == ONTO.resolvedEntity}
+                 if t[1] == TRACE.resolvedEntity}
         self.assertIn(str(ENTITY["acme-corp"]), links)
         self.assertIn(str(ENTITY["ada-lovelace"]), links)
         self.assertNotIn(str(ENTITY["shaky-thing"]), links)
@@ -1177,7 +1177,7 @@ class NoContaminationTest(unittest.TestCase):
         records = graph_patterns.observed_relationships(schema, instance)
         for record in records:
             self.assertNotIn("merge-", str(record["predicate"]))
-            self.assertNotIn(str(ONTO.sourcePath), str(record["predicate"]))
+            self.assertNotIn(str(TRACE.sourcePath), str(record["predicate"]))
 
     def test_instance_and_schema_views_never_contain_merge_metadata(self):
         schema, instance, _ = graph_partition.partition_graph(

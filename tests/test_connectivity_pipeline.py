@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rdflib.namespace import SKOS
+from rdflib.namespace import RDF, SKOS
 
 from connectivity_fixtures import (
     ScriptedExtractor,
@@ -14,7 +14,8 @@ from connectivity_fixtures import (
     relation,
     starter_store,
 )
-from text_to_ontology.graph_management import RELATION
+from text_to_ontology.graph_management import RELATION, SRC
+from text_to_ontology.publication_sources import statement_uri
 from text_to_ontology.graph_store import GraphNames
 from text_to_ontology.link_check import add_expected_link
 from text_to_ontology.pipeline import (
@@ -153,7 +154,7 @@ class ProvisionalIdTest(Base):
                 return answer([entity("e1", "VAF", "Project")])
             return answer(
                 [entity("e1", "VAF", "Project", existing_id=(
-                    "http://example.org/text-ontology/provisional/"
+                    "http://example.org/text-ontology/trace/provisional/"
                     "doc-0000000000000000/vaf")),
                  entity("e2", "Kafka", "Technology")],
                 [relation("e1", "uses technology", "e2")])
@@ -220,9 +221,10 @@ class LinkCheckTest(Base):
         summary = result.documents[0].link_check
         self.assertEqual(summary["gaps"], 1)
         self.assertEqual(len(summary["filled"]), 1)
-        provenance = self.store.get(self.names.provenance_graph)
-        self.assertTrue(any("link-" in str(term) for triple in provenance
-                            for term in triple))
+        # The filled link names the file it was found in.
+        node = statement_uri((project, RELATION["has-client"], client))
+        self.assertEqual(self.data().value(node, RDF.subject), project)
+        self.assertTrue(list(self.data().objects(node, SRC.fromFile)))
 
     def test_evidence_not_in_the_text_adds_nothing(self):
         self.link_answer = {"links": [{

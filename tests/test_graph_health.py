@@ -114,7 +114,7 @@ class FilesTest(unittest.TestCase):
         (folder / "a" / "new.md").write_text("new text", encoding="utf-8")
         provenance = Graph()
         seen = make_source_document("seen.md", "seen text")
-        provenance.add((URIRef("http://example.org/text-ontology/document/"
+        provenance.add((URIRef("http://example.org/text-ontology/trace/document/"
                                + seen.document_id), RDF.type, ONTO.Document))
         self.assertEqual(uncovered_sources(provenance, folder), ["a/new.md"])
 

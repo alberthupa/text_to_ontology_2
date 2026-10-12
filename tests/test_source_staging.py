@@ -35,12 +35,12 @@ class NamingTest(unittest.TestCase):
     def test_the_staging_name_is_stable_and_document_scoped(self):
         self.assertEqual(
             str(source_staging_graph_name("doc-abc")),
-            "http://example.org/text-ontology/staging/doc-abc")
+            "http://example.org/text-ontology/trace/staging/doc-abc")
 
     def test_the_candidate_name_pairs_document_and_window(self):
         self.assertEqual(
             str(window_candidate_graph_name("doc-abc", "win-123")),
-            "http://example.org/text-ontology/staging/doc-abc/win-123")
+            "http://example.org/text-ontology/trace/staging/doc-abc/win-123")
 
     def test_two_documents_never_share_a_staging_graph(self):
         self.assertNotEqual(source_staging_graph_name("doc-1"),
@@ -59,7 +59,7 @@ class ProvisionalAllocatorTest(unittest.TestCase):
     def test_allocations_are_deterministic_and_provisional(self):
         self.assertEqual(
             str(provisional_allocator("doc-1")("Acme Corp")),
-            "http://example.org/text-ontology/provisional/doc-1/acme-corp")
+            "http://example.org/text-ontology/trace/provisional/doc-1/acme-corp")
 
     def test_the_same_allocator_never_repeats_a_uri(self):
         allocate = provisional_allocator("doc-1")
@@ -99,7 +99,7 @@ class AdmissionTest(unittest.TestCase):
             self.provenance, "doc-1")
         self.assertEqual(
             plan["identities"]["e1"]["uri"],
-            URIRef("http://example.org/text-ontology/provisional/"
+            URIRef("http://example.org/text-ontology/trace/provisional/"
                    "doc-1/acme-corp"))
 
     def test_a_repeated_exact_name_from_an_earlier_window_resolves(self):

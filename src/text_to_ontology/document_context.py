@@ -23,7 +23,7 @@ from rdflib import Literal, URIRef
 from rdflib.namespace import RDF, RDFS, SKOS
 
 from .context_render import clean, field
-from .graph_management import ONTO
+from .graph_management import ONTO, SRC
 
 MAX_TITLE_CHARACTERS = 200
 MAX_ANCHORS = 8
@@ -182,26 +182,26 @@ def _folder(path):
     return PurePosixPath(str(path)).parent
 
 
-def folder_anchors(graph, provenance, vocabulary, source_path,
+def folder_anchors(graph, sources, vocabulary, source_path,
                    limit=MAX_FOLDER_ANCHORS):
     """Canonical anchor entities published from other files in this folder.
 
-    `graph` is the seed view (entities, kinds, names); `provenance` holds the
-    links every published entity carries (`onto:sourceFile` to a file record
-    with `onto:sourcePath`).
+    `graph` is the seed view (entities, kinds, names); `sources` is the data
+    graph, where every published entity carries `src:fromFile` to a file node
+    with `src:path`.
     """
     if not source_path:
         return []
     folder = _folder(source_path)
     files = {record for record, path
-             in provenance.subject_objects(ONTO.sourcePath)
+             in sources.subject_objects(SRC.path)
              if isinstance(path, Literal) and _folder(path) == folder
              and str(path) != str(source_path)}
     if not files:
         return []
     anchors = anchor_classes(vocabulary)
     counts = {}
-    for entity, record in provenance.subject_objects(ONTO.sourceFile):
+    for entity, record in sources.subject_objects(SRC.fromFile):
         if record in files and isinstance(entity, URIRef) \
                 and (entity, RDF.type, ONTO.Entity) in graph \
                 and is_anchor(graph, entity, vocabulary, anchors):

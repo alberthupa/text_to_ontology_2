@@ -11,7 +11,7 @@ from datetime import datetime
 from rdflib import BNode, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS
 
-from .graph_management import ONTO
+from .graph_management import ONTO, TRACE
 from .graph_patterns import eligible, usable_classes
 from .run_report import skeleton_label, skeleton_restriction
 from .task_context import local_name
@@ -23,11 +23,11 @@ METATYPES = {OWL.NamedIndividual, SKOS.Concept, OWL.Thing, RDFS.Resource}
 
 # The audit vocabulary written by merge_policy.py, read back here.
 EVENT_FIELDS = (
-    ("sourcePath", ONTO.sourcePath),
-    ("sourceSha256", ONTO.sourceSha256),
-    ("modelName", ONTO.modelName),
-    ("mergePolicyVersion", ONTO.mergePolicyVersion),
-    ("candidatePackageSha256", ONTO.candidatePackageSha256),
+    ("sourcePath", TRACE.sourcePath),
+    ("sourceSha256", TRACE.sourceSha256),
+    ("modelName", TRACE.modelName),
+    ("mergePolicyVersion", TRACE.mergePolicyVersion),
+    ("candidatePackageSha256", TRACE.candidatePackageSha256),
 )
 
 
@@ -232,7 +232,7 @@ def shape_entries(support):
 def event_entries(support):
     """One record per extraction run kept in the graph."""
     entries = []
-    for event in sorted(support.subjects(RDF.type, ONTO.ExtractionEvent), key=str):
+    for event in sorted(support.subjects(RDF.type, TRACE.ExtractionEvent), key=str):
         entry = {"uri": str(event), "id": local_name(event)[:12]}
         for name, predicate in EVENT_FIELDS:
             entry[name] = str(support.value(event, predicate) or "")
@@ -243,24 +243,24 @@ def event_entries(support):
 def candidate_entries(support):
     """Every extracted record with the decision the merge policy made on it."""
     entries = []
-    for node in sorted(support.subjects(RDF.type, ONTO.MergeCandidate), key=str):
-        event = support.value(node, ONTO.wasExtractedIn)
-        confidence = support.value(node, ONTO.extractionConfidence)
-        resolved = support.value(node, ONTO.resolvedEntity)
+    for node in sorted(support.subjects(RDF.type, TRACE.MergeCandidate), key=str):
+        event = support.value(node, TRACE.wasExtractedIn)
+        confidence = support.value(node, TRACE.extractionConfidence)
+        resolved = support.value(node, TRACE.resolvedEntity)
         statement = [support.value(node, part) for part
                      in (RDF.subject, RDF.predicate, RDF.object)]
         entries.append({
-            "section": str(support.value(node, ONTO.candidateSection) or ""),
-            "index": int(support.value(node, ONTO.candidateIndex) or 0),
-            "decision": str(support.value(node, ONTO.mergeDecision) or ""),
+            "section": str(support.value(node, TRACE.candidateSection) or ""),
+            "index": int(support.value(node, TRACE.candidateIndex) or 0),
+            "decision": str(support.value(node, TRACE.mergeDecision) or ""),
             "confidence": float(confidence) if confidence is not None else None,
             "reasons": sorted(str(reason) for reason
-                              in support.objects(node, ONTO.decisionReason)),
+                              in support.objects(node, TRACE.decisionReason)),
             "resolved": local_name(resolved) if resolved else "",
             "event": local_name(event)[:12] if event else "",
             "statement": " ".join(local_name(part) for part in statement
                                   if part is not None),
-            "candidate": readable_json(support.value(node, ONTO.normalizedCandidate)),
+            "candidate": readable_json(support.value(node, TRACE.normalizedCandidate)),
         })
     entries.sort(key=lambda entry: (entry["event"], entry["section"], entry["index"]))
     return entries

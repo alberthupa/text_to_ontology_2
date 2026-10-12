@@ -15,7 +15,7 @@ from text_to_ontology.document_context import (
     render_document_anchors,
     render_document_header,
 )
-from text_to_ontology.graph_management import CLASS, ONTO, RELATION
+from text_to_ontology.graph_management import CLASS, ONTO, RELATION, SRC
 from text_to_ontology.windowing import TextWindow
 
 TEXT = """# Backlog
@@ -112,8 +112,8 @@ class FolderTest(unittest.TestCase):
                 (near, "inbox/Farmexa/VAF/description.md", "f1"),
                 (far, "inbox/Else/x.md", "f2")):
             file_record = URIRef(f"http://example.org/file/{record}")
-            graph.add((file_record, ONTO.sourcePath, Literal(path)))
-            graph.add((entity, ONTO.sourceFile, file_record))
+            graph.add((file_record, SRC.path, Literal(path)))
+            graph.add((entity, SRC.fromFile, file_record))
         found = folder_anchors(graph, graph, vocabulary(),
                                "inbox/Farmexa/VAF/backlog.md")
         self.assertEqual(found, [near])
