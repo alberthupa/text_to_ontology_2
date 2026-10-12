@@ -228,7 +228,7 @@
       <span class="pill">depends on <b>rdflib + pyshacl</b></span>
       <span class="pill">LLM: <b>OpenRouter</b> or <b>Google</b> (LLM_PROVIDER)</span>
       <span class="pill">output: <b>ontology.trig</b></span>
-      <span class="pill"><b>49</b> test files · <b>1 072</b> tests</span>
+      <span class="pill"><b>50</b> test files · <b>1 082</b> tests</span>
     </div>
   </header>
 
@@ -301,17 +301,17 @@
           <li><span class="fn">repair.py</span><span class="desc">bounded self-repair of messy answers</span></li>
           <li><span class="fn">candidate_validation.py</span><span class="desc">validate + normalize + endpoint checks before planning</span></li>
           <li><span class="fn">link_check.py</span><span class="desc">data-only: one question per missing expected link</span></li>
-          <li><span class="fn">candidate_graph.py</span><span class="desc">package → PROV/DQV candidate RDF</span></li>
+          <li><span class="fn">candidate_graph.py</span><span class="desc">package → PROV/DQV candidate RDF (all under <code>trace:</code>)</span></li>
           <li><span class="fn">source_reconciliation.py</span><span class="desc">complete-document report + artifact</span></li>
           <li><span class="fn">source_validation.py</span><span class="desc">combined SHACL gate</span></li>
           <li><span class="fn">document_merge.py</span><span class="desc">one final identity/merge plan</span></li>
           <li><span class="fn">document_publication.py</span><span class="desc">proposed SHACL + atomic publication</span></li>
-          <li><span class="fn">publication_sources.py</span><span class="desc">document/file source links</span></li>
+          <li><span class="fn">publication_sources.py</span><span class="desc">which file said what: <code>src:</code> links in the data graph, <code>trace:</code> document records</span></li>
           <li><span class="fn">merge_policy.py</span><span class="desc">read-only merge planning + audit</span></li>
           <li><span class="fn">entity_lookup.py</span><span class="desc">identity decisions</span></li>
           <li><span class="fn">graph_merge.py</span><span class="desc">apply_merge_plan into a graph copy</span></li>
           <li><span class="fn">graph_store.py</span><span class="desc">named-graph store boundary + TriG persistence; refuses plain RDF</span></li>
-          <li><span class="fn">graph_management.py</span><span class="desc">legacy Turtle lifecycle + namespaces + seed</span></li>
+          <li><span class="fn">graph_management.py</span><span class="desc">legacy Turtle lifecycle + namespaces (business, <code>src:</code>, <code>trace:</code>) + seed</span></li>
           <li><span class="fn">run_report.py</span><span class="desc">terminal / verbose / Markdown reporting</span></li>
         </ul>
       </div>
@@ -344,6 +344,7 @@
         <li><span class="fn">starter.py</span><span class="desc">paste → one checked proposal → one atomic publication (text-to-ontology-starter)</span></li>
         <li><span class="fn">studio.py</span><span class="desc">local HTTP: the page, its two assets, and <code>/api/op/&lt;name&gt;</code> for every named operation (text-to-ontology-studio)</span></li>
         <li><span class="fn">ttl_to_trig.py</span><span class="desc">root script: turn a plain RDF ontology into a studio dataset (named graphs, own IRIs kept)</span></li>
+        <li><span class="fn">migrate_prefixes.py</span><span class="desc">root script: move a dataset made before the <code>src:</code>/<code>trace:</code> split to the new layout (<code>--keep-candidates</code> keeps the candidate evidence)</span></li>
         <li><span class="fn">frontend/triple-lens.html</span><span class="desc">the viewer page; the studio frontend is loaded beside it only when served</span></li>
         <li><span class="const">--data-only</span><span class="desc">CLI name for MergeConfig(require_declared_vocabulary=True)</span></li>
         <li><span class="const">studio</span><span class="desc">127.0.0.1:8765 (next free port when taken) · sources/inbox/ · reset = unlink dataset + inbox</span></li>
@@ -442,7 +443,7 @@
           <rect x="380" y="414" width="440" height="64" rx="10" fill="#1c2740" stroke="#5aa9ff"/>
           <text x="400" y="437" fill="#e7edf7" font-size="13.5">plan_window_admission → apply_merge_plan</text>
           <text x="400" y="457" fill="#93a2bf" font-size="11">against the source staging graph ONLY</text>
-          <text x="400" y="472" fill="#93a2bf" font-size="11">provisional IRIs · candidate graph saved as evidence</text>
+          <text x="400" y="472" fill="#93a2bf" font-size="11">provisional IRIs · candidate graph kept only with --trace</text>
 
           <rect x="380" y="496" width="440" height="64" rx="10" fill="#1c2740" stroke="#ffc46b"/>
           <text x="400" y="519" fill="#e7edf7" font-size="13.5">link_check · check_document_links()</text>
@@ -486,6 +487,9 @@
           <text x="840" y="614" fill="#b39cff" font-size="11.5">SourceValidationError /</text>
           <text x="840" y="629" fill="#b39cff" font-size="11.5">PublicationValidationError</text>
           <text x="840" y="644" fill="#5b6b85" font-size="11">stop before any write</text>
+          <text x="840" y="670" fill="#7ee0c0" font-size="11.5">data graph: triples ＋ src: file links</text>
+          <text x="840" y="686" fill="#5b6b85" font-size="11">provenance: trace: records;</text>
+          <text x="840" y="701" fill="#5b6b85" font-size="11">candidate evidence only with --trace</text>
         </g>
       </svg>
       <div class="legend">
@@ -517,7 +521,10 @@
         <div class="const-block"><span class="tag">details</span>
           args: <b>source</b> (required), <b>graph</b> (default <code>ontology.trig</code>), plus
           <code>-v</code>, <code>--report</code>, <code>--dry-run</code>, <code>--data-only</code>
-          (freeze the starter vocabulary), <code>--no-link-check</code>. Blank files are skipped.
+          (freeze the starter vocabulary), <code>--no-link-check</code>, <code>--trace</code>
+          (<code>ProcessingConfig(trace=True)</code>: also keep every model answer as candidate
+          evidence under <code>trace:candidate/</code> in the provenance graph; off by default,
+          and the studio uses the default). Blank files are skipped.
           Each complete document is staged, reconciled, SHACL-validated, merged once, and published
           as one atomic named-graph replacement bundle.
         </div>
@@ -569,7 +576,7 @@
         <ul class="members">
           <li><span class="fn">render_document_header(path, text, window, total)</span><span class="desc">path (relative to the source root), title, heading trail, "Window k of n"</span></li>
           <li><span class="fn">render_document_anchors(source_graph, vocabulary)</span><span class="desc">this document's anchor entities from earlier windows, with their links</span></li>
-          <li><span class="fn">folder_anchors(...) · render_folder_anchors(...)</span><span class="desc">anchor entities already published from other files in the same folder, with ids usable as <code>existing_id</code></span></li>
+          <li><span class="fn">folder_anchors(...) · render_folder_anchors(...)</span><span class="desc">anchor entities already published from other files in the same folder, with ids usable as <code>existing_id</code>; found through the data graph's <code>src:fromFile</code> → <code>src:path</code> links (the provenance graph is not read)</span></li>
           <li><span class="fn">anchor_classes(vocabulary)</span><span class="desc">every class that is the subject of a relationship — derived, nothing configured</span></li>
           <li><span class="const">MAX_ANCHORS / MAX_FOLDER_ANCHORS / MAX_LINKS_PER_ANCHOR</span><span class="desc">8 / 5 / 5</span></li>
         </ul>
@@ -632,7 +639,7 @@
 
       <div class="card">
         <h3><span class="badge gate">evidence</span> candidate_graph.py</h3>
-        <p class="what">One validated package → one deterministic, inspectable RDF candidate graph with assertion and evidence kept apart.</p>
+        <p class="what">One validated package → one deterministic, inspectable RDF candidate graph with assertion and evidence kept apart. Every IRI it mints is tracing: <code>trace:candidate/</code>, <code>window/</code>, <code>activity/</code>, <code>agent/</code>, <code>metric/</code>, <code>provisional/</code>. The pipeline always builds it (staging needs it); it reaches the provenance graph only with <code>--trace</code>.</p>
         <ul class="members">
           <li><span class="fn">build_candidate_graph(candidates, doc_id, window_id, activity_id, model, …)</span><span class="desc">prov:Collection records + rdf:Statement reification + DQV confidence</span></li>
           <li><span class="fn">provisional_entity_iri(doc_id, local_id)</span><span class="desc">stable provisional IRI</span></li>
@@ -653,7 +660,7 @@
         </ul>
         <div class="outcome"><span class="tag">decisions</span>
           <p class="line"><b>identity</b>: existing / new / review (close spelling never auto-merges) · <b>assertions</b>: accept / duplicate / review — below-threshold confidence goes to review; exact existing triples corroborate; functional conflicts review; existing labels/descriptions never overwritten.</p>
-          <p class="line"><b>audit</b>: <code>onto:ExtractionEvent</code> ＋ <code>onto:MergeCandidate</code> per record (sha-addressed URIs, no timestamps, no raw text) — always in the support partition.</p>
+          <p class="line"><b>audit</b>: <code>trace:ExtractionEvent</code> ＋ <code>trace:MergeCandidate</code> per record (with <code>trace:sourcePath</code>, <code>trace:modelName</code>, …; <code>trace:merge-event/</code>, <code>trace:merge-candidate/</code>, <code>trace:merge-proposed-entity/</code> IRIs; sha-addressed, no timestamps, no raw text) — always in the support partition.</p>
         </div>
       </div>
 
@@ -711,9 +718,10 @@
 
       <div class="card">
         <h3><span class="badge write">publish</span> document_publication.py</h3>
-        <p class="what">Compiles and atomically publishes one document-level publication: proposed SHACL, PROV/DQV remapping, review material, dry-run plan.</p>
+        <p class="what">Compiles and atomically publishes one document-level publication: proposed SHACL, source links, review material, dry-run plan. The data graph gets the accepted triples plus their <code>src:</code> links; the provenance graph always gets the <code>trace:document/</code> record, and the remapped PROV/DQV candidate evidence only when <code>trace</code> is on.</p>
         <ul class="members">
-          <li><span class="fn">compile_document_publication(document, merge, candidates, packages, plans, roles, names, shapes)</span><span class="desc">→ DocumentPublicationPlan (no mutation)</span></li>
+          <li><span class="fn">compile_document_publication(document, merge, candidates, packages, plans, roles, names, shapes, trace=False)</span><span class="desc">→ DocumentPublicationPlan (no mutation)</span></li>
+          <li><span class="fn">remap_candidate_evidence(...) · build_review_graph(...)</span><span class="desc">candidate evidence onto the decided statements (<code>--trace</code> only); withheld candidates as <code>trace:review/</code> records</span></li>
           <li><span class="fn">publish_document(store, plan)</span><span class="desc">the only final write: one <code>store.publish()</code></span></li>
           <li><span class="fn">initial_role_graphs / canonical_graph / shape_graphs</span><span class="desc">role readers</span></li>
           <li><span class="fn">LegacyTurtleDatasetStore</span><span class="desc">`.ttl` compatibility adapter</span></li>
@@ -723,11 +731,13 @@
 
       <div class="card">
         <h3><span class="badge write">sources</span> publication_sources.py</h3>
-        <p class="what">Materializes document/file source links and summaries for published statements and resources.</p>
+        <p class="what">Which source file said what. The business side goes into the data graph (<code>src:</code>); the run-history side goes into the provenance and review graphs (<code>trace:</code>). Only entities and their accepted or corroborated relations and facts get a link — never review, never classes or properties.</p>
         <ul class="members">
-          <li><span class="fn">source_records(graph, document)</span><span class="desc">onto:document + onto:source-file prov:Entity records</span></li>
-          <li><span class="fn">materialize_sources(graph, document, merge, canonical)</span><span class="desc">onto:statement/&lt;sha&gt; links + sourceDocument/sourceFile summaries</span></li>
-          <li><span class="fn">supported_triples(document_merge, canonical)</span><span class="desc">accepted/corroborated only — never review</span></li>
+          <li><span class="fn">source_attribution(document, merge, canonical)</span><span class="desc">data graph: one <code>src:file/&lt;sha256 of path&gt;</code> (<code>src:SourceFile</code>, label, <code>src:path</code>), <code>src:fromFile</code> on each entity, one <code>src:statement/&lt;sha256 of triple&gt;</code> (<code>rdf:Statement</code> + <code>src:fromFile</code>) per relation or fact</span></li>
+          <li><span class="fn">trace_sources(document, merge, canonical)</span><span class="desc">provenance graph: the <code>trace:document/&lt;id&gt;</code> record (<code>prov:Entity</code>, label, <code>trace:sourceFile</code> → <code>src:file</code>) and <code>trace:sourceDocument</code> on each published entity and <code>src:statement</code></span></li>
+          <li><span class="fn">link_statement_sources(graph, document)</span><span class="desc">point every reified evidence/review statement at its document and file</span></li>
+          <li><span class="fn">forget_statement(graph, triple)</span><span class="desc">drop the <code>src:statement</code> node of a removed triple</span></li>
+          <li><span class="fn">file_uri · statement_uri · document_uri</span><span class="desc">the stable IRIs (one file node per path, so re-ingesting an edited file adds no new node)</span></li>
         </ul>
       </div>
 
@@ -744,7 +754,7 @@
         </ul>
         <div class="const-block"><span class="tag">role graphs</span>
           <code>graphs/schema</code> · <code>graphs/shapes</code> · <code>graphs/data</code> (target) ·
-          <code>graphs/provenance</code> · <code>graphs/review</code> · staging under <code>graphs/staging/</code>
+          <code>graphs/provenance</code> · <code>graphs/review</code> · staging under <code>trace:staging/</code>
         </div>
       </div>
 
@@ -752,13 +762,16 @@
         <h3><span class="badge write">lifecycle</span> graph_management.py</h3>
         <p class="what">Legacy single-Turtle lifecycle and the shared namespaces/seed; owns the compatibility `.ttl` path and the viewer's Turtle reading.</p>
         <ul class="members">
-          <li><span class="fn">bind(graph)</span><span class="desc">bind the prefixes</span></li>
+          <li><span class="fn">bind(graph)</span><span class="desc">bind the prefixes (also <code>src</code>, <code>trace</code>, <code>prov</code>, <code>dqv</code>)</span></li>
+          <li><span class="fn">is_tracing(triple) · is_source_attribution(triple)</span><span class="desc">subject or predicate in <code>trace:</code> · in <code>src:</code></span></li>
           <li><span class="fn">open_graph(path) / seed_graph()</span><span class="desc">parse existing Turtle, else 8-triple seed</span></li>
           <li><span class="fn">save_graph(graph, path)</span><span class="desc">atomic temp sibling + os.replace</span></li>
           <li><span class="fn">LocalTurtleStore</span><span class="desc">load/save adapter for `.ttl` output</span></li>
         </ul>
         <div class="const-block"><span class="tag">namespaces</span>
-          <code>BASE</code>, <code>ONTO</code>, <code>ENTITY</code>, <code>CLASS</code>, <code>RELATION</code>, <code>FACT</code> — under <code>http://example.org/text-ontology/</code>
+          business: <code>BASE</code>, <code>ONTO</code>, <code>ENTITY</code>, <code>CLASS</code>, <code>RELATION</code>, <code>FACT</code> — under <code>http://example.org/text-ontology/</code> ·
+          source links: <code>SRC</code> = <code>…/source/</code> (<code>src:</code>) ·
+          tracing: <code>TRACE</code> = <code>…/trace/</code> (<code>trace:</code>) · <code>DQV</code> (W3C)
         </div>
       </div>
 
@@ -840,8 +853,8 @@
           <li><span class="fn">parse_patch(text)</span><span class="desc">additions, <code>- </code> removals, shared prefixes, comments</span></li>
           <li><span class="fn">preview(graph, text, source, allow_new_vocabulary, shapes)</span><span class="desc">→ Patch: triples, errors, warnings, stable patch_id</span></li>
           <li><span class="fn">check_patch(...)</span><span class="desc">new vocabulary (locked by default), undeclared use, class/property collision, SHACL as warnings</span></li>
-          <li><span class="fn">publication(store, names, patch)</span><span class="desc">target + provenance only: schema, shapes and review are never touched</span></li>
-          <li><span class="fn">provenance_for(patch)</span><span class="desc">one prov:Activity per edit, one rdf:Statement per triple, <code>prov:wasGeneratedBy</code> / <code>wasInvalidatedBy</code></span></li>
+          <li><span class="fn">publication(store, names, patch)</span><span class="desc">target + provenance only: schema, shapes and review are never touched; a removed triple also loses its <code>src:statement</code> node</span></li>
+          <li><span class="fn">provenance_for(patch)</span><span class="desc">all under <code>trace:edit/&lt;id&gt;</code>: one prov:Activity per edit, one rdf:Statement per triple (<code>…/added/</code>, <code>…/removed/</code>), <code>prov:wasGeneratedBy</code> / <code>wasInvalidatedBy</code></span></li>
           <li><span class="fn">fenced_turtle(answer) · data_turtle(graph)</span><span class="desc">find a proposal in an answer; show the editable graph</span></li>
         </ul>
         <div class="outcome"><span class="tag">safety</span>
@@ -931,10 +944,12 @@
       become <code>relation:*</code> <code>owl:ObjectProperty</code>s, and facts become
       <code>fact:*</code> <code>owl:DatatypeProperty</code>s. In data-only mode nothing is
       declared: the class and predicate IRIs come from the starter vocabulary (an imported
-      ontology keeps its own IRIs). The provenance graph keeps PROV/DQV candidate evidence
-      and <code>onto:statement/&lt;sha&gt;</code> source links; <code>onto:ExtractionEvent</code>
-      + <code>onto:MergeCandidate</code> audit records land in the support partition; withheld
-      candidates land in the review graph.
+      ontology keeps its own IRIs). The entity also gets <code>src:fromFile</code> in the data
+      graph, and each of its accepted relations and facts a <code>src:statement/&lt;sha&gt;</code>
+      node naming its files. The provenance graph keeps the <code>trace:document/</code> records
+      (and, with <code>--trace</code>, the PROV/DQV candidate evidence);
+      <code>trace:ExtractionEvent</code> + <code>trace:MergeCandidate</code> audit records land in
+      the support partition; withheld candidates land in the review graph.
     </div>
   </section>
 
@@ -954,7 +969,7 @@
           <li><span class="fn">store_roles(store, names)</span><span class="desc">every role graph of a store</span></li>
         </ul>
         <div class="outcome"><span class="tag">dropped</span>
-          <p class="line">provenance and review graphs, shapes, <code>owl:NamedIndividual</code> / <code>skos:Concept</code> bookkeeping types, statements with undeclared predicates. Identity planning still uses the full canonical scope.</p>
+          <p class="line">provenance and review graphs, shapes, every <code>src:</code> source link and <code>trace:</code> triple, <code>owl:NamedIndividual</code> / <code>skos:Concept</code> bookkeeping types, statements with undeclared predicates. Identity planning still uses the full canonical scope.</p>
         </div>
       </div>
 
@@ -1038,7 +1053,7 @@
     <div class="grid">
       <div class="card">
         <h3><span class="badge read">partition</span> graph_partition.py</h3>
-        <p class="what">Splits one source graph into <b>schema</b>, <b>instance</b>, and <b>support</b> views. Lossless and disjoint: every triple lands in exactly one view. Support also captures merge audit records and source metadata.</p>
+        <p class="what">Splits one source graph into <b>schema</b>, <b>instance</b>, and <b>support</b> views. Lossless and disjoint: every triple lands in exactly one view. Support also captures merge audit records and source metadata: a triple whose predicate is in <code>trace:</code> or <code>src:</code>, or whose subject is in <code>src:</code>, is support (a <code>trace:</code> subject alone is not, so staging's <code>trace:provisional/</code> entities stay instances).</p>
         <ul class="members">
           <li><span class="fn">partition_graph(source_graph)</span><span class="desc">→ <code>(schema, instance, support)</code></span></li>
           <li><span class="fn">choose_view(triple, …)</span><span class="desc">classify one triple by decreasing certainty</span></li>
@@ -1145,15 +1160,30 @@
       relationships. With data-only ingestion a text adds individuals and statements
       only, typed with those IRIs; in the permissive default new kinds become
       <code>class:*</code> and new predicates <code>relation:*</code> / <code>fact:*</code>.
-      Every accepted assertion carries provenance in <code>graphs/provenance</code>, and
-      withheld candidates land in <code>graphs/review</code>.
+      Every accepted entity, relation and fact names its source files in the data graph
+      (<code>src:</code>), the run history sits in <code>graphs/provenance</code>
+      (<code>trace:</code>), and withheld candidates land in <code>graphs/review</code>.
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3><span class="badge data">prefixes</span> three prefix families</h3>
+      <p class="what">Every IRI the app mints belongs to one of three families, so you can tell business data from bookkeeping by its prefix alone.</p>
+      <ul class="members">
+        <li><span class="fn">business</span><span class="desc"><code>onto:</code>, <code>entity:</code>, <code>class:</code>, <code>relation:</code>, <code>fact:</code> (or the starter's own IRIs) — what the texts say</span></li>
+        <li><span class="fn">src: (…/source/)</span><span class="desc">which file said it, kept in the data graph: <code>src:file/&lt;hash of path&gt;</code> (<code>src:path</code>, label), <code>src:fromFile</code> on entities, <code>src:statement/&lt;hash&gt;</code> per relation or fact</span></li>
+        <li><span class="fn">trace: (…/trace/)</span><span class="desc">how the run got there: <code>document/</code>, <code>candidate/</code>, <code>window/</code>, <code>activity/</code>, <code>agent/</code>, <code>metric/</code>, <code>provisional/</code>, <code>staging/</code>, <code>review/</code>, <code>merge-event/</code>, <code>merge-candidate/</code>, <code>merge-proposed-entity/</code>, <code>edit/</code>, and the merge-audit words (<code>trace:ExtractionEvent</code>, <code>trace:sourcePath</code>, …)</span></li>
+        <li><span class="const">filter rule</span><span class="desc">a triple is tracing when its subject or its predicate is in <code>trace:</code> (<code>graph_management.is_tracing</code>); drop those and only business data and source links are left</span></li>
+        <li><span class="const">--trace</span><span class="desc">the per-window candidate evidence (candidates, windows, activities, agents, DQV confidences) is written only with this flag — it used to be about 80% of a dataset</span></li>
+        <li><span class="const">old datasets</span><span class="desc"><code>python migrate_prefixes.py old.trig new.trig [--keep-candidates]</code>; on <code>ontology_bckp.trig</code>: 56 101 → 3 973 triples (47 466 with <code>--keep-candidates</code>), same health numbers and seed view</span></li>
+        <li><span class="const">viewer</span><span class="desc">the Triple Lens namespace filter shows all <code>trace:</code> IRIs as one entry and all <code>src:</code> IRIs as another</span></li>
+      </ul>
     </div>
   </section>
 
   <!-- 7. TESTS -->
   <section id="tests">
     <h2><span class="num">7</span> Tests — one file per module</h2>
-    <p class="lead">All <code>unittest</code>; 49 test files, 1 072 tests (8 currently error on the deleted <code>ontology.ttl</code>) — one per module or stage, plus a shared <code>store_contract.py</code> base and <code>connectivity_fixtures.py</code> (a scripted extractor for the data-only connectivity tests). They double as executable documentation of each function's contract.</p>
+    <p class="lead">All <code>unittest</code>; 50 test files, 1 082 tests (8 currently error on the deleted <code>ontology.ttl</code>) — one per module or stage, plus a shared <code>store_contract.py</code> base and <code>connectivity_fixtures.py</code> (a scripted extractor for the data-only connectivity tests). They double as executable documentation of each function's contract.</p>
     <div class="grid">
       <div class="card"><h3><span class="badge test">test</span> tests/test_pipeline.py</h3><p class="what">End-to-end run with a fake extractor: blank-file skip, document staging, windows, admission, reconciliation, source validation, one atomic publication per document, dry-run, retention, error paths, result dataclasses.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_pipeline_windowing.py</h3><p class="what">Long documents split into reproducible overlapping windows; every character accounted for; stable window IDs.</p></div>
@@ -1178,15 +1208,16 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_task_context.py</h3><p class="what">Tier order, name/label/alias matching, bounded expansion, restriction bundles, patterns, native vs generic cards, caps, determinism.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_context_render.py</h3><p class="what">Section order, declared vs observed, six restriction forms, defused delimiters, field truncation, existing_ids derivation, allowance never exceeded.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_prompt_budget.py</h3><p class="what">Estimator, allowance arithmetic, priority order, oversized items dropped whole, dependency bundles charged once, injected counters.</p></div>
-      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_partition.py</h3><p class="what">Role rules per triple, source/audit predicates, restrictions, remainder, lossless/disjoint/read-only invariants (sizes pinned on the frozen miniature).</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_partition.py</h3><p class="what">Role rules per triple, <code>src:</code>/<code>trace:</code> and audit triples as support, restrictions, remainder, lossless/disjoint/read-only invariants (sizes pinned on the frozen miniature).</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_graph_skeleton.py</h3><p class="what">Core retention, exclusion of instances/support, supported vs unsupported restrictions, no inference, subset invariant.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_graph_patterns.py</h3><p class="what">Class vs. literal vs. unknown ranges, counting, coverage/cardinality, most-specific class, exclusions, ordering, read-only.</p></div>
-      <div class="card"><h3><span class="badge test">test</span> tests/test_publication_sources.py</h3><p class="what">Document/file records, statement source links, resource summaries, review never gets sources.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_publication_sources.py</h3><p class="what">Entities, relations and facts name their files (<code>src:</code>), one file node per path, same name in two folders kept apart, withheld claims get no link, candidates kept only with <code>trace</code>, business data the same with or without it, every PROV/DQV triple is tracing, filtering <code>trace:</code> leaves business data and source links, source links are support.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_migrate_prefixes.py</h3><p class="what"><code>migrate_prefixes.py</code> on a miniature old dataset: source links land in the data graph, tracing moves under <code>trace:</code> and candidates are dropped, <code>--keep-candidates</code> keeps them under <code>trace:</code>.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_run_report.py</h3><p class="what">Reporter streams, Markdown blocks, checkpoint methods.</p></div>
-      <div class="card"><h3><span class="badge test">test</span> tests/test_cli.py</h3><p class="what">Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_cli.py</h3><p class="what">Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` / `--trace` wiring, exit codes.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_view_html.py</h3><p class="what">view_html.write_report renders view_report.build_report output as one self-contained page.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_install_smoke.py</h3><p class="what">The package imports and the console script is installed.</p></div>
-      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_edit.py</h3><p class="what">Patch parsing (additions, removals, shared prefixes, comments, a missing full stop, both parse errors), fenced Turtle blocks, preview (stable id, both sides of the diff, vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), provenance records matching the publishing statement IRIs, a publication touching only target and provenance, and the workspace operations end to end.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_graph_edit.py</h3><p class="what">Patch parsing (additions, removals, shared prefixes, comments, a missing full stop, both parse errors), fenced Turtle blocks, preview (stable id, both sides of the diff, vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), all edit evidence under <code>trace:</code>, a removed triple losing its <code>src:statement</code> node, a publication touching only target and provenance, and the workspace operations end to end.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_graph_chat.py</h3><p class="what">The scope selector (focus from the question, statements plus declarations, the cap with a reported dropped count, a hub not pushing the schema out, deterministic output, carry-over, an empty match, the TriG/view/model faces) and the chat (a turn answers from the subgraph, the transcript keeps it, history reaches the prompt, reset, an edited chat prompt, and the operations end to end).</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_prompts.py</h3><p class="what">The defaults and their validity; placeholder rules (required, unknown, bare $, escaped $$); the advisory checks; the override file (store, refuse, reload, reset, corrupt, stale); digests; and that an edited template reaches make_prompt, starter_prompt, and parse_source.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_vocabulary.py</h3><p class="what">read_vocabulary over the seed and a starter schema; slug-based declares_* matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI.</p></div>
@@ -1199,7 +1230,7 @@
       <div class="card"><h3><span class="badge test">test</span> tests/test_endpoint_checks.py</h3><p class="what">Domain and range mismatches for relations and facts, subclasses fitting a parent's domain, existing entities checked by their graph kind, and dropping only the wrongly connected records.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_link_check.py</h3><p class="what">Expected-link shapes (a warning, never a violation), gaps and their limit, passage selection under the cap, candidates, quoted evidence required, and the link-check template.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_graph_health.py</h3><p class="what">Each health number on a small graph (isolated, root-only, endpoint violations, missing links, duplicate suspects, uncovered sources, gold recall/precision) and the whole report from a file.</p></div>
-      <div class="card"><h3><span class="badge test">test</span> tests/test_seed_view.py</h3><p class="what">What the seed view keeps and drops, the <code>dataset</code> operation's seed/all views, and that the chat reads the seed view.</p></div>
+      <div class="card"><h3><span class="badge test">test</span> tests/test_seed_view.py</h3><p class="what">What the seed view keeps and drops (source links left out), the <code>dataset</code> operation's seed/all views, and that the chat reads the seed view.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_name_forms.py</h3><p class="what">Inflected names: same word with another ending, word-by-word comparison, context selection finds the existing card, identity held for review, other kinds not suggested.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_plain_rdf.py</h3><p class="what">A plain RDF file is refused by ingestion and the studio; <code>ttl_to_trig.py</code> splits classes into schema and individuals into data, needs <code>--force</code> to replace, and <code>--concepts-as-classes</code> turns SKOS concepts into classes.</p></div>
       <div class="card"><h3><span class="badge test">test</span> tests/test_llm_answer.py</h3><p class="what">The chat client without network: empty answers, OpenRouter default, Google settings, missing keys, unknown providers, model overrides, retries.</p></div>
@@ -1217,6 +1248,7 @@
 ├── <span class="py">view_ontology.py</span>            <span class="comment"># compatibility wrapper → text_to_ontology.view_ontology</span>
 ├── <span class="py">ttl_to_trig.py</span>              <span class="comment"># plain RDF ontology → studio dataset (named graphs)</span>
 ├── <span class="py">trig_to_ttl.py</span>              <span class="comment"># export the data graph of a .trig file as .ttl</span>
+├── <span class="py">migrate_prefixes.py</span>         <span class="comment"># old dataset → src:/trace: layout (--keep-candidates)</span>
 ├── <span class="data">ontology.trig</span>                <span class="comment"># default dataset: schema/shapes/data/prov/review</span>
 ├── <span class="data">ecmp_seed.ttl</span> · <span class="data">seed_ontology.trig</span>  <span class="comment"># example starter ontologies</span>
 ├── <span class="data">ontology_bckp.trig</span> · <span class="dir">backups/</span>   <span class="comment"># older dataset states</span>
@@ -1245,12 +1277,12 @@
 │   ├── <span class="py">source_validation.py</span>     <span class="comment"># combined SHACL gate (pySHACL)</span>
 │   ├── <span class="py">document_merge.py</span>        <span class="comment"># one final identity + merge plan per document</span>
 │   ├── <span class="py">document_publication.py</span>  <span class="comment"># proposed SHACL + atomic publication</span>
-│   ├── <span class="py">publication_sources.py</span>   <span class="comment"># document/file source links + summaries</span>
+│   ├── <span class="py">publication_sources.py</span>   <span class="comment"># src: source links (data) + trace: document records</span>
 │   ├── <span class="py">merge_policy.py</span>          <span class="comment"># [read-only] identity/acceptance planning + audit</span>
 │   ├── <span class="py">entity_lookup.py</span>         <span class="comment"># identity decisions (existing / new / review)</span>
 │   ├── <span class="py">graph_merge.py</span>           <span class="comment"># apply_merge_plan into a graph copy</span>
 │   ├── <span class="py">graph_store.py</span>           <span class="comment"># named-graph store boundary + TriG persistence</span>
-│   ├── <span class="py">graph_management.py</span>      <span class="comment"># legacy Turtle lifecycle + namespaces + seed</span>
+│   ├── <span class="py">graph_management.py</span>      <span class="comment"># legacy Turtle lifecycle + namespaces (src:, trace:) + seed</span>
 │   ├── <span class="py">seed_view.py</span>             <span class="comment"># [read-only] schema + business data only</span>
 │   ├── <span class="py">source_concepts.py</span>       <span class="comment"># [read-only] what a text mentions (no RDF)</span>
 │   ├── <span class="py">task_context.py</span>          <span class="comment"># [read-only] select task context</span>
@@ -1281,12 +1313,12 @@
     │   ├── <span class="test">miniature_repository.ttl</span>    <span class="comment"># frozen pins for partition/skeleton/patterns</span>
     │   ├── <span class="dir">documents/</span>                     <span class="comment"># windowing fixtures (crlf, unicode, long…)</span>
     │   └── <span class="dir">shacl/</span>                          <span class="comment"># SHACL shape fixtures</span>
-    └── <span class="test">test_*.py</span>                     <span class="comment"># 49 unittest modules</span>
+    └── <span class="test">test_*.py</span>                     <span class="comment"># 50 unittest modules (incl. test_migrate_prefixes.py)</span>
 </pre></div>
   </section>
 
   <footer>
-    Reconstructed from source code only (no docs consulted); checked against the code on branch <code>connectivity</code>. A static, self-contained HTML page.
+    Reconstructed from source code only (no docs consulted); checked against the code on branch <code>trace-prefixes</code>. A static, self-contained HTML page.
   </footer>
 
 </div>

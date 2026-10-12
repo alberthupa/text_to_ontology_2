@@ -23,9 +23,11 @@ Written: 2026-10-09, against branch `starter-ontology` (commit `77be670`).
   `document_context.render_document_anchors` puts them before the selected
   context, ordered by how many triples touch them in the staging graph (most
   linked first), then by name, at most 8.
-- **Provenance `onto:sourcePath` is unchanged** (the path as discovered). The
+- **The stored source path is unchanged** (the path as discovered). The
   path relative to the ingestion root (`RunRequest.source_root`) is used only
-  for the prompt header (P3-T1).
+  for the prompt header (P3-T1). Since commit `4417f54` that stored path is
+  `src:path` on one `src:file/<hash of path>` node in the **data graph**
+  (it was `onto:sourcePath` in the provenance graph).
 - **No `expected_links.py`.** `expected_link_shape`, `expected_links`,
   `add_expected_link`, and the `text-to-ontology-expect` command live in
   `link_check.py` (P5-T1). Shapes are named `onto:expected/<class>-<relation>`.
@@ -44,8 +46,12 @@ Written: 2026-10-09, against branch `starter-ontology` (commit `77be670`).
 - **Repair stays in `repair.py`**, which now also keeps the last parsed
   answer on its outcome, so the pipeline can drop wrongly connected records
   after repair (P2-T3).
-- **Same-folder anchors** (P6-T1) are ranked by how many `onto:sourceFile`
-  links from other files of the folder point at them, at most 5.
+- **Same-folder anchors** (P6-T1) are ranked by how many `src:fromFile`
+  links from other files of the folder point at them, at most 5. Since
+  commit `4417f54` they are read from the data graph
+  (`folder_anchors(graph, sources, vocabulary, source_path)`, `sources` =
+  the canonical data graph), not from the provenance graph; the plan text
+  below still uses the old `onto:sourceFile` / `onto:sourcePath` names.
 
 ## 1. The problem in one example
 

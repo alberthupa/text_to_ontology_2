@@ -20,6 +20,10 @@ identifier or a unique exact name/alias match resolves to the existing entity,
 an ambiguous or close-spelling match is held for review, and only confident,
 unambiguous records create new entities. The proposed data is SHACL-validated,
 then target, provenance, and review graphs are published in one atomic call.
+Every entity, relation, and fact in the data graph names the source file it
+came from (`src:`), and everything about *how* the run got there is under its
+own `trace:` prefix, so it is one filter away
+([Prefixes](#prefixes-business-sources-tracing)).
 
 ## Starter ontology, then data only
 
@@ -158,7 +162,9 @@ Only one job runs at a time, so graph writes never interleave.
    you previewed. New classes and relations are refused unless you tick
    *allow new classes and relations*, which keeps the same data-only rule
    ingestion follows. Every applied edit is recorded in the provenance graph as
-   one `prov:Activity` plus a statement record per triple.
+   one `prov:Activity` (`trace:edit/<id>`) plus a statement record per triple.
+   Removing a relation or fact also removes its `src:statement` node, so no
+   file is left claiming it.
 
    A chat answer that proposes a change comes back with the same preview
    attached: the answer's footer shows `proposed change: +N −M` with an **Apply
@@ -197,12 +203,14 @@ different lens page), `--no-browser`, and `--reset`.
 
 ## The seed view
 
-A dataset holds more than the business knowledge: provenance (which document
-supports which statement — by far the biggest part), review material, SHACL
-shapes, and bookkeeping types on every entity. The **seed view**
+A dataset holds more than the business knowledge: source links (`src:`),
+run tracing (`trace:`), review material, SHACL shapes, and bookkeeping types
+on every entity — see [Prefixes: business, sources, tracing](#prefixes-business-sources-tracing).
+The **seed view**
 (`src/text_to_ontology/seed_view.py`) is only what the seed ontology covers:
 the schema, every statement whose predicate the schema declares, `rdf:type` to
-a declared class, and the names, descriptions, and kind of each entity.
+a declared class, and the names, descriptions, and kind of each entity. Every
+`src:` and `trace:` triple is left out, so a prompt never sees file names.
 
 It is the one view used wherever the business ontology is read: the context
 of every extraction prompt, the graph chat, and the studio's graph view. The
@@ -287,6 +295,7 @@ python ttl_to_trig.py ecmp_seed.ttl ontology.trig --concepts-as-classes   # the 
 `trig_to_ttl.py` is the way back: it exports the data graph of each TriG file
 you name as Turtle, next to it with the same name
 (`python trig_to_ttl.py ontology.trig` writes `ontology.ttl`, replacing it).
+The data graph includes its `src:` source links.
 
 `seed_ontology.trig` is a ready dataset with only a schema and shapes (no
 data): copy it to `ontology.trig` to start ingesting without asking the model
@@ -440,6 +449,17 @@ terminal. The report includes the exact system and user messages sent to the
 extraction LLM. Generated reports are ignored by Git because
 they may be large and may contain source-derived information.
 
+Keep the full run tracing too — every window's answer as candidate records
+with PROV/DQV confidences (`trace:candidate/...`) in the provenance graph:
+
+```bash
+text-to-ontology documents/ ontology.trig --trace
+```
+
+Without `--trace` those records are not written. They were most of a dataset
+(about 80% of the triples) and nothing reads them back; the business data is
+exactly the same with or without the flag.
+
 Preview the exact plan and both SHACL results without writing final graphs:
 
 ```bash
@@ -478,12 +498,13 @@ print(result.triples, "triples in", result.graph_path)
 `ContextConfig` (the prompt budget), `ExtractionConfig` (repairs and the link
 check), `MergeConfig`, `ValidationConfig` (optional explicit SHACL shape
 graphs), `GraphNames`, `ProcessingConfig`, `prompts` (edited templates), and
-`dry_run`. Two switches worth knowing:
+`dry_run`. Three switches worth knowing:
 `MergeConfig(require_declared_vocabulary=True)` turns ingestion data-only, so
 the classes and relationships already declared are the only ones the model may
 use; `ProcessingConfig(retain_staging_on_failure=True)` exports a failed
 document's staging graphs to a sidecar TriG file next to the output graph for
-diagnosis (by default they are discarded).
+diagnosis (by default they are discarded); `ProcessingConfig(trace=True)` is
+`--trace`.
 When the model's answer is messy — unparseable JSON or a contract violation —
 it is sent back to the model for self-repair up to
 `ExtractionConfig(repair_attempts=...)` times (default 2; 0 disables repair)
@@ -548,37 +569,80 @@ disagreements with explicit functional constraints go to review rather than
 overwriting anything: existing canonical statements are never replaced
 automatically.
 
-Every valid extraction leaves independent standard PROV/DQV evidence in the
-provenance graph. Duplicate canonical assertions are not re-added, but each
-source/window confidence measurement remains separate. Withheld candidates are
-represented in the review graph. A validation or publication error leaves all
-final graphs unchanged. Each successful non-empty source document makes exactly
-one atomic publication call.
+Withheld candidates are represented in the review graph. A validation or
+publication error leaves all final graphs unchanged. Each successful non-empty
+source document makes exactly one atomic publication call.
 
-The provenance graph also contains direct source links:
+## Prefixes: business, sources, tracing
 
-- Documents are `prov:Entity` resources identified by content, with filenames
-  in `rdfs:label` and `onto:sourceFile` links to file records.
-- File records carry `rdfs:label` (filename) and `onto:sourcePath` (the input
-  path as supplied/discovered). Identical content in different files shares a
-  document but retains separate file records; changed content creates a new
-  document and file-version record.
-- Each published statement has a stable `onto:statement/<hash>` resource,
-  typed `rdf:Statement` and `prov:Entity`, with `rdf:subject`, `rdf:predicate`,
-  and `rdf:object`. Its `prov:wasDerivedFrom` and `onto:sourceFile` values
-  accumulate supporting documents and files across runs.
-- Domain instances, classes, and properties carry `onto:sourceDocument` and
-  `onto:sourceFile` summaries. These custom properties mean that information
-  about the resource was supported by the linked source; they do not mean
-  that every assertion about it came from every listed file.
+Everything the program writes falls in one of three prefix families, so the
+business data can be read on its own however the named graphs are used:
 
-Only accepted statements and corroborating duplicates contribute to these
-published summaries. Extraction and review statement records retain their own
-direct source links, including for withheld claims. Application-supplied root
-class declarations are excluded from document-source summaries. All source
-metadata stays in the provenance/review graphs in the same TriG file, and is
-classified as support metadata by the viewer. Existing datasets gain these
-links as documents are processed; old files are not automatically backfilled.
+| Prefix | IRI | What | Where |
+|---|---|---|---|
+| `onto:` `entity:` `class:` `relation:` `fact:` | `…/text-ontology/…` | the business data: what the texts say | schema and data graphs |
+| `src:` | `…/text-ontology/source/` | which file said it | data graph |
+| `trace:` | `…/text-ontology/trace/` | how the run got there: documents, review records, merge audit, edits, and (with `--trace`) candidates, windows, model calls, confidences | provenance and review graphs |
+
+**The filter rule is one sentence: a triple is tracing when its subject or its
+predicate is in `trace:`.** Drop those and what remains is business data plus
+its source links. In SPARQL:
+
+```sparql
+PREFIX trace: <http://example.org/text-ontology/trace/>
+SELECT ?s ?p ?o WHERE {
+  GRAPH ?g { ?s ?p ?o }
+  FILTER(!STRSTARTS(STR(?s), STR(trace:)) && !STRSTARTS(STR(?p), STR(trace:)))
+}
+```
+
+In Python it is `graph_management.is_tracing(triple)`; in the studio's graph
+view all `trace:` IRIs are one namespace filter entry, and all `src:` another.
+PROV and DQV terms only ever appear on `trace:` subjects.
+
+Source file names live with the facts, entities, and relations themselves:
+
+```turtle
+entity:acme  src:fromFile  src:file/9f3a… .
+
+src:file/9f3a…  a src:SourceFile ;
+    rdfs:label "notes.md" ;
+    src:path "client/acme/notes.md" .
+
+# a relation or fact is a triple, so it gets a statement node
+src:statement/c41e…  a rdf:Statement ;
+    rdf:subject entity:p1 ; rdf:predicate relation:has-client ;
+    rdf:object entity:acme ;
+    src:fromFile src:file/9f3a… , src:file/77b0… .
+```
+
+- There is one `src:file/<hash of path>` node per path: editing a file and
+  ingesting it again adds no new node. The same name in two folders is two
+  files.
+- Every published entity gets `src:fromFile`, and every accepted (or
+  corroborated) relation and fact gets a `src:statement/<hash of triple>` node.
+  Corroboration from another file just adds another `src:fromFile`.
+- Only accepted statements and corroborating duplicates get source links;
+  withheld claims stay in the review graph with their own `trace:` links.
+  Classes and properties are the starter's, not the texts', so they get none.
+- The *content version* of a file is tracing: `trace:document/<content id>`
+  (with `trace:sourceFile` to its `src:file`), and published entities and
+  statement nodes point to it with `trace:sourceDocument`.
+- Same-folder anchors read `src:fromFile` and `src:path` from the data graph,
+  so ingestion never reads the provenance graph.
+
+A dataset made before this layout keeps everything directly under `onto:`
+(`onto:sourceFile`, `onto:statement/…`, `onto:candidate/…`). Move it once with
+`migrate_prefixes.py`, which writes a new file and never touches the old one:
+
+```bash
+python migrate_prefixes.py ontology_old.trig ontology.trig
+python migrate_prefixes.py ontology_old.trig ontology.trig --keep-candidates
+```
+
+It drops the per-window candidate evidence unless `--keep-candidates` is given
+(as a run without `--trace` would). On `ontology_bckp.trig` it turns 56 101
+triples into 3 973, with the same health report and the same seed view.
 
 ## Files
 
@@ -587,6 +651,8 @@ The root scripts `ontology.py` and `view_ontology.py` are thin compatibility
 wrappers that call the packaged modules, so both old workflows keep working.
 `ttl_to_trig.py` turns a plain RDF file into a dataset, and `trig_to_ttl.py`
 exports the data graph back to Turtle (both need the installed package).
+`migrate_prefixes.py` moves a dataset made before the `src:`/`trace:` split to
+the new prefixes.
 
 The pipeline that runs when you invoke the program:
 
@@ -651,9 +717,11 @@ The pipeline that runs when you invoke the program:
 - `src/text_to_ontology/document_merge.py` — one complete-document candidate
   package and one canonical identity/merge planning pass
 - `src/text_to_ontology/document_publication.py` — proposed-data validation,
-  PROV/DQV remapping, review material, dry-run plan, and atomic publication
-- `src/text_to_ontology/publication_sources.py` — document/file metadata and
-  source summaries for published statements, instances, classes, and predicates
+  source links, review material, PROV/DQV candidate evidence (with `--trace`),
+  dry-run plan, and atomic publication
+- `src/text_to_ontology/publication_sources.py` — which file said what: the
+  `src:` file and statement nodes for the data graph, and the `trace:`
+  document records for the provenance graph
 - `src/text_to_ontology/windowing.py` — stable documents and reproducible
   overlapping text windows
 - `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and
@@ -661,7 +729,8 @@ The pipeline that runs when you invoke the program:
 - `src/text_to_ontology/graph_store.py` — the named-graph store behind one
   small API (get, put, query, one atomic `publish`), the graph names
   (`GraphNames`), and the refusal of plain RDF files
-- `src/text_to_ontology/graph_management.py` — the namespaces, the tiny initial
+- `src/text_to_ontology/graph_management.py` — the namespaces (business,
+  `src:`, `trace:`) with `is_tracing(triple)`, the tiny initial
   seed graph, and the legacy single-Turtle (`.ttl`) store
 - `src/text_to_ontology/llm.py` — the tiny chat client (OpenRouter or Google)
 

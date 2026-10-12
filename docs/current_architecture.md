@@ -3,7 +3,7 @@
 > Machine-readable architecture map. Reconstructed **from source code only** (no docs consulted).
 > Target audience: another AI/LLM agent that must navigate, modify, or extend this codebase.
 > All facts below are taken directly from the files; function signatures are quoted verbatim.
-> Last verified claim by claim against the code on 2026-10-12 (branch `connectivity`, commit `635c95c`).
+> Last verified claim by claim against the code on 2026-10-12 (branch `trace-prefixes`, commit `4417f54`).
 
 ## Current pipeline (post-M7, windowed document publication)
 
@@ -50,12 +50,13 @@ window. The pipeline is fully document-scoped:
    into one deduplicated document package and canonical identity is decided
    **once** against the full configured canonical scope (schema + data
    graphs), via the same read-only `plan_graph_merge` policy.
-8. **Publication** (`document_publication.py`) — PROV/DQV evidence is remapped
-   onto the decided canonical statements, document/file source records are
-   materialized, the proposed post-merge data is SHACL-validated, and target /
-   provenance / review graphs are replaced in **one atomic**
-   `store.publish(Publication(...))` call. `dry_run` returns the same plan
-   without the call.
+8. **Publication** (`document_publication.py`) — the accepted triples and
+   their `src:` source links (which file said what) go to the data graph, the
+   document record goes to the provenance graph (the full per-window PROV/DQV
+   candidate evidence too, but only with `--trace`), the proposed post-merge
+   data is SHACL-validated, and target / provenance / review graphs are
+   replaced in **one atomic** `store.publish(Publication(...))` call.
+   `dry_run` returns the same plan without the call.
 
 The default store is `RdflibGraphStore` persisted as TriG; graph roles come
 from `GraphNames`. A `.ttl` output path explicitly selects
@@ -184,6 +185,7 @@ text_to_ontology_2/
 ├── ontology.py                 # compatibility wrapper → text_to_ontology.cli:main
 ├── view_ontology.py            # compatibility wrapper → text_to_ontology.view_ontology:main
 ├── ttl_to_trig.py              # plain RDF file → studio dataset (named graphs), §4.37
+├── migrate_prefixes.py         # old dataset → the src:/trace: prefix layout, §4.37
 ├── trig_to_ttl.py              # export the target data graph of .trig files as .ttl, §4.37
 ├── ontology.trig               # default named-graph dataset (data, not code; §12)
 ├── ontology_bckp.trig          # a hand-kept older dataset copy (data)
@@ -207,7 +209,7 @@ text_to_ontology_2/
     │   ├── miniature_repository.ttl   # frozen graph for partition/skeleton/pattern pins
     │   ├── documents/                 # windowing fixtures (crlf, long, unicode, …)
     │   └── shacl/                     # SHACL shape fixtures for source validation
-    └── test_*.py               # 49 test modules (§13)
+    └── test_*.py               # 50 test modules (§13)
 ```
 
 Not tracked but used at run time: `sources/inbox/` (the studio drop zone,
@@ -237,7 +239,8 @@ Dependency: `rdflib>=7,<8` and `pyshacl>=0.30,<1` (pyproject.toml), Python 3.12+
 ```
 DEFAULT_GRAPH = Path("ontology.trig")
 def build_parser():   # argparse; source (required), graph (optional, default DEFAULT_GRAPH),
-                      # -v/--verbose, --report, --dry-run, --data-only, --no-link-check
+                      # -v/--verbose, --report, --dry-run, --data-only, --no-link-check,
+                      # --trace
 def main(argv=None):  # builds adapters, calls run_text_to_graph; on RuntimeError/OSError:
                       # reporter.failed(error), "Error: ..." to stderr, SystemExit(1)
 ```
@@ -253,6 +256,9 @@ def main(argv=None):  # builds adapters, calls run_text_to_graph; on RuntimeErro
   always runs this way.
 - `--no-link-check`: `ExtractionConfig(link_check=False)`; no expected-link
   questions after each document (§4.24).
+- `--trace`: `ProcessingConfig(trace=True)`; also keep every window's model
+  answer as candidate evidence (`trace:candidate/...`, PROV/DQV) in the
+  provenance graph. Off by default; the studio never sets it (§7.1).
 - `python -m text_to_ontology` runs the same `main` (`__main__.py`);
   `__init__.py` only holds `__version__ = "0.2.0"`.
 
@@ -292,7 +298,10 @@ Request dataclasses (all in `pipeline.py`):
   gate and to the document planner; classes and relationships the starter does
   not declare are validation errors, and no plan may declare a class or a
   property.
-- `ProcessingConfig` — `retain_staging_on_failure=False`.
+- `ProcessingConfig` — how much a run keeps for diagnosis:
+  `retain_staging_on_failure=False`, `trace=False` (with `trace`, the
+  per-window candidate evidence is written to the provenance graph; CLI
+  `--trace`; studio/workspace runs keep the default, off).
 - `ValidationConfig` — `shape_graphs=()` (explicit SHACL graphs; empty keeps
   role shapes / legacy embedded shapes).
 - `RunRequest` — `source`, `graph_path=Path("ontology.trig")`,
@@ -345,7 +354,7 @@ for index, path in enumerate(files, start=1):
     before_snapshot = final_graphs_snapshot(graph)
     staged = _process_document(document, request, context, extractor, reporter, vocabulary,
                                path=path, core_schema=core_schema, expected=expected,
-                               provenance=roles.get(names.provenance_graph))
+                               sources=canonical_graph(roles, names))  # data graph with src: links
     reconciliation = reconcile_document(document.document_id, staged.source_graph,
                                         staged.candidate_graphs, staged.admission_plans)
     artifact = build_source_artifact(document, staged.source_graph, request.windowing, models)
@@ -358,7 +367,8 @@ for index, path in enumerate(files, start=1):
                                          configuration={extraction_system_sha256,
                                                         extraction_user_sha256, schema_sha256})
     publication_plan = compile_document_publication(document, document_merge, staged.candidate_graphs,
-                                                    staged.packages, staged.admission_plans, roles, names, shapes)
+                                                    staged.packages, staged.admission_plans, roles, names, shapes,
+                                                    trace=request.processing.trace)
     if not publication_plan.proposed_validation.conforms: raise PublicationValidationError(publication_plan)
     if request.dry_run: reporter.dry_run(...)
     else: publish_document(store, publication_plan); reporter.saved(...)
@@ -368,12 +378,14 @@ return RunResult(...)
 ```
 
 `_process_document(document, request, final_graph, extractor, reporter,
-vocabulary=None, path=None, core_schema=None, expected=(), provenance=None)`
-— `final_graph` here is the seed view:
+vocabulary=None, path=None, core_schema=None, expected=(), sources=None)`
+— `final_graph` here is the seed view; `sources` (the data graph with its
+`src:` links) is read only to find what other files of the same folder
+contributed, so ingestion never reads the provenance graph:
 
 ```
 windows = plan_windows(document, request.windowing)
-fixed = _fixed_context(...)                 # _FixedContext(vocabulary, core_schema, display_path,
+fixed = _fixed_context(..., sources)        # _FixedContext(vocabulary, core_schema, display_path,
                                             #   window_total, folder_text, folder_ids); None outside data-only
 staging = RdflibGraphStore()
 staging.put(staging_name, Graph())          # source_staging_graph_name(document_id)
@@ -426,11 +438,19 @@ Named-graph *dataset* roles live in `graph_store.py`; this module keeps the
 compatibility single-Turtle path (used by `save_graph` in the `.ttl` adapter,
 by the viewer for Turtle files, and by `open_graph`/`LocalTurtleStore`).
 
-Namespaces (constants): `BASE = "http://example.org/text-ontology/"`,
-`ONTO`, `ENTITY` (`entity/`), `CLASS` (`class/`), `RELATION` (`relation/`),
-`FACT` (`fact/`).
+Namespaces (constants): `BASE = "http://example.org/text-ontology/"`;
+business data `ONTO`, `ENTITY` (`entity/`), `CLASS` (`class/`), `RELATION`
+(`relation/`), `FACT` (`fact/`); source attribution `SRC` (`source/`, prefix
+`src:`); tracing `TRACE` (`trace/`, prefix `trace:`); and `DQV`
+(`http://www.w3.org/ns/dqv#`, not bundled with rdflib). §7.1 explains the
+three prefix families.
 
-- `bind(graph)` — binds `onto, entity, class, relation, fact, owl, rdf, rdfs, sh, skos`.
+- `bind(graph)` — binds `onto, entity, class, relation, fact, src, trace, owl,
+  rdf, rdfs, sh, skos, prov, dqv`.
+- `is_tracing(triple)` — True when the subject **or** the predicate is in
+  `trace:`. This is the one filter rule for run tracing.
+- `is_source_attribution(triple)` — True when the subject or the predicate is
+  in `src:` (which file said what).
 - `open_graph(path)` — parse existing Turtle, else `seed_graph()`.
 - `seed_graph()` — 8 triples: `onto:ontology owl:Ontology`, `onto:Entity
   owl:Class` + `rdfs:label "Entity"`, `onto:EntityShape sh:NodeShape`,
@@ -464,7 +484,7 @@ The boundary domain modules see. `GraphStore` Protocol: `get(name)`,
 - `GraphNames` — role names (defaults): `schema_graphs=[.../graphs/schema]`,
   `shape_graphs=[.../graphs/shapes]`, `data_graphs=[]`, `target_graph=
   .../graphs/data`, `provenance_graph=.../graphs/provenance`, `review_graph=
-  .../graphs/review`, `staging_namespace=.../staging/`. `validate()` fails on
+  .../graphs/review`, `staging_namespace=.../trace/staging/`. `validate()` fails on
   duplicate roles or a staging namespace not ending in `/` or `#`.
   `source_staging_graph(document_id)` derives a document's staging name.
 - Migration/export helpers: `import_legacy_turtle(store, path, names)` (split a
@@ -618,10 +638,12 @@ exists in `entity_catalog(graph)` (with a kind-match check).
 
 ### 4.9 `candidate_graph.py` — one validated package → RDF candidate graph
 
-- Constants: `CANDIDATE_MAPPING_VERSION = 2`, `CANDIDATE_BASE`
-  (`http://example.org/text-ontology/`), `PROVISIONAL` namespace,
-  `EXTRACTION_CONFIDENCE_METRIC` (`.../metric/extraction-confidence`), DQV
-  namespace (not in rdflib).
+- Constants: `CANDIDATE_MAPPING_VERSION = 2`, `PROVISIONAL`
+  (`trace:provisional/`), `EXTRACTION_CONFIDENCE_METRIC`
+  (`trace:metric/extraction-confidence`). `DQV` is imported from
+  `graph_management` (and re-exported for `source_reconciliation`). Every IRI
+  this module mints is tracing: `trace:candidate/<doc>/<window>/<section>/<i>`,
+  `trace:document/`, `trace:window/`, `trace:activity/`, `trace:agent/`.
 - `literal_value(value)` — conservative typed literals; real ISO dates become
   `xsd:date`, booleans/ints/floats typed, everything else a plain string.
 - `provisional_entity_iri(document_id, local_id)` — the stable provisional IRI
@@ -631,20 +653,22 @@ exists in `entity_catalog(graph)` (with a kind-match check).
   every record becomes a `prov:Collection`; asserted triples are present AND
   reified as `rdf:Statement` members; per-record confidence is a
   `dqv:QualityMeasurement` (xsd:decimal) against the project `dqv:Metric`;
-  PROV-O chain: document → window → activity → `prov:SoftwareAgent`.
+  PROV-O chain: document → window → activity → `prov:SoftwareAgent`
+  (all `trace:` IRIs). The graph is published only with `--trace`
+  (`ProcessingConfig.trace`); staging and reconciliation always build it.
   Entities are typed with their kind class (not a `kind` string) with
   `skos/definition/altLabel`; relations/facts use `RELATION[slug]` /
   `FACT[slug]` IRIs. Same response always produces the same graph.
 
 ### 4.10 `source_staging.py` — one document, one provisional graph
 
-- `STAGING_NAMESPACE = CANDIDATE_BASE + "staging/"`.
+- `STAGING_NAMESPACE = TRACE + "staging/"` (`trace:staging/`).
 - `source_staging_graph_name(document_id)`, `window_candidate_graph_name(doc,
   window)` — stable graph names.
 - `window_activity_id(document_id, window_id, model, candidates)` — PROV
   activity ID (`sha256(...)[:16]`).
 - `provisional_allocator(document_id)` — slug-first `-2, -3, ...` allocation
-  inside `provisional/<doc>/`, so a staged entity can never claim a canonical
+  inside `trace:provisional/<doc>/`, so a staged entity can never claim a canonical
   identity.
 - `plan_window_admission(source_graph, candidates, provenance, document_id,
   min_new_confidence=0.80)` — `plan_graph_merge` against the source staging
@@ -699,7 +723,7 @@ Policy layer, unchanged in role but versioned 2. Constants:
 (`rdf:JSON`), `FUNCTIONAL` / `INVERSE_FUNCTIONAL`.
 
 - `canonical_json(value)` / `record_digest(record)` — the digest base.
-- `proposed_entity_uri(entity)` — `onto:merge-proposed-entity/<sha256>`, a
+- `proposed_entity_uri(entity)` — `trace:merge-proposed-entity/<sha256>`, a
   review-only provisional identity (never typed `onto:Entity`).
 - `build_provenance(source_path, source_text, model)` →
   `{source_path, source_sha256, model, policy_version}`.
@@ -727,10 +751,12 @@ a plan can only add individuals and statements. It also asks the vocabulary for
 the class and predicate IRIs, so ingestion follows an imported ontology's own
 names. Identity decisions and conflict handling are unchanged.
 
-**Audit vocabulary** (all under `onto:`; support partition; no timestamps, no
-raw source/prompt/response): `onto:ExtractionEvent` (sourcePath, sourceSha256,
-modelName, mergePolicyVersion, candidatePackageSha256) and
-`onto:MergeCandidate` (wasExtractedIn, candidateSection, candidateIndex,
+**Audit vocabulary** (all under `trace:`, types and predicates alike; support
+partition; no timestamps, no raw source/prompt/response):
+`trace:ExtractionEvent` at `trace:merge-event/<sha256>` (sourcePath,
+sourceSha256, modelName, mergePolicyVersion, candidatePackageSha256) and
+`trace:MergeCandidate` at `trace:merge-candidate/<event>/<section>-<i>-<digest>`
+(wasExtractedIn, candidateSection, candidateIndex,
 normalizedCandidate as `rdf:JSON`, extractionConfidence as `xsd:decimal`,
 mergeDecision, decisionReason per code, fieldDecisions for entities,
 resolvedEntity / proposedEntity, reified rdf:subject/predicate/object for
@@ -796,37 +822,67 @@ remains as a legacy wrapper.
   the target graph = the identity scope) / `shape_graphs(roles, names)` /
   `copy_graph` / `union_graphs`.
 - `compile_document_publication(document, document_merge, candidate_graphs,
-  packages, admission_plans, roles, names, validation_shapes=None)` — copies
-  the target graph, adds the plan's domain triples, remaps candidate evidence
-  onto decided canonical statements, materializes document/file source links,
-  builds the review graph, and SHACL-validates the proposed data (no mutation).
+  packages, admission_plans, roles, names, validation_shapes=None,
+  trace=False)` — copies the target graph, adds the plan's domain triples and
+  the `src:` source links (`source_attribution`) to it; the provenance graph
+  always gets `trace_sources` (the document record and which document
+  supported each published entity and statement); only with `trace` does it
+  also get the remapped per-window candidate evidence
+  (`remap_candidate_evidence`: candidates, windows, activities, agents, DQV
+  confidences, then `link_statement_sources`). It builds the review graph and
+  SHACL-validates the proposed data (no mutation).
   Its `Publication` carries every role: target, provenance, and review are
   new; schema, shapes, and data-graph roles are copied through unchanged.
 - `publish_document(store, plan)` — the one final `store.publish(...)`.
 - `remap_candidate_evidence` / `_copy_evidence` — every PROV/DQV occurrence is
-  kept while reified statements are remapped to their final identity.
+  kept while reified statements are remapped to their final identity (used
+  only with `trace`).
 - `build_review_graph(document, document_merge)` — withheld identities and
-  assertions as `prov:Collection` with `rdf:Statement` members and
-  `prov:wasDerivedFrom`.
+  assertions as `trace:review/<doc>/<digest>` `prov:Collection`s with
+  `rdf:Statement` members and `prov:wasDerivedFrom trace:document/<id>`;
+  `link_statement_sources` adds the document record and
+  `trace:sourceDocument` / `trace:sourceFile` to each statement.
 
-### 4.18 `publication_sources.py` — document/file source links + summaries
+### 4.18 `publication_sources.py` — which source file said what
 
-- `source_records(graph, document)` — `onto:document/<id>` and
-  `onto:source-file/<sha>` as `prov:Entity` records with `rdfs:label` and
-  (`onto:sourceFile` / `onto:sourcePath`). Content identity is separate from
-  file identity: identical content in different files shares a document but
-  keeps separate file records.
-  The file IRI digest is `sha256(document_id + "\n" + path)`.
-- `link_statement_sources(graph, document_uri, file_uri)` — attaches
-  `prov:wasDerivedFrom` + `onto:sourceFile` to evidence statements (skips the
-  app-supplied `onto:Entity` root).
-- `materialize_sources(graph, document, document_merge, canonical)` — for each
-  accepted/corroborated canonical triple, a stable `onto:statement/<sha>`
-  (`rdf:Statement` + `prov:Entity` reification) with derived-from/source-file;
-  domain individuals, classes, and properties receive `onto:sourceDocument` +
-  `onto:sourceFile` summaries.
-- `supported_triples(document_merge, canonical)` — only accepted, duplicate,
-  and corroborated triples (review never gets sources).
+Two sides (§7.1): **business** source links (`src:`) go to the data graph;
+**tracing** (`trace:`) goes to the provenance and review graphs.
+
+Stable IRIs:
+
+- `file_uri(document)` — `src:file/<sha256 of the path only>` (path =
+  `source_path or name`). One node per path, so re-ingesting an edited file
+  adds no new node; the same name in two folders gives two nodes.
+- `statement_uri(triple)` — `src:statement/<sha256 of the three terms' n3()>`.
+- `document_uri(document)` — `trace:document/<document_id>`: one *version* of
+  a file's content, which is run history.
+
+Business side (returned as a `Graph`, added to the target data graph):
+
+- `source_attribution(document, document_merge, canonical)` — the file node
+  (`a src:SourceFile`, `rdfs:label` file name, `src:path`); `src:fromFile`
+  on each published entity (`published_entities`: identity not `review`,
+  typed `onto:Entity` in `canonical`); and for each accepted or duplicate
+  relation/fact triple present in `canonical` (`published_statements`) one
+  `src:statement/<hash>` node (`a rdf:Statement`, `rdf:subject` /
+  `rdf:predicate` / `rdf:object`, `src:fromFile`). Classes and properties get
+  no source link (they are the starter's, not the texts'); withheld claims
+  get none either.
+- `forget_statement(graph, triple)` — removes the `src:statement` node of a
+  triple that was removed (used by `graph_edit.publication`).
+
+Tracing side:
+
+- `document_record(graph, document)` — adds `trace:document/<id>`
+  (`a prov:Entity`, `rdfs:label`, `trace:sourceFile` → the `src:file` node)
+  and returns its IRI.
+- `trace_sources(document, document_merge, canonical)` → `Graph`: the
+  document record plus `trace:sourceDocument` on every published entity and
+  `src:statement` node. Always written to provenance.
+- `link_statement_sources(graph, document)` — adds the document record and
+  `trace:sourceDocument` + `trace:sourceFile` to every reified
+  `rdf:Statement` of evidence or review (skips the app-supplied `onto:Entity`
+  root).
 
 ### 4.19 `run_report.py` — human-readable reporting
 
@@ -908,8 +964,8 @@ Two things apply in **every** run, not only data-only:
 The studio keeps dropped folder structure under `sources/inbox/`
 (`workspace._write_source` cleans each part and never leaves the inbox) and
 passes the inbox as `RunRequest.source_root`, so the header shows
-`client/project/notes.md`. Provenance `onto:sourcePath` is unchanged (the path
-as discovered). `graph_health.py` (§4.26) is the separate, read-only tool that
+`client/project/notes.md`. The `src:path` of the file node in the data graph
+is unchanged (the path as discovered). `graph_health.py` (§4.26) is the separate, read-only tool that
 measures the result.
 
 ### 4.22 `schema_context.py` — the whole starter schema as one prompt block
@@ -960,11 +1016,12 @@ Read-only. Constants: `MAX_TITLE_CHARACTERS = 200`, `MAX_ANCHORS = 8`,
   them), then by name. `render_document_anchors(source_graph, vocabulary)` —
   cards with name, kind, aliases and up to 5 links, **without** `id:` (reuse
   is by exact name + kind); `""` when there are none.
-- `folder_anchors(graph, provenance, vocabulary, source_path, limit=5)` —
-  canonical anchor entities whose `onto:sourceFile` record has an
-  `onto:sourcePath` in the same folder (the current file excluded), most
-  supporting links first. `render_folder_anchors(graph, entities)` — the same
-  cards **with** `id:`; the pipeline adds those ids to the allowed
+- `folder_anchors(graph, sources, vocabulary, source_path, limit=5)` —
+  canonical anchor entities whose `src:fromFile` node has a `src:path` in the
+  same folder (the current file excluded), most supporting links first.
+  `graph` is the seed view; `sources` is the data graph (the pipeline passes
+  `canonical_graph(roles, names)`), so the provenance graph is not read.
+  `render_folder_anchors(graph, entities)` — the same cards **with** `id:`; the pipeline adds those ids to the allowed
   `existing_ids`.
 
 ### 4.24 `link_check.py` — expected links, and one question per missing one
@@ -1023,26 +1080,28 @@ Read-only. `NAMING = {skos:prefLabel, skos:altLabel, skos:definition,
 rdfs:label, rdfs:comment, onto:kind}`.
 
 - `keep_in_seed(triple, declared_terms, declared_classes,
-  declared_properties)` — keeps a triple whose subject is a declared term, an
+  declared_properties)` — first drops every `src:` and `trace:` triple
+  (`is_source_attribution` / `is_tracing`: which file said it is not part of
+  what was said); then keeps a triple whose subject is a declared term, an
   `rdf:type` to a declared class, a `NAMING` triple, or a triple with a
   declared property.
 - `seed_graphs(roles, names)` → `{graph name: Graph}`: schema graphs whole;
   data and target graphs filtered by `keep_in_seed`, with "declared" read from
   schema + data (so legacy runs that declared in the data graph still work).
-  Provenance, review, shapes, `owl:NamedIndividual`, and `skos:Concept` types
-  are left out.
+  Provenance, review, shapes, `src:`/`trace:` triples, `owl:NamedIndividual`,
+  and `skos:Concept` types are left out.
 - `seed_view(roles, names)` — their union as one graph, prefixes bound.
 - `store_roles(store, names)` — every role graph of a store.
 
 Used by the pipeline (every prompt's context and the vocabulary; rebuilt
-after each publication; the provenance graph is passed separately to
-`folder_anchors`), `Workspace.seed_graph()` (the chat), and the `dataset`
+after each publication; the full data graph, with its `src:` links, is passed
+separately to `folder_anchors`), `Workspace.seed_graph()` (the chat), and the `dataset`
 operation's `view=seed` (default; `view=all` shows every role graph).
 
 ### 4.26 `graph_health.py` — connectivity numbers (`text-to-ontology-health`)
 
 Read-only: no model call, nothing written. Constants: `NAME_PREDICATES`
-(`skos:prefLabel`, `skos:altLabel`, `rdfs:label`), `DOCUMENT = onto:document/`.
+(`skos:prefLabel`, `skos:altLabel`, `rdfs:label`), `DOCUMENT = trace:document/`.
 
 - One function per number: `isolated_entities(data)`,
   `root_only_entities(data, vocabulary)`, `endpoint_violations(data,
@@ -1050,7 +1109,7 @@ Read-only: no model call, nothing written. Constants: `NAME_PREDICATES`
   from `link_check.expected_links`; there is no built-in list),
   `duplicate_suspects(data, vocabulary)` (`same_name_stem` on pairs of
   entities; compares every pair), `uncovered_sources(provenance, folder)`
-  (files whose `doc-<sha>` has no `onto:document/` record),
+  (files whose `doc-<sha>` has no `trace:document/` record in provenance),
   `gold_scores(data, vocabulary, gold_links)` → `{gold, found, recall,
   checked, correct, precision, missing}`.
 - `health_report(graph_path, sources=None, gold_path=None)` → dict; always
@@ -1247,8 +1306,8 @@ An edit is a patch written the way a person writes Turtle: additions are plain
 statements, removals are the same statement on a line that starts with `- `.
 Parsing alone never applies anything: `preview` parses and checks and returns a
 stable `patch_id`, and `apply` writes exactly the triples that were previewed.
-Constants: `EDIT_BASE` (`CANDIDATE_BASE + "edit/"` =
-`http://example.org/text-ontology/edit/`), `REMOVAL = "-"`,
+Constants: `EDIT_BASE` (`TRACE + "edit/"` =
+`http://example.org/text-ontology/trace/edit/`), `REMOVAL = "-"`,
 `PREVIEW_LIMIT = 40`, `VOCABULARY_TYPES`, `SYSTEM_NAMESPACES`.
 
 - `parse_patch(text)` → `(added, removed, errors)`. Prefix declarations are
@@ -1269,12 +1328,14 @@ Constants: `EDIT_BASE` (`CANDIDATE_BASE + "edit/"` =
   `Patch.summary()` (the plain record an operation returns).
 - `publication(store, names, patch)` → `(Publication, evidence)`: the target and
   provenance graphs only, so the schema, shapes, and review graphs are never
-  touched by an edit.
-- `provenance_for(patch, edit_iri=None)` → one `prov:Activity` per patch
-  (`onto:edit/<patch_id>`, labelled, with `onto:editSource`, `onto:editAdded`,
-  `onto:editRemoved`) and one `rdf:Statement` per added or removed triple
-  (`prov:wasGeneratedBy` / `prov:wasInvalidatedBy`), addressed by
-  `statement_uri(triple)` exactly as publishing addresses statements.
+  touched by an edit. A removed relation or fact also loses its
+  `src:statement` node (`publication_sources.forget_statement`).
+- `provenance_for(patch, edit_iri=None)` → `(edit_iri, evidence)`, all of it
+  under `trace:`: one `prov:Activity` per patch (`trace:edit/<patch_id>`,
+  labelled, with `trace:editSource`, `trace:editAdded`, `trace:editRemoved`)
+  and one `rdf:Statement` + `prov:Entity` per added or removed triple at
+  `trace:edit/<patch_id>/added|removed/<20-hex digest>`
+  (`prov:wasGeneratedBy` / `prov:wasInvalidatedBy`).
 - `fenced_turtle(text)` — every ```turtle / ```trig / bare ``` block of an
   answer, in order; this is how a chat answer's proposal is found.
 - `data_turtle(graph, limit=None)` — the editable part of the graph as Turtle
@@ -1436,7 +1497,12 @@ this section is the file-level detail of the frontend half.
   resolves names to nodes and keys to filters itself. `resetFilters` says "this
   is a fresh set of files", so a small scope does not inherit the hiding a big
   dataset needed (the lens re-picks its own defaults). The page also owns the
-  `#workspace` flex layout, so it renders standalone.
+  `#workspace` flex layout, so it renders standalone. Its
+  `FILTER_NAMESPACE_FAMILIES` list groups IRIs into one filter entry per
+  family: every `trace:` IRI (`/text-ontology/trace/`) is one entry and every
+  `src:` IRI (`/text-ontology/source/`) another; the older families
+  (`/review/`, `/candidate/`, `/source-file/`, ...) are kept for datasets made
+  before the split.
 - `frontend/studio.js` — the studio frontend: builds its own markup, talks
   only through named operations (`api/op/<name>`), and changes the picture only
   through the view API. It contains no domain logic, so a new backend
@@ -1528,6 +1594,22 @@ Read-only: the viewer never writes to a graph; only `--html` writes a file.
   `rdfs:label` from `skos:prefLabel` and `rdfs:comment` from
   `dct:description` (else `skos:definition`). Unlike the two wrappers it has
   no `sys.path` shim, so the package must be installed (`pip install -e .`).
+- `migrate_prefixes.py SOURCE OUTPUT [--keep-candidates]` — rewrites a
+  dataset made before the `src:`/`trace:` split (§7.1) into a new file:
+  entities with `onto:sourceFile` get `src:fromFile` to one `src:file/<hash
+  of path>` node per path, published relations/facts get `src:statement`
+  nodes (all in the data graph); candidates, windows, documents, review
+  records, merge audit, provisional, staging, and edits move under `trace:`
+  (old `onto:` tracing predicates and types too); the old
+  `onto:statement/...` and `onto:source-file/...` records in provenance are
+  dropped. The per-window candidate evidence (`candidate/`, `window/`,
+  `activity/`, `agent/`, `metric/`) is dropped unless `--keep-candidates`,
+  the same as a run without `--trace`. It refuses SOURCE == OUTPUT and an
+  existing OUTPUT, and has a `sys.path` shim. `migrate(store, names,
+  keep_candidates=False)` → `{graph name: Graph}`, read-only. On
+  `ontology_bckp.trig` it gives 56 101 → 3 973 triples (47 466 with
+  `--keep-candidates`); the health report and the seed view are identical
+  before and after.
 - `trig_to_ttl.py FILE.trig [...]` — writes the hard-coded target data graph
   (`.../graphs/data`) of each file to `<same name>.ttl`, overwriting it
   (`export_data_graph(trig_path)`; `main` returns 2 without arguments).
@@ -1544,15 +1626,19 @@ through `task_context.build_task_context()` and
 
 ### 5.1 `graph_partition.py` — split one graph into 3 views
 
-Imports (rdflib only). Constants: `SCHEMA_TYPES`, `AUDIT_TYPES`
-(`onto:ExtractionEvent`, `onto:MergeCandidate`), `SOURCE_PREDICATES`
-(`onto:sourceDocument`, `onto:sourceFile`, `onto:sourcePath`), `SUPPORT_TYPES`
+Imports (rdflib only). Constants: `SCHEMA_TYPES`, `TRACE_NAMESPACE` /
+`SOURCE_NAMESPACE` (the `trace:` / `src:` strings, restated so the module
+depends on rdflib only), `AUDIT_TYPES` (`trace:ExtractionEvent`,
+`trace:MergeCandidate`), `SUPPORT_TYPES`
 (`OWL.Ontology`, `SH.NodeShape`, `SH.PropertyShape`), `SCHEMA_AXIOMS`,
 `ANNOTATIONS`, `RESTRICTION_TARGETS`.
 
 - `owned_nodes / support_roles / restriction_roles / schema_roles /
   instance_roles` — role sets.
-- `choose_view(triple, ...)` — priority: source predicates → support; subject
+- `choose_view(triple, ...)` — priority: a predicate in `trace:` or `src:`, or
+  a subject in `src:` → support (a `trace:` *subject* alone is **not**
+  enough: a staging graph's provisional entities are `trace:provisional/...`
+  and must stay instances for later windows); subject
   or object in support → support; opaque blank nodes → support; `rdf:type`
   schema/instance; restrictions → schema; schema axioms; annotations follow
   their subject's role; default = instance if the subject is an instance role
@@ -1660,7 +1746,7 @@ items).
 | `source_reconciliation` | `build_source_artifact(document, source_graph, windowing, models)` | `SourceGraphArtifact` |
 | `source_validation` | `validate_source_graph(source_graph, shapes)` | `SourceValidationResult` |
 | `document_merge` | `plan_document_merge(canonical_graph, document, packages, plans, conf, planner)` | document merge dict + `merge_plan` |
-| `document_publication` | `compile_document_publication(document, merge, candidates, packages, plans, roles, names, shapes)` | `DocumentPublicationPlan` |
+| `document_publication` | `compile_document_publication(document, merge, candidates, packages, plans, roles, names, shapes, trace=False)` | `DocumentPublicationPlan` |
 | `graph_store` | `RdflibGraphStore.publish(publication)` | atomic TriG persistence |
 | `merge_policy` | `plan_graph_merge(graph, candidates, provenance, ...)` | MergePlan (see 4.13) |
 | `entity_lookup` | `identity_decision(entity, catalog, ...)` | `{local_id, status, uri, method, identity_score, suggestions, reason_codes}` |
@@ -1673,7 +1759,7 @@ items).
 | `document_context` | `render_document_header(display_path, document_text, window, total)` | header text |
 | `document_context` | `document_anchors(source_graph, vocabulary, limit=8)` | list of entity IRIs |
 | `document_context` | `render_document_anchors(source_graph, vocabulary)` / `render_folder_anchors(graph, entities)` | block text, or `""` |
-| `document_context` | `folder_anchors(graph, provenance, vocabulary, source_path, limit=5)` | list of canonical entity IRIs |
+| `document_context` | `folder_anchors(graph, sources, vocabulary, source_path, limit=5)` | list of canonical entity IRIs (`sources` = the data graph) |
 | `seed_view` | `seed_graphs(roles, names)` / `store_roles(store, names)` | `{graph name: Graph}` |
 | `seed_view` | `seed_view(roles, names)` | one `Graph` |
 | `link_check` | `expected_links(shapes_graph)` | sorted `[{class, relation, question}]` |
@@ -1712,7 +1798,13 @@ items).
 | `operations` | `describe()` | `[{name, summary, args, background}]` |
 | `studio` | `Assets(page).body(path)` | `(bytes, content_type)` or `(None, None)` |
 | `studio` | `create_server(workspace, host, port, tries, assets)` | `StudioServer` (a `ThreadingHTTPServer`) |
-| `publication_sources` | `materialize_sources(graph, document, merge, canonical)` | None (mutates the evidence graph) |
+| `graph_management` | `is_tracing(triple)` / `is_source_attribution(triple)` | bool (subject or predicate in `trace:` / `src:`) |
+| `publication_sources` | `source_attribution(document, merge, canonical)` | new `Graph` of `src:` triples for the data graph |
+| `publication_sources` | `trace_sources(document, merge, canonical)` | new `Graph` of `trace:` triples for the provenance graph |
+| `publication_sources` | `link_statement_sources(graph, document)` | None (mutates the evidence/review graph) |
+| `publication_sources` | `file_uri(document)` / `statement_uri(triple)` / `document_uri(document)` | `src:file/<hash>` / `src:statement/<hash>` / `trace:document/<id>` |
+| `publication_sources` | `forget_statement(graph, triple)` | None (removes one `src:statement` node) |
+| `migrate_prefixes` (root script) | `migrate(store, names, keep_candidates=False)` | `{graph name: Graph}` in the new layout (read-only) |
 | `view_report` | `build_report(path, graph, views)` | plain report dict for the HTML page |
 | `view_html` | `write_report(path, graph, views, destination)` | writes one self-contained HTML page, returns `destination` |
 
@@ -1721,8 +1813,9 @@ items).
 ## 7. RDF dataset model (the named graphs)
 
 - **Roles** (`GraphNames`): `schema` (declared classes/properties), `shapes`
-  (SHACL shape graphs), `data` (target canonical data graph), `provenance`
-  (evidence + source links), `review` (withheld candidates). The
+  (SHACL shape graphs), `data` (target canonical data graph, with its `src:`
+  source links), `provenance` (`trace:` run tracing), `review` (withheld
+  candidates, `trace:` IRIs). The
   `entity:`/`class:`/`relation:`/`fact:` namespaces still name the resources
   inside the data graph (classes and properties keep an imported
   vocabulary's own IRIs, §4.20).
@@ -1730,8 +1823,9 @@ items).
   `onto:Entity`, `onto:EntityShape` (targets `onto:Entity`, requires
   `skos:prefLabel` minCount 1). Applied only when a store is wholly fresh.
 - **Staging** (never canonical, in-memory per document): a document's source
-  graph under `.../staging/<doc>` and per-window candidate graphs under
-  `.../staging/<doc>/<window>`; entities use `provisional/<doc>/...` IRIs.
+  graph under `trace:staging/<doc>` and per-window candidate graphs under
+  `trace:staging/<doc>/<window>`; entities use `trace:provisional/<doc>/...`
+  IRIs.
 - **Starter** (via `starter.starter_publication`, one atomic publication):
   `class:<slug>` `owl:Class` (+ label, comment, `rdfs:subClassOf onto:Entity`)
   in the schema graph, `relation:<slug>` `owl:ObjectProperty` and
@@ -1749,22 +1843,82 @@ items).
   itself is the only thing added, and every class/property declaration stays
   exactly as the starter wrote it (the schema and shapes graphs are copied
   through unchanged by every publication).
-- **Evidence** (provenance graph): per-record `prov:Collection` +
-  `rdf:Statement` reification + `dqv:QualityMeasurement` (xsd:decimal) + the
-  PROV chain; plus `onto:statement/<sha>` source links and
-  `onto:sourceDocument` / `onto:sourceFile` summaries (from
-  `publication_sources`).
-- **Audit** (support partition, via merge policy): `onto:ExtractionEvent` and
-  `onto:MergeCandidate` records (`rdf:JSON` normalized candidates, decimal
+- **Source links** (data graph, from `publication_sources.source_attribution`):
+  one `src:file/<hash of path>` node per source path (`a src:SourceFile`,
+  `rdfs:label`, `src:path`); `src:fromFile` on each published entity; one
+  `src:statement/<hash>` node (`a rdf:Statement` + subject/predicate/object +
+  `src:fromFile`) per published relation/fact. Classes and properties get none.
+- **Document records** (provenance graph, always): `trace:document/<id>`
+  (`prov:Entity`, label, `trace:sourceFile` → the `src:file` node) and
+  `trace:sourceDocument` on each published entity and `src:statement` node.
+- **Candidate evidence** (provenance graph, **only with `--trace`**):
+  per-record `trace:candidate/...` `prov:Collection` + `rdf:Statement`
+  reification + `dqv:QualityMeasurement` (xsd:decimal) + the PROV chain
+  (`trace:window/`, `trace:activity/`, `trace:agent/`,
+  `trace:metric/extraction-confidence`), with `trace:sourceDocument` /
+  `trace:sourceFile` on the statements.
+- **Audit** (support partition, via merge policy; written into the in-memory
+  staging graph by `apply_merge_plan`, not published by the pipeline; older
+  datasets may hold some): `trace:ExtractionEvent` and
+  `trace:MergeCandidate` records (`rdf:JSON` normalized candidates, decimal
   confidence, decision reasons; no timestamps, no raw text).
-- **Review graph**: withheld identities and assertions as `prov:Collection` +
-  reified statements + `prov:wasDerivedFrom` (from `build_review_graph`).
+- **Review graph**: withheld identities and assertions as `trace:review/...`
+  `prov:Collection` + reified statements + `prov:wasDerivedFrom` the
+  `trace:document/` record, which is also written there (from
+  `build_review_graph`).
 - **Expected links** (shapes graph, via `link_check.add_expected_link`):
   `onto:expected/<class>-<relation>` node shapes with one `sh:minCount 1`,
   `sh:severity sh:Warning` property rule and an `sh:message` question.
 - **Hand edits** (provenance graph, via `graph_edit`): one `prov:Activity`
-  `onto:edit/<patch_id>` per applied patch plus one `rdf:Statement` per added
-  or removed triple.
+  `trace:edit/<patch_id>` per applied patch plus one `rdf:Statement` per added
+  or removed triple under `trace:edit/<patch_id>/added|removed/`.
+
+### 7.1 Prefix families: business data, `src:`, `trace:`
+
+Every IRI the app mints belongs to one of three families (all under
+`BASE = http://example.org/text-ontology/`):
+
+| Family | Prefix (namespace) | What it is | Where it lives |
+|---|---|---|---|
+| Business data | `onto:` `entity:` `class:` `relation:` `fact:` (and an imported vocabulary's own IRIs) | what the texts say | schema, shapes, data graphs |
+| Source attribution | `src:` (`.../source/`) | which file said it | data graph, beside the business data |
+| Tracing | `trace:` (`.../trace/`) | how the run got there: candidates, windows, activities, agents, metric, documents, review records, merge audit, provisional and staging IRIs, edits | provenance and review graphs (and in-memory staging) |
+
+**The filter rule**: a triple is tracing when its **subject or its predicate**
+is in `trace:` (`graph_management.is_tracing`). Dropping every tracing triple
+loses no business data and no source link. `src:` triples are recognised the
+same way (`is_source_attribution`). The seed view (prompts, chat, studio
+`view=seed`) drops both families. Every PROV/DQV triple a run writes has a
+`trace:` subject or predicate, so it is tracing too (a test pins this).
+
+A short example of one published relation (data graph first, then provenance):
+
+```turtle
+# data graph: business data + src:
+entity:acme       a class:client ; skos:prefLabel "Acme" ;
+                  relation:uses entity:python ;
+                  src:fromFile src:file/9f2c... .
+src:file/9f2c...  a src:SourceFile ; rdfs:label "notes.md" ;
+                  src:path "client/project/notes.md" .
+src:statement/41d0...  a rdf:Statement ;
+                  rdf:subject entity:acme ; rdf:predicate relation:uses ;
+                  rdf:object entity:python ;
+                  src:fromFile src:file/9f2c... .
+
+# provenance graph: tracing
+trace:document/doc-1a2b...  a prov:Entity ; rdfs:label "notes.md" ;
+                  trace:sourceFile src:file/9f2c... .
+entity:acme       trace:sourceDocument trace:document/doc-1a2b... .
+src:statement/41d0...  trace:sourceDocument trace:document/doc-1a2b... .
+```
+
+The file node is keyed by the **path only**, so an edited file keeps its node;
+the document (`doc-<content hash>`) is one version of its content and is
+tracing. Without `--trace` a run writes only these document links to the
+provenance graph (hand edits add their own `trace:edit/` records); with
+`--trace` it also writes the per-window candidate evidence, which is most of a
+dataset's size. The data graph is the same either way.
+`migrate_prefixes.py` (§4.37) moves an older dataset to this layout.
 
 ---
 
@@ -1775,7 +1929,7 @@ Built from the `from .x import ...` lines of every module.
 ```
 __main__.py ──► cli
 cli.py ──► api (RunRequest, run_text_to_graph), graph_management (LocalTurtleStore),
-           llm (OpenRouterExtractor), pipeline (ExtractionConfig, MergeConfig),
+           llm (OpenRouterExtractor), pipeline (ExtractionConfig, MergeConfig, ProcessingConfig),
            run_report (RunReporter, default_report_path)
 api.py ──► graph_management, graph_store, document_publication, llm,
            source_reconciliation, source_validation, pipeline (re-exports; no logic)
@@ -1785,30 +1939,33 @@ pipeline.py ──► prompts, candidate_graph, candidate_validation (incl. drop
                 merge_policy, document_merge, document_publication, prompt_budget, repair,
                 run_report, schema_context, seed_view, source_parse, source_staging,
                 source_reconciliation, source_validation, task_context, vocabulary, windowing
-document_publication.py ──► candidate_graph (CANDIDATE_BASE, provisional_entity_iri),
-                            graph_management (seed_graph), graph_partition, publication_sources,
+document_publication.py ──► candidate_graph (provisional_entity_iri),
+                            graph_management (TRACE, seed_graph), graph_partition,
+                            publication_sources (document_uri, link_statement_sources,
+                            source_attribution, trace_sources),
                             graph_store (GraphNames, Publication, RdflibGraphStore),
                             source_validation (embedded_shape_graph, validate_source_graph)
 document_merge.py ──► candidate_graph (provisional_entity_iri), graph_merge (slug),
                       merge_policy (build_provenance, canonical_json, plan_graph_merge)
-source_staging.py ──► candidate_graph, context_render, merge_policy, graph_merge, prompt_budget,
+source_staging.py ──► candidate_graph (PROVISIONAL), context_render, merge_policy,
+                      graph_management (TRACE), graph_merge, prompt_budget,
                       graph_store (lazy, inside retain_staging)
 source_reconciliation.py ──► candidate_graph (CANDIDATE_MAPPING_VERSION, DQV), graph_management
 source_validation.py ──► (pySHACL only, imported lazily)
-merge_policy.py ──► entity_lookup, graph_management, graph_merge
+merge_policy.py ──► entity_lookup, graph_management (incl. TRACE), graph_merge
 entity_lookup.py ──► graph_management (ONTO), source_concepts (same_name_stem)
 graph_merge.py ──► entity_lookup, graph_management
 candidate_validation.py ──► candidate_graph (PROVISIONAL), entity_lookup, graph_management, graph_merge
-candidate_graph.py ──► graph_management (FACT, RELATION, bind), graph_merge (class_*, slug)
-publication_sources.py ──► entity_lookup (identity_key), graph_management (ONTO), graph_merge
+candidate_graph.py ──► graph_management (DQV, FACT, RELATION, TRACE, bind), graph_merge (class_*, slug)
+publication_sources.py ──► graph_management (ONTO, SRC, TRACE)
 graph_store.py ──► graph_management (bind), graph_partition (legacy import)
 vocabulary.py ──► graph_management (FACT, RELATION), graph_merge (class_uri, slug)
 repair.py ──► llm (InvalidResponseError)
 source_parse.py ──► prompts, llm (ask_llm)
 windowing.py ──► prompt_budget (estimate_tokens)
 schema_context.py ──► context_render (clean, field), graph_management (ONTO)
-document_context.py ──► context_render (clean, field), graph_management (ONTO)
-seed_view.py ──► graph_management (ONTO, bind), vocabulary
+document_context.py ──► context_render (clean, field), graph_management (ONTO, SRC)
+seed_view.py ──► graph_management (ONTO, bind, is_source_attribution, is_tracing), vocabulary
 link_check.py ──► prompts, candidate_validation, context_render, document_context, entity_lookup,
                   graph_management, graph_merge, graph_store, llm, prompt_budget,
                   source_concepts (normalize), vocabulary, windowing (TextWindow)
@@ -1820,8 +1977,8 @@ starter.py ──► prompts, document_publication (split_legacy_graph), graph_m
                vocabulary
 graph_scope.py ──► graph_management (BASE; CLASS/ENTITY/... lazily), prompt_budget, task_context
 graph_chat.py ──► graph_scope, prompts
-graph_edit.py ──► candidate_graph (CANDIDATE_BASE), graph_management, graph_store,
-                  source_validation, starter (parse_rdf), vocabulary
+graph_edit.py ──► graph_management (TRACE, bind), publication_sources (forget_statement),
+                  graph_store, source_validation, starter (parse_rdf), vocabulary
 workspace.py ──► graph_edit, document_publication (shape_graphs), graph_chat, graph_management (bind),
                  graph_store (incl. PlainRdfError, require_named_graphs), llm, pipeline, prompts,
                  run_report, starter, seed_view, vocabulary
@@ -1833,12 +1990,14 @@ context_render.py ──► prompt_budget, task_context (TEXT_PREDICATES, dataty
 ontology_views.py ──► graph_partition, graph_patterns, graph_skeleton
 graph_patterns.py ──► graph_management (ONTO)
 run_report.py ──► graph_partition, graph_skeleton, task_context (local_name)
-view_report.py ──► graph_management (ONTO), graph_patterns, run_report, task_context
+view_report.py ──► graph_management (ONTO, TRACE), graph_patterns, run_report, task_context
 view_html.py ──► view_report (build_report)
 view_ontology.py ──► graph_management (open_graph), graph_store (ReadOnlyGraphStore, RdflibGraphStore),
                      ontology_views, run_report, task_context, view_html
 root scripts: ontology.py → cli.main; view_ontology.py → view_ontology.main;
-              ttl_to_trig.py → graph_store, starter; trig_to_ttl.py → rdflib only
+              ttl_to_trig.py → graph_store, starter; trig_to_ttl.py → rdflib only;
+              migrate_prefixes.py → graph_management (BASE, ONTO, SRC, TRACE), graph_store,
+                                    publication_sources (statement_uri), vocabulary
 ```
 
 Deliberate seams: `source_concepts` / `prompt_budget` have no rdflib or `llm`;
@@ -1871,7 +2030,7 @@ source files ──► find_text_files / read_source ──► make_source_docum
                                                           undeclared class/predicate under data-only → error → window rejected;
                                                           only endpoint mismatches left → drop_endpoint_mismatches, window kept)
                                                           │
-                          plan_window_admission(source staging graph only; PROVISIONAL IRIs)
+                          plan_window_admission(source staging graph only; trace:provisional/ IRIs)
                                                           │
                           build_candidate_graph()  →  window candidate graph (evidence, kept)
                           apply_merge_plan()  →  source staging graph grows
@@ -1886,7 +2045,10 @@ source files ──► find_text_files / read_source ──► make_source_docum
               plan_document_merge(canonical scope, vocabulary)  →  identity decided ONCE
                                                           (accept/duplicate/review; no declarations in data-only mode)
                                                           │
-              compile_document_publication()  →  proposed target + remapped evidence + review graph
+              compile_document_publication()  →  proposed target (domain triples + src: source links)
+                                                  + provenance (trace:document records;
+                                                    candidate evidence only with --trace)
+                                                  + review graph (trace:review/)
               validate_source_graph(proposed data)  →  (non-conformance → PublicationValidationError)
                                                           │
          publish_document(store, plan)   ←── one atomic store.publish() replacing target/provenance/review
@@ -1908,6 +2070,7 @@ page + panel ──► GET  /api/op/status|dataset?view=seed|all|operations.list
              ──► POST /api/op/ingest {files} → {job_id} → sources/inbox/ → run_text_to_graph(data_only)
              ──► POST /api/op/chat.ask {message, budget} → {job_id} → graph_scope + graph_chat over the seed view
              ──► POST /api/op/edit.preview / edit.apply → graph_edit → one publication (target + provenance)
+             (studio ingestion keeps ProcessingConfig.trace off: no candidate evidence)
              (the transport only calls operations.call(workspace, name, payload))
 
 The three long jobs (starter, ingestion, chat) run in one background thread
@@ -1931,7 +2094,10 @@ publication only apply already-made decisions.
 | Item | Value |
 |---|---|
 | Base namespace | `http://example.org/text-ontology/` |
-| Role / resource namespaces | `entity/ class/ relation/ fact/ graphs/(schema\|shapes\|data\|provenance\|review\|scope) provisional/ metric/ staging/ edit/ expected/ document/ source-file/ statement/ merge-event/ merge-candidate/ merge-proposed-entity/` |
+| Business namespaces | `onto:` (base) `entity/ class/ relation/ fact/ expected/ graphs/(schema\|shapes\|data\|provenance\|review\|scope)` |
+| Source namespace `src:` | `source/` → `file/<sha256 of path>`, `statement/<sha256 of triple>`; terms `src:SourceFile`, `src:path`, `src:fromFile` |
+| Tracing namespace `trace:` | `trace/` → `candidate/ window/ activity/ agent/ metric/extraction-confidence document/ review/ provisional/ staging/ merge-event/ merge-candidate/ merge-proposed-entity/ edit/`; terms `trace:sourceDocument`, `trace:sourceFile`, the merge audit vocabulary (`ExtractionEvent`, `MergeCandidate`, `sourcePath`, ...), `editSource/editAdded/editRemoved` |
+| Tracing switch | `ProcessingConfig.trace` (default `False`), CLI `--trace`; candidate evidence is published only when on |
 | Default output dataset | `ontology.trig` (`.ttl` = explicit legacy Turtle compatibility) |
 | Window target / overlap | `800` / `100` tokens (`WINDOW_STRATEGY_VERSION = 2`) |
 | Document ID / window ID | `doc-<sha256[:16]>` / `win-<sha256[:16]>` |
@@ -1958,7 +2124,7 @@ publication only apply already-made decisions.
 | Studio polling | panel polls `progress {job}` (400 ms) while `running` is true |
 | Scope caps | `MAX_TRIPLES` 300, `MAX_TOKENS` 6000, `MAX_FOCUS` 20, `MAX_NAMES` 60, `SCOPE_FILE` `scope.trig`, `SCOPE_GRAPH` `.../graphs/scope`; studio subgraph sizes 2500 / 6000 / 12000 |
 | Chat session | `HISTORY_TURNS` 6, `MAX_TURNS` 200, `TRANSCRIPT_VIEWS` 20 |
-| Edits | `REMOVAL = "-"`, `PREVIEW_LIMIT` 40, `EDIT_BASE` `http://example.org/text-ontology/edit/`; the vocabulary is frozen unless `allow_new_vocabulary` |
+| Edits | `REMOVAL = "-"`, `PREVIEW_LIMIT` 40, `EDIT_BASE` `http://example.org/text-ontology/trace/edit/`; the vocabulary is frozen unless `allow_new_vocabulary` |
 | Prompt templates | `extraction_system`, `extraction_user`, `starter`, `link_check_user`, `chat_system`, `chat_user`; placeholders `context`, `text`, `min_classes`, `max_classes`, `xsd_names`, `question`, `relation`, `subject`, `candidates`, `passages`, `history`, `scope_note`, `subgraph`; digest 12 hex characters |
 | Prompt overrides | `prompts.local.json` beside the dataset (git-ignored); `{"version": 1, "prompts": {...}}`; only non-default entries are stored |
 | Console scripts | `text-to-ontology` (`cli:main`) · `text-to-ontology-starter` (`starter:main`) · `text-to-ontology-studio` (`studio:main`) · `text-to-ontology-health` (`graph_health:main`) · `text-to-ontology-expect` (`link_check:main`) |
@@ -2064,7 +2230,7 @@ Other dataset files in the repository, for comparison:
 | File | Graphs (triples) |
 |---|---|
 | `seed_ontology.trig` | schema 220 (5 classes incl. `onto:Entity`, 6 object + 34 datatype properties), shapes 5, provenance 1 |
-| `ontology_bckp.trig` | schema 226, shapes 12, data 1 294, provenance 53 713, review 856 |
+| `ontology_bckp.trig` | schema 226, shapes 12, data 1 294, provenance 53 713, review 856 (old layout, before `src:`/`trace:`; `migrate_prefixes.py` gives 3 973 triples, or 47 466 with `--keep-candidates`) |
 | `backups/ontology.init-schema-only.trig` | schema 226, shapes 12 |
 | `backups/ontology.2026-10-09.before-connectivity.trig` | schema 226, shapes 5, data 5 779, provenance 172 464, review 1 680 |
 
@@ -2104,12 +2270,13 @@ in `tests/fixtures/miniature_repository.ttl`, not on a live dataset.
 | `test_graph_partition.py` | Role rules per triple, source/audit predicates, restrictions, remainder, lossless/disjoint/read-only invariants (sizes pinned on the frozen miniature). |
 | `test_graph_skeleton.py` | Core retention, no inference, supported vs unsupported restrictions, subset invariant. |
 | `test_graph_patterns.py` | Class/literal/unknown ranges, counting, coverage/cardinality, most-specific class, exclusions, ordering, read-only. |
-| `test_publication_sources.py` | Document/file records, statement source links, resource summaries, review never gets sources. |
+| `test_publication_sources.py` | `SourceAttributionTest`: entities, relations, and facts name their files with `src:` in the data graph; one file node per path even when the content changes; the same file name in two folders keeps two nodes; withheld claims get no source link. `TracingTest`: candidates are kept only with `trace`; business data is identical with or without `trace`; every PROV/DQV triple is tracing; filtering `trace:` leaves only business data and source links; source links and `trace:` links are support when graphs are combined. |
+| `test_migrate_prefixes.py` | `migrate_prefixes.py` on a small old-layout dataset: source links land in the data graph, tracing moves under `trace:` and the candidates are dropped, `--keep-candidates` keeps them under `trace:`. |
 | `test_run_report.py` | Reporter streams, Markdown blocks, checkpoint methods. |
-| `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` wiring, exit codes. |
+| `test_cli.py` | Argument parsing, `.ttl` compatibility selection, `--report` / `--dry-run` / `--trace` wiring (`--trace` keeps the candidate evidence), exit codes. |
 | `test_view_html.py` | `view_html.write_report` renders `view_report.build_report` output as one self-contained page. |
 | `test_install_smoke.py` | The package imports and the console script is installed. |
-| `test_graph_edit.py` | Patch parsing (additions, removals, shared prefixes, a comment, a missing full stop, both kinds of parse error), fenced Turtle blocks, preview (stable id, both sides of the diff, new vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), the provenance records matching the publishing statement IRIs, the publication touching only target and provenance, and the workspace operations end to end (current, preview, apply, a refused patch never stored, the toggle travelling with the preview). |
+| `test_graph_edit.py` | Patch parsing (additions, removals, shared prefixes, a comment, a missing full stop, both kinds of parse error), fenced Turtle blocks, preview (stable id, both sides of the diff, new vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), all edit evidence being tracing (`trace:edit/...`), a removed triple losing its `src:statement` node, the publication touching only target and provenance, and the workspace operations end to end (current, preview, apply, a refused patch never stored, the toggle travelling with the preview). |
 | `test_graph_chat.py` | The scope selector: focus from the question, statements plus declarations, the triple cap with a reported `dropped`, a well-connected node not pushing the schema out, deterministic output, carry-over for a follow-up, an empty match, the TriG/view/model faces, and the summary. The chat: a turn answers from the subgraph, the transcript keeps each subgraph (bounded to the newest turns), history reaches the prompt, reset, an edited chat prompt, and the workspace operations end to end. |
 | `test_prompts.py` | Every default template is valid, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
@@ -2119,17 +2286,18 @@ in `tests/fixtures/miniature_repository.ttl`, not on a live dataset.
 | `test_studio.py` | Three layers in one file: `Workspace` status/dataset/reset/`_write_source` round trips, data-only ingestion and its error, and the job layer (progress from model calls and per-file/window checkpoints, a monotonic bar across several dropped files, a failed job finishing with its error, results handed only to the job that asked, one job at a time); the operation registry (manifest equals the registry, every operation answers plain JSON, unknown names raise, missing arguments are reported, a running job is refused); `Assets` (page + panel + styles served, traversal and unknown types refused); and the HTTP transport (`/`, `/studio.js`, `/studio.css`, `GET`/`POST /api/op/<name>`, 404 for unknown operations and old routes). |
 | `test_connectivity_pipeline.py` | Data-only ingestion end to end with a fake extractor: a window that matches nothing still sees the whole core schema, the run records `schema_sha256`, an old `extraction_user` override still works, every window carries path/title/earlier anchors, earlier-window entities show no temporary IRI (a copied one is cleared, not fatal), a wrong link is repaired first and dropped alone if still wrong, the link check fills a gap from quoted evidence / adds nothing for an unquoted or empty answer / makes no call without a gap / can be switched off, a canonical client is a candidate with its `id:`, and same-folder entities reach a later file's prompt and may be used as `existing_id`. |
 | `test_schema_context.py` | `render_core_schema`: every class/relation/fact once with its meaning, the root class last with its limit, order independent of triple order, graph text cannot forge prompt structure; `schema_digest` stable and schema-dependent. |
-| `test_document_context.py` | Title from a heading / first line / nothing, heading trail by level, the header lines, a path cannot forge a delimiter, anchor classes = subjects of relationships, anchors most linked first and at most 8, no anchors → no block, same-folder entities only from files in that folder. |
+| `test_document_context.py` | Title from a heading / first line / nothing, heading trail by level, the header lines, a path cannot forge a delimiter, anchor classes = subjects of relationships, anchors most linked first and at most 8, no anchors → no block, same-folder entities only from files in that folder (read from `src:path` / `src:fromFile`). |
 | `test_endpoint_checks.py` | Domain/range checks: declared direction passes, wrong subject/object class and a fact on the wrong class are mismatches, a subclass fits, an `existing_id` entity is checked by its graph kind, nothing new without a vocabulary, only the mismatched records are dropped, other errors keep the old behaviour; `read_vocabulary` reads domains, ranges, and parents. |
 | `test_link_check.py` | Expected-link shapes read back (a violation shape is not one), a missing expected link warns but conforms, `add_expected_link` checks names, gaps (with/without the link, closed by a canonical twin, the limit), passages (first window plus windows naming a name, in order, the cap), candidates (range class only, named first, canonical with id), a quoted link becomes an ordinary package, unquoted evidence or an unknown key is dropped, a shapeless answer is nothing, and the `link_check_user` template validates and previews. |
 | `test_name_forms.py` | `same_word_stem` / `same_name_stem` (same word with another ending, different words, word by word), an inflected name selects the existing card, an inflected form is held for review (`inflected_form`) only for the same kind, and an alias still resolves exactly. |
-| `test_seed_view.py` | The seed view keeps the schema whole, declared statements/names/kinds, drops bookkeeping and undeclared statements, leaves out provenance/review/shapes, counts declarations made in a data graph; `dataset` view `seed` is the default, `all` shows every named graph, an unknown view is a clear error, and the chat reads the seed view. |
+| `test_seed_view.py` | The seed view keeps the schema whole, declared statements/names/kinds, drops bookkeeping and undeclared statements, leaves out `src:` source links and provenance/review/shapes, counts declarations made in a data graph; `dataset` view `seed` is the default, `all` shows every named graph, an unknown view is a clear error, and the chat reads the seed view. |
 | `test_graph_health.py` | Each health number on a small graph: isolated and root-only entities, endpoint violations, missing expected links, duplicate suspects, gold recall/precision, uncovered sources, and the whole report from a file. |
 | `test_plain_rdf.py` | A plain RDF file saved as `.trig` is refused by ingestion and by the studio (`PlainRdfError`) and left alone; `ttl_to_trig.py`: classes to schema and individuals to data, `.trig` and `.ttl` sources split the same way, an existing output needs `--force`, a refused source never costs the existing output, the source is never the output, `--concepts-as-classes` (off by default) makes named, described classes with a hierarchy that can be an extracted kind, and a schema without a root class gets the "leave it out" rule. |
 
 **Running the tests**: `.venv/bin/python -m unittest discover -s tests -p
-'test_*.py'`. Status on 2026-10-12: `Ran 1072 tests`, `FAILED (errors=8,
-skipped=2)`.
+'test_*.py'` (50 test modules). Status on 2026-10-12 (commit `4417f54`):
+`Ran 1082 tests`, `FAILED (errors=8, skipped=2)` — only the 8 known errors
+below.
 
 **Known issue — 8 errors from a deleted file.** Eight tests still read the
 repository's `ontology.ttl`, which commit `b90acdf` deleted, and fail with
@@ -2145,15 +2313,17 @@ contract in those files passes. They need a new target (for example
 ## 14. Gotchas & non-obvious behavior (from source and tests)
 
 1. **Content identity ≠ file identity**: a document ID is a digest of its
-   normalized text. The same content in two files shares one document but keeps
-   two `onto:source-file` records; changed content creates a new document.
+   normalized text, but the `src:file` node is a digest of the **path only**.
+   The same content in two files shares one `trace:document/` record but keeps
+   two `src:file` nodes; changed content in the same file creates a new
+   document and keeps the same file node.
 2. **Windows are reproducible but not content-faithful slices**: they tile the
    normalized text (spans never drop or duplicate characters), but boundaries
    can fall mid-sentence; `window_id` depends on strategy version, target/
    overlap, tokenizer name, document ID, index, and offsets.
 3. **Staging never decides canonical identity**: `plan_window_admission` sees
-   only the source staging graph; new entities get `provisional/<doc>/...`
-   IRIs; canonical resolution happens once at document merge.
+   only the source staging graph; new entities get
+   `trace:provisional/<doc>/...` IRIs; canonical resolution happens once at document merge.
 4. **`existing_id` cannot resolve inside a window**: canonical resources are
    not in the staging graph, and source-local items are marked `native: False`
    and show no IRI, so nothing source-local can become a reusable
@@ -2175,8 +2345,10 @@ contract in those files passes. They need a new target (for example
    reported but never blocks; shapes come from `ValidationConfig.shape_graphs`,
    else the configured shape roles, else legacy embedded shapes.
 9. **Exact duplicates corroborate**: an existing exact triple is planned as
-   `duplicate` (any confidence) and is never re-added; each window's confidence
-   measurement stays as independent evidence in the provenance graph.
+   `duplicate` (any confidence) and is never re-added; with `--trace` each
+   window's confidence measurement stays as independent evidence in the
+   provenance graph, and either way the document gets its own `src:fromFile`
+   link on the existing `src:statement` node.
 10. **Confidence semantics**: `confidence` is the model's confidence that the
     source text directly supports the complete record — not identity
     confidence, not world truth. New assertions below `0.80` go to review.
@@ -2341,7 +2513,8 @@ contract in those files passes. They need a new target (for example
     and ignores junk, so a backend bug can mislead the picture but cannot break
     the viewer.
 45. **Prompts see the seed view, not the dataset**: provenance, review,
-    shapes, bookkeeping types, and statements with undeclared predicates never
+    shapes, `src:` source links, `trace:` tracing, bookkeeping types, and
+    statements with undeclared predicates never
     reach an extraction prompt or the chat. The core schema, the vocabulary,
     and every window's selection are read from `seed_view(roles, names)`,
     rebuilt after each publication; identity is still decided against the
@@ -2364,6 +2537,27 @@ contract in those files passes. They need a new target (for example
 49. **`RunResult.windows_processed` counts link-check packages too**: it adds
     `len(staged.packages)`, which includes the synthetic `link-<hash>`
     windows.
+50. **The `trace:` filter rule has one exception, in the partition**: a
+    triple is tracing when its subject *or* predicate is in `trace:`
+    (`is_tracing`, used by the seed view). `graph_partition.choose_view` is
+    stricter: only a `trace:`/`src:` *predicate* or a `src:` *subject* makes a
+    triple support. A `trace:` subject alone does not, because a staging
+    graph's provisional entities are `trace:provisional/...` and must stay
+    instances that a later window can see and reuse.
+51. **Candidate evidence is written only with `--trace`**: without it
+    (the default, and always in the studio) the provenance graph gets only the
+    `trace:document/` records and `trace:sourceDocument` links; the per-window
+    candidates, windows, activities, agents, and DQV confidences are built in
+    memory (staging, reconciliation, the failure sidecar) and then dropped.
+    The data graph is identical either way.
+52. **One `src:file` node per path, for good**: the file IRI hashes only the
+    path, so re-ingesting an edited file adds `src:fromFile` links to the same
+    node and never removes old ones; renaming or moving a file makes a new
+    node. Same-folder anchors (§4.23) read these `src:` links from the data
+    graph, so ingestion never reads the provenance graph.
+53. **A removed triple loses its source statement, not its entity links**: a
+    hand edit that removes a relation or fact also removes its
+    `src:statement` node; entity `src:fromFile` links stay.
 
 ---
 
