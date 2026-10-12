@@ -3,11 +3,12 @@
 > Machine-readable architecture map. Reconstructed **from source code only** (no docs consulted).
 > Target audience: another AI/LLM agent that must navigate, modify, or extend this codebase.
 > All facts below are taken directly from the files; function signatures are quoted verbatim.
+> Last verified claim by claim against the code on 2026-10-12 (branch `connectivity`, commit `635c95c`).
 
 ## Current pipeline (post-M7, windowed document publication)
 
-The executable is the packaged CLI; the root scripts `ontology.py` and
-`view_ontology.py` are thin compatibility wrappers that add `src/` to
+The executable is the packaged CLI (five console scripts, §10); the root
+scripts `ontology.py` and `view_ontology.py` are thin compatibility wrappers that add `src/` to
 `sys.path` and delegate to `text_to_ontology.cli:main` and
 `text_to_ontology.view_ontology:main`.
 
@@ -24,14 +25,21 @@ window. The pipeline is fully document-scoped:
    document's windows are processed (a triple-level snapshot is verified after
    every window).
 3. **Per-window extraction** (`pipeline._extract_window`) — context is
-   selected from the final ontology *and* from the staging graph (marked
-   `(this document)`), the prompt goes to the LLM, a messy answer is sent back
-   for bounded self-repair (`repair.py`), and the answer must pass
-   `candidate_validation` every time.
+   selected from the *seed view* of the final ontology (`seed_view.py`: the
+   schema plus declared statements and names) *and* from the staging graph
+   (marked `(this document)`), the prompt goes to the LLM, a messy answer is
+   sent back for bounded self-repair (`repair.py`), and the answer must pass
+   `candidate_validation` every time. In data-only mode every window also
+   carries the fixed blocks of §4.21 (document header, core schema, document
+   anchors, same-folder entities), and records that only break a declared
+   domain/range are dropped after repair instead of failing the window.
 4. **Window admission** (`pipeline._admit_window`) — the validated package is
    planned against the source staging graph only (provisional IRIs, never
    canonical identities) and admitted into the staging graph; the candidate RDF
    is kept alongside as evidence.
+   After the last window, data-only runs ask once per missing *expected
+   link* (`link_check.py`, §4.24); an accepted answer is admitted like one
+   more window.
 5. **Reconciliation** (`source_reconciliation.py`) — one plain report for the
    complete source graph: local entities, aliases, overlap duplicates with
    their independent PROV/DQV supports, unresolved identities, conflicts.
@@ -75,7 +83,12 @@ Around that pipeline sit two entry paths:
 Data-only mode (`MergeConfig(require_declared_vocabulary=True)`, CLI
 `--data-only`) is the lock that keeps the starter fixed: `vocabulary` reads the
 declared classes/relations/facts once per run, the validation gate rejects
-anything else, and merge planning adds no declaration of its own.
+anything else (including relations/facts between the wrong classes), and
+merge planning adds no declaration of its own.
+
+Two read-only tools sit beside the pipeline: `text-to-ontology-health`
+(`graph_health.py`, connectivity numbers) and `text-to-ontology-expect`
+(`link_check.py`, declare the expected links the link check looks for).
 
 ---
 
@@ -87,7 +100,7 @@ named-graph RDF dataset (`ontology.trig` by default: schema, shapes, target
 data, provenance, and review graphs). Re-running against the same dataset adds
 knowledge; identity resolution runs document-scoped and prevents duplicates.
 
-The codebase has three applied layers plus the packaged viewer:
+The codebase has four layers:
 
 1. **Write pipeline** — package modules that build and publish the dataset.
 2. **Context selection layer** — modules that pick, render, and budget the part
@@ -97,7 +110,7 @@ The codebase has three applied layers plus the packaged viewer:
    (`graph_partition`, `graph_skeleton`, `graph_patterns`, plus the
    `ontology_views` façade) used by the context layer and the viewer.
 4. **Viewer** — `view_ontology` / `view_report` / `view_html` render the same
-   read-only views to the terminal or one self-contained HTML page.
+   read-only views to the terminal or one self-contained HTML page (§4.36).
 
 Two optional front doors sit in front of that: the **starter**
 (`starter.py`: describe the world once, get the classes and relationships) and
@@ -106,7 +119,8 @@ the data-only path).
 
 The prompt no longer carries the whole entity catalog or every property label.
 It carries a layered selection (canonical + `(this document)` source-local)
-capped by a token ceiling (§10).
+capped by a token ceiling (§10); in data-only mode the whole core schema goes
+first instead of the word-matched schema (§4.22).
 
 ### 1.1 Frontend and backend: who owns what
 
@@ -130,7 +144,7 @@ capped by a token ceiling (§10).
    `{ok: false, error}` so a page can show the message instead of breaking.
 2. *Backend → frontend*: a declarative **view directive**
    `{replace, files: [{name, trig}], mode, focus, filters, hideIsolated,
-   clearFilters, resetFilters}`, applied by `window.__lens.applyView` (§4.29).
+   clearFilters, resetFilters}`, applied by `window.__lens.applyView` (§4.35).
 
 **What each side must never do.**
 
@@ -160,31 +174,57 @@ needs to know how the view is built.
 
 ## 2. Repository layout
 
+Tracked files (`git ls-files`), grouped:
+
 ```
 text_to_ontology_2/
-├── pyproject.toml              # package metadata + deps (rdflib, pyshacl)
+├── pyproject.toml              # package metadata, deps (rdflib, pyshacl), 5 console scripts
 ├── uv.lock                     # locked dependency versions
-├── ontology.py                 # compatibility wrapper → text_to_ontology.cli
-├── view_ontology.py            # compatibility wrapper → text_to_ontology.view_ontology
-├── trig_to_ttl.py              # export the data graph of a .trig file as .ttl
-├── ontology.trig               # default named-graph dataset (data, not code)
-├── ontology.ttl                # legacy Turtle export of the data graph
-├── reports/runs/               # --report Markdown output (git-ignored)
+├── README.md / AGENTS.md       # user guide / agent rules
+├── ontology.py                 # compatibility wrapper → text_to_ontology.cli:main
+├── view_ontology.py            # compatibility wrapper → text_to_ontology.view_ontology:main
+├── ttl_to_trig.py              # plain RDF file → studio dataset (named graphs), §4.37
+├── trig_to_ttl.py              # export the target data graph of .trig files as .ttl, §4.37
+├── ontology.trig               # default named-graph dataset (data, not code; §12)
+├── ontology_bckp.trig          # a hand-kept older dataset copy (data)
+├── seed_ontology.trig          # a starter schema (+ shapes) ready to copy in as a dataset
+├── ecmp_seed.ttl               # a plain-Turtle example vocabulary for the RDF import path
+├── backups/                    # dated dataset snapshots (.trig), data only
+├── eval/gold.example.json      # fictional gold links for `text-to-ontology-health --gold`
+├── reports/README.md           # what --report writes; reports/runs/ is git-ignored
 ├── frontend/triple-lens.html   # the viewer page (+ the view API; no studio code)
 ├── frontend/studio.js          # the studio frontend (loaded only when served)
 ├── frontend/studio.css         # its styles
 ├── scripts/install_smoke.sh    # wheel-into-a-clean-venv smoke test
-├── sources/inbox/              # studio drop zone for source files (git-ignored)
-├── docs/                       # this map + app_map.html + data_flow.html
-├── src/text_to_ontology/       # the importable package (44 .py files)
-└── tests/                      # unittest: one file per module + pipeline
+├── docs/                       # this map, app_map.html, data_flow.html,
+│                               # ingestion_connectivity_plan.md, backlog/, old/
+├── task.md, teaching_material.html, opencode.json, .opencode/   # notes and tool config
+├── src/text_to_ontology/       # the importable package (49 .py files)
+└── tests/                      # unittest
     ├── store_contract.py       # shared GraphStore contract test base
+    ├── connectivity_fixtures.py  # a small fictional starter (Project/Client/Technology)
     ├── fixtures/
     │   ├── miniature_repository.ttl   # frozen graph for partition/skeleton/pattern pins
     │   ├── documents/                 # windowing fixtures (crlf, long, unicode, …)
     │   └── shacl/                     # SHACL shape fixtures for source validation
-    └── test_*.py               # 35 test modules
+    └── test_*.py               # 49 test modules (§13)
 ```
+
+Not tracked but used at run time: `sources/inbox/` (the studio drop zone,
+git-ignored with everything under `sources/`), `prompts.local.json` (prompt
+overrides beside the dataset), `eval/*.local.json` (real gold links),
+`reports/runs/*.md`, and `.env`.
+
+Package modules (all in `src/text_to_ontology/`), by the section that
+describes them: `__init__` / `__main__` / `cli` / `api` / `pipeline` (§3);
+write pipeline §4.1–4.20; connectivity overview §4.21 and `schema_context`,
+`document_context`, `link_check`, `seed_view`, `graph_health` §4.22–4.26;
+`starter`, `prompts`, `graph_scope`, `graph_chat`, `graph_edit`,
+`workspace`, `operations`, `studio`, and the frontend §4.27–4.35; the viewer
+`view_ontology` / `view_report` / `view_html` §4.36; root scripts §4.37;
+read-only derivation and context layers (`graph_partition`,
+`graph_skeleton`, `graph_patterns`, `ontology_views`, `source_concepts`,
+`task_context`, `context_render`, `prompt_budget`) §5.
 
 Dependency: `rdflib>=7,<8` and `pyshacl>=0.30,<1` (pyproject.toml), Python 3.12+.
 
@@ -195,13 +235,14 @@ Dependency: `rdflib>=7,<8` and `pyshacl>=0.30,<1` (pyproject.toml), Python 3.12+
 ### 3.1 `cli.py`
 
 ```
-def build_parser():   # argparse; source (required), graph (default ontology.trig),
-                      # -v/--verbose, --report, --dry-run, --data-only
-def main(argv=None):  # builds adapters, calls run_text_to_graph, exit code 1 on
-                      # RuntimeError/OSError (printed to stderr)
+DEFAULT_GRAPH = Path("ontology.trig")
+def build_parser():   # argparse; source (required), graph (optional, default DEFAULT_GRAPH),
+                      # -v/--verbose, --report, --dry-run, --data-only, --no-link-check
+def main(argv=None):  # builds adapters, calls run_text_to_graph; on RuntimeError/OSError:
+                      # reporter.failed(error), "Error: ..." to stderr, SystemExit(1)
 ```
 
-- `graph` default: `Path("ontology.trig")`. If `args.graph.suffix == ".ttl"`,
+- If `args.graph.suffix.lower() == ".ttl"`,
   a `LocalTurtleStore` compatibility store is passed; otherwise `None` selects
   the default `RdflibGraphStore`.
 - `--report`: reporter is verbose and writes to a timestamped Markdown file
@@ -210,14 +251,27 @@ def main(argv=None):  # builds adapters, calls run_text_to_graph, exit code 1 on
 - `--data-only`: `MergeConfig(require_declared_vocabulary=True)`; ingestion may
   only use the vocabulary the starter ontology declares. `text_to_ontology.studio`
   always runs this way.
+- `--no-link-check`: `ExtractionConfig(link_check=False)`; no expected-link
+  questions after each document (§4.24).
+- `python -m text_to_ontology` runs the same `main` (`__main__.py`);
+  `__init__.py` only holds `__version__ = "0.2.0"`.
 
 ### 3.2 `api.py`
 
-One documented public function plus re-exported types (`__all__`):
+One documented public function plus re-exported types; no logic of its own.
 
 ```
 run_text_to_graph(request, graph_store=None, extractor=None, reporter=None) → RunResult
 ```
+
+`__all__` (22 names): the configs `ContextConfig`, `ExtractionConfig`,
+`MergeConfig`, `ProcessingConfig`, `ValidationConfig`, `WindowingConfig`;
+`RunRequest`, `RunResult`, `DocumentResult`, `DocumentPublicationPlan`,
+`SourceGraphArtifact`, `SourceValidationResult`; the errors
+`PublicationValidationError`, `SourceValidationError`; the adapters and
+stores `Extractor`, `Reporter`, `OpenRouterExtractor`, `GraphStore`,
+`GraphNames`, `LocalTurtleStore`, `RdflibGraphStore`; and
+`run_text_to_graph`. The module docstring holds a runnable minimal example.
 
 The CLI is a thin adapter over it. The core pipeline never parses arguments,
 reads environment variables, or exits the process.
@@ -229,7 +283,8 @@ Request dataclasses (all in `pipeline.py`):
 - `WindowingConfig` — `target_tokens=800`, `overlap_tokens=100`,
   `strategy_version=2`, `count_tokens=estimate_tokens`.
 - `ContextConfig` — `budget=dict(PROMPT_BUDGET)`.
-- `ExtractionConfig` — `model=None`, `repair_attempts=2`.
+- `ExtractionConfig` — `model=None`, `repair_attempts=2`, `link_check=True`,
+  `max_link_checks=MAX_LINK_CHECKS` (5).
 - `MergeConfig` — `min_auto_accept_confidence=0.80`,
   `require_declared_vocabulary=False`. With `require_declared_vocabulary`
   (data-only ingestion) the run reads the starter vocabulary once
@@ -240,32 +295,47 @@ Request dataclasses (all in `pipeline.py`):
 - `ProcessingConfig` — `retain_staging_on_failure=False`.
 - `ValidationConfig` — `shape_graphs=()` (explicit SHACL graphs; empty keeps
   role shapes / legacy embedded shapes).
-- `RunRequest` — `source`, `graph_path=Path("ontology.trig")`, the five configs,
-  `graph_names=GraphNames()`, `prompts=None` (a `prompts.PromptLibrary`; None
-  means the tested defaults), `dry_run=False`.
+- `RunRequest` — `source`, `graph_path=Path("ontology.trig")`,
+  `source_root=None` (the root that the prompt header's `Path:` is relative
+  to; default: the source directory, or a single file's folder), the six
+  configs, `graph_names=GraphNames()`, `prompts=None` (a
+  `prompts.PromptLibrary`; None means the tested defaults), `dry_run=False`.
+
 Result dataclasses:
 
 - `DocumentResult` — `path`, `document_id`, `source_artifact`,
-  `reconciliation_report`, `source_validation`, `publication_plan`,
-  `publication_validation`.
+  `reconciliation_report`, `source_validation`, `publication_plan=None`,
+  `publication_validation=None`, `link_check=None` (the link-check summary
+  `{gaps, filled, not_established, dropped}`).
 - `RunResult` — `graph_path`, `triples`, `files_total`, `files_saved`,
   `files_blank`, `windows_processed`, `documents`, `dry_run`.
 
 Adapters (Protocols, replaceable): `Extractor` (`model()`, `extract(prompt)`),
-`Reporter` (one method per checkpoint, see `run_report.RunReporter`). The
+`Reporter` (one method per checkpoint, including `link_check(summary)`; see
+`run_report.RunReporter`). The pipeline also calls `reporter.line(...)`
+(oversized core schema), which the Protocol does not declare.
+`budget_for(text, budget, fixed_extra_tokens=0)` fills in `source_tokens` and
+adds the fixed blocks' cost to `fixed_prompt_tokens`. The
 concrete extractor is `llm.OpenRouterExtractor`; a fake is used in tests. Check
 the store boundaries in `graph_store.GraphStore` / `graph_management.GraphStore`.
 
 `run_text_to_graph` control flow:
 
 ```
-extractor = extractor or OpenRouterExtractor(model=request.extraction.model)
+system_prompt = prompts.render("extraction_system", library=request.prompts)
+extractor = extractor or OpenRouterExtractor(model=request.extraction.model, system_prompt=system_prompt)
 reporter  = reporter or RunReporter()
+names.validate()
 store     = _final_store(graph_store, request)      # RdflibGraphStore or LegacyTurtleDatasetStore
+require_named_graphs(store, request.graph_path)      # PlainRdfError for a plain RDF file saved as .trig
 roles     = initial_role_graphs(store, names)        # read schema/shapes/data/provenance/review; seed if empty
 graph     = union_graphs(roles.values())
-vocabulary = read_vocabulary(graph) if request.merge.require_declared_vocabulary else None
-system_prompt = prompts.render("extraction_system", library=request.prompts)
+context   = seed_view(roles, names)                  # what every prompt may see (§4.25)
+vocabulary = read_vocabulary(context) if request.merge.require_declared_vocabulary else None
+schema_sha256 = schema_digest(schema role graphs)
+if vocabulary:                                       # data-only
+    core_schema = render_core_schema(context)        # None + reporter.line(...) when over schema_tokens
+    expected = expected_links(union of shape role graphs)
 files     = find_text_files(request.source, request.graph_path)
 if not files: raise RuntimeError("No text-like files found")
 for index, path in enumerate(files, start=1):
@@ -273,47 +343,68 @@ for index, path in enumerate(files, start=1):
     if not raw_text.strip(): reporter.blank_source(); blank_files += 1; continue
     document = make_source_document(path.name, raw_text, source_path=path.as_posix())
     before_snapshot = final_graphs_snapshot(graph)
-    staged = _process_document(document, request, graph, extractor, reporter, vocabulary)
+    staged = _process_document(document, request, context, extractor, reporter, vocabulary,
+                               path=path, core_schema=core_schema, expected=expected,
+                               provenance=roles.get(names.provenance_graph))
     reconciliation = reconcile_document(document.document_id, staged.source_graph,
                                         staged.candidate_graphs, staged.admission_plans)
     artifact = build_source_artifact(document, staged.source_graph, request.windowing, models)
     validation = validate_source_graph(staged.source_graph, _source_shape_graphs(...))
     if not validation.conforms: raise SourceValidationError(validation, artifact, reconciliation, sidecar)
-    assert final graph snapshot unchanged
+    if final_graphs_snapshot(graph) != before_snapshot: raise RuntimeError("...during source reconciliation")
     document_merge = plan_document_merge(canonical_graph(roles, names), document,
                                          staged.packages, staged.admission_plans, conf,
                                          planner=plan_graph_merge, vocabulary=vocabulary,
-                                         configuration={prompt digests})
+                                         configuration={extraction_system_sha256,
+                                                        extraction_user_sha256, schema_sha256})
     publication_plan = compile_document_publication(document, document_merge, staged.candidate_graphs,
                                                     staged.packages, staged.admission_plans, roles, names, shapes)
     if not publication_plan.proposed_validation.conforms: raise PublicationValidationError(publication_plan)
     if request.dry_run: reporter.dry_run(...)
     else: publish_document(store, publication_plan); reporter.saved(...)
     roles.update(publication_plan.publication.graphs); graph = union_graphs(roles.values())
+    context = seed_view(roles, names)
 return RunResult(...)
 ```
 
-`_process_document` (per document):
+`_process_document(document, request, final_graph, extractor, reporter,
+vocabulary=None, path=None, core_schema=None, expected=(), provenance=None)`
+— `final_graph` here is the seed view:
 
 ```
 windows = plan_windows(document, request.windowing)
+fixed = _fixed_context(...)                 # _FixedContext(vocabulary, core_schema, display_path,
+                                            #   window_total, folder_text, folder_ids); None outside data-only
 staging = RdflibGraphStore()
 staging.put(staging_name, Graph())          # source_staging_graph_name(document_id)
 source_graph = staging.get(staging_name)
 snapshot = final_graphs_snapshot(final_graph)
 for number, window in enumerate(windows, start=1):
-    model, candidates = _extract_window(window, ...)   # context → LLM → repair → validate
+    reporter.window_started(...)
+    model, candidates = _extract_window(window, ..., vocabulary, document, fixed)  # context → LLM → repair → validate
     source_graph, counts, plan = _admit_window(window, candidates, ...)
     if final_graphs_snapshot(final_graph) != snapshot: raise RuntimeError(...)
-    staging.put(staging_name, source_graph)
+    staging.put(staging_name, source_graph); reporter.window_admitted(...)
     packages.append((window, model, candidates)); admission_plans.append({window_id, plan})
+if fixed and expected and request.extraction.link_check:
+    link_packages, link_summary = check_document_links(...)       # §4.24
+    for window, candidates in link_packages: _admit_window(...); packages/admission_plans.append(...)
+    reporter.link_check(link_summary)
 on BaseException: if retain_staging_on_failure → retain_staging(...) sidecar; reporter.staging_failed; raise
 ```
 
-`_extract_window(..., vocabulary)`: builds canonical + source-local context via
-`_window_context` → `layered_context_text` → `make_prompt` →
-`extract_validated(extractor, prompt, validator, max_repair_attempts=...)` →
-`RuntimeError(repair/validation failure)` on failure.
+`_extract_window(..., vocabulary=None, document=None, fixed=None)`: builds the
+fixed blocks (`_fixed_blocks`: document header, core schema, document anchors,
+same-folder block; empty outside data-only), adds their estimated size to
+`fixed_prompt_tokens` via `budget_for`, then `_window_context` (canonical +
+source-local selection → `layered_context_text`, blocks placed first, the
+word-matched `declared` section dropped when a core schema is shown,
+same-folder ids added to `existing_ids`) → `make_prompt` →
+`extract_validated(extractor, prompt, validator, max_repair_attempts=...)`.
+If the answer is still invalid after repair, it parsed, and a vocabulary is
+set, `drop_endpoint_mismatches` removes only the domain/range-mismatched
+records and the rest is re-validated (`validation["dropped"]`). Any other
+failure is `RuntimeError(outcome.raw_problem or format_validation_failure(...))`.
 
 `_admit_window`: `build_provenance(Path(document.name), window.text, model)`
 + `window_id` ∈ provenance → `plan_window_admission(source_graph, candidates,
@@ -360,6 +451,8 @@ The boundary domain modules see. `GraphStore` Protocol: `get(name)`,
   `graphs` replaces complete named graphs; anything not mentioned is untouched.
   `_apply(dataset, publication)` removes each named graph's triples, adds the
   new ones, and `remove_graph` for deletions.
+- `graph_names()` (on `RdflibGraphStore`) lists only named graphs holding at
+  least one triple.
 - `RdflibGraphStore` — `Dataset(default_union=True)` in memory with the project
   prefixes bound (`graph_management.bind`) both on the dataset and on the
   serialization clone, so persisted TriG is readable; optional
@@ -377,12 +470,26 @@ The boundary domain modules see. `GraphStore` Protocol: `get(name)`,
 - Migration/export helpers: `import_legacy_turtle(store, path, names)` (split a
   legacy Turtle union into schema/target/provenance via `partition_graph`),
   `export_graph_turtle(store, name)`, `export_dataset(store, fmt=...)`.
+- `BASE_NAMESPACE = "http://example.org/text-ontology/"` (the role names
+  above hang under it).
+- **Plain RDF guard**: `PlainRdfError(RuntimeError)`; `unnamed_triples(store)`
+  counts triples in the default graph (0 when the store has no `.dataset`);
+  `require_named_graphs(store, path=None)` raises `PlainRdfError` when there
+  are any — a plain RDF file saved as `.trig` would otherwise read as empty
+  and the next publication (which serializes named graphs only) would drop
+  it. The message points at `python ttl_to_trig.py FILE NEW.trig`.
+  `run_text_to_graph` calls it before reading the roles;
+  `Workspace.require_dataset()` guards the dataset view, ingestion, the graph
+  editor, and the chat, and `Workspace.status()` reports the message as
+  `error`.
 
 ### 4.3 `ingest_sources.py` — source discovery + reading
 
-Identical contract to the earlier version; `TEXT_FILES` is unchanged.
+`TEXT_FILES = {.txt .md .rst .csv .json .jsonl .yaml .yml .xml .html .log}`
+(suffix compared lower-case).
 `find_text_files(source, graph_path)` accepts a directly-named file regardless
-of extension, or recursively sorted, extension-filtered, graph-excluded files.
+of extension, or recursively sorted, extension-filtered, graph-excluded files;
+a missing source is `RuntimeError("Source does not exist: ...")`.
 `read_source(path)` reads UTF-8 with `errors="replace"`.
 
 ### 4.4 `windowing.py` — stable documents and reproducible windows
@@ -402,7 +509,11 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
   yield `[]`; otherwise unit spans (blocks → sentences → hard chunks) are
   packed greedily with shared token overlap. Short documents get one
   `(0, len(text))` window. Window IDs are SHA-256 digests over strategy
-  version, target/overlap, tokenizer name, document ID, index, start, end.
+  version, target/overlap, tokenizer name, document ID, index, start, end
+  (`win-<sha256[:16]>`).
+- The pipeline calls `make_source_document(path.name, raw_text,
+  source_path=...)` without a media type, so pipeline documents are always
+  `text/plain`; `media_type_for` is not used by the pipeline.
 
 ### 4.5 `source_parse.py` — prompt builder
 
@@ -411,29 +522,36 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
 - `make_prompt(text, context_text="", library=None)` — renders the
   `extraction_user` template with `context` (the headed, explained context
   block) and `text`, so an edited prompt is used without this module changing.
-  The default wording is byte-identical to the pre-template version.
 - `parse_source(text, context_text="", library=None)` =
   `parse_prompt(make_prompt(...))`; `parse_prompt(prompt)` = `ask_llm(prompt)`.
 
 ### 4.6 `llm.py` — chat client, OpenRouter or Google (stdlib only)
 
+- Constants: `DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free"`,
+  `OLD_DEFAULT_MODEL = "qwen/qwen3.5-35b-a3b:nitro"` (kept for reference),
+  `MAX_OUTPUT_TOKENS = 4_096`, `SYSTEM_PROMPT = "Extract knowledge. Return
+  only JSON."`, `RETRY_STATUSES = {429, 500, 502, 503}`,
+  `RETRY_WAITS = (2, 5, 15)`.
 - `PROVIDERS` — one entry per provider: chat-completions URL, key variable,
   model variable, default model, extra headers. `openrouter`
   (`OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, default `DEFAULT_MODEL`,
   `X-OpenRouter-Title`) and `google` (the Gemini API's OpenAI-compatible
   endpoint; `GEMINI_API_KEY`, `GEMINI_MODEL`, default
   `gemini-3.1-flash-lite`). `provider_name()` reads `LLM_PROVIDER`
-  (default `openrouter`; an unknown name is a `RuntimeError`).
-- `load_env(path=Path(".env"))` — `KEY=value` lines, `setdefault`: a shell
-  variable wins over `.env`.
+  (default `openrouter`; an unknown name is a `RuntimeError`); `provider()`
+  returns that entry.
+- `load_env(path=None)` — `.env` in the working directory: `KEY=value` lines
+  (`#` comments skipped, a leading `export ` and surrounding quotes
+  stripped), `setdefault`: a shell variable wins over `.env`.
 - `model_name()` — the provider's model variable or its default;
-  `max_output_tokens()` — `OPENROUTER_MAX_TOKENS` or `MAX_OUTPUT_TOKENS`
-  (4,096), for both providers.
+  `max_output_tokens()` — the `OPENROUTER_MAX_TOKENS` variable, else the
+  `MAX_OUTPUT_TOKENS` constant (4,096), for both providers.
 - `ask_choice(prompt, system=None, model=None)` — the one request: `{"model",
   "temperature": 0, "max_tokens", "messages"}` plus, for Google,
   `reasoning_effort` from `GEMINI_REASONING_EFFORT` (default `none`; empty
-  sends nothing). Bearer key, timeout 60 s. HTTP 429/500/502/503 are retried
-  after 2, 5, and 15 s; any other HTTP error is a `RuntimeError`.
+  sends nothing). Bearer key (missing → `RuntimeError("Set <KEY> first")`),
+  timeout 60 s. HTTP 429/500/502/503 are retried after 2, 5, and 15 s; any
+  other HTTP error is `RuntimeError("<provider> error <code>: <message>")`.
 - `ask_llm(...)` — the JSON answer: an empty answer (a model that spent every
   token reasoning) or non-JSON raises `InvalidResponseError` (what
   `repair.py` catches); Markdown-fenced JSON is accepted. `ask_llm_text(...)`
@@ -455,14 +573,16 @@ Constants: `WINDOW_STRATEGY_VERSION = 2`, `DEFAULT_TARGET_TOKENS = 800`,
   `"entities", "relations", "facts"`; `starter.STARTER_SHAPE` is the starter
   contract).
 - `ExtractionOutcome` — `validation` (None when nothing parsed), `raw_problem`,
-  `repair_attempts`; `.ok` = parsed AND `validation["valid"]`.
+  `repair_attempts`, `response` (the last parsed answer, used by
+  `drop_endpoint_mismatches`); `.ok` = `raw_problem is None` AND
+  `validation["valid"]`.
 - `extract_validated(extractor, prompt, validate, max_repair_attempts=0,
   shape=EXTRACTION_SHAPE)` —
   extract, validate, and while the answer is unparseable/invalid and attempts
   remain, send a repair prompt and validate again. **Every** attempt passes the
   same `validate` gate (the pipeline passes `validate_candidates`).
 
-### 4.8 `candidate_validation.py` — validate + normalize (unchanged gate)
+### 4.8 `candidate_validation.py` — validate + normalize
 
 Read-only, fail-closed. Public contract:
 
@@ -474,12 +594,22 @@ Read-only, fail-closed. Public contract:
   `relation.undeclared_predicate`, and an undeclared fact is
   `fact.undeclared_predicate`; every message lists the declared names so the
   model can repair its answer.
+- With a `vocabulary` there is also an **endpoint check** (`_check_endpoints`,
+  pass 4b): a relation's subject/object and a fact's subject must have the
+  declared domain/range class or a subclass (an `existing_id` entity is
+  checked by its graph kind; a side with no declared domain/range is not
+  checked). Codes `relation.domain_mismatch`, `relation.range_mismatch`,
+  `fact.domain_mismatch` (`ENDPOINT_CODES`).
+- `drop_endpoint_mismatches(data, validation)` → `(kept_data, {"records":
+  [{section, record}], "messages": [...]})`, or `None` when any error other
+  than an endpoint mismatch is present.
 
 Normalization is conservative (NFKC, CRLF→LF, controls removed, one-line
 whitespace collapsed, descriptions/facts preserved, dates/numbers never
 coerced, fact JSON type part of the duplicate key). Passes: container →
 entity normalization + confidence (required in `[0,1]`, missing/invalid codes)
-→ relation/fact normalization → reference check → label/role/type collisions →
+→ relation/fact normalization → reference check → endpoint check (only with a
+vocabulary) → label/role/type collisions →
 exact dedupe (with `duplicate_confidence` lowering the kept value) →
 graph-URI role/type compatibility. Graph-exact assertions are deliberately
 **kept** so merge policy can plan corroboration and provenance. `existing_id`
@@ -511,8 +641,8 @@ exists in `entity_catalog(graph)` (with a kind-match check).
 - `STAGING_NAMESPACE = CANDIDATE_BASE + "staging/"`.
 - `source_staging_graph_name(document_id)`, `window_candidate_graph_name(doc,
   window)` — stable graph names.
-- `window_activity_id(document_id, window_id, model, candidates)` — SHA-256
-  PROV activity ID.
+- `window_activity_id(document_id, window_id, model, candidates)` — PROV
+  activity ID (`sha256(...)[:16]`).
 - `provisional_allocator(document_id)` — slug-first `-2, -3, ...` allocation
   inside `provisional/<doc>/`, so a staged entity can never claim a canonical
   identity.
@@ -524,7 +654,10 @@ exists in `entity_catalog(graph)` (with a kind-match check).
 - `layered_context_text(canonical_package, source_package, budget_config,
   count_tokens)` — renders canonical + source-local items as one block;
   source-local items are prefixed `(this document)` per line and their
-  resources forced `native: False` (never reusable `existing_id`). One shared
+  resources forced `native: False` and `hide_uri: True` (no provisional IRI is
+  shown, so it can never become an `existing_id`; reuse is by exact name and
+  kind). `existing_ids` come only from canonical native resources that
+  survived the budget. One shared
   budget (`allowance - assembly_overhead`) covers both; items drop whole,
   least relevant first.
 - `retain_staging(store, document_id, graph_path)` — exports a failed
@@ -555,7 +688,9 @@ exists in `entity_catalog(graph)` (with a kind-match check).
 - `combine_shape_graphs(shape_graphs)` — one isolated graph, blank nodes
   renamed per shape graph.
 - `validate_source_graph(source_graph, shape_graphs)` — pySHACL over a copy
-  (`inference="none"`, `abort_on_first=False`).
+  (`inference="none"`, `abort_on_first=False`, `allow_infos=False`,
+  `allow_warnings=True`: a `sh:Warning` result — such as an expected link,
+  §4.24 — is reported but never makes the graph non-conformant).
 
 ### 4.13 `merge_policy.py` — read-only merge planning
 
@@ -604,7 +739,7 @@ source path, source digest, model, window/document/config, and package digest;
 candidate URIs add section/index/record digest, so exact reruns reuse the same
 audit resources.
 
-### 4.14 `entity_lookup.py` — identity decisions (unchanged contract)
+### 4.14 `entity_lookup.py` — identity decisions
 
 `CLOSE_SPELLING_THRESHOLD = 0.96`; `identity_key` (lossy NFKD→ascii);
 `entity_catalog(graph)`; `identity_decision(entity, catalog,
@@ -612,8 +747,11 @@ planned_catalog=(), *, min_new_confidence=0.80, allocate_uri=None,
 provisional_uri=None)` → `{local_id, status, uri, method, identity_score,
 suggestions, reason_codes}`. Order: explicit id → unique same-kind exact
 (planned_exact/exact_name/exact_alias) → ambiguous-exact review →
-kind-collision review → close-spelling review-only suggestions → new (≥
-confidence) or below-threshold review with a provisional URI. `identify_entity`
+kind-collision review → close-spelling review-only suggestions →
+inflected-form review (`source_concepts.same_name_stem`, same kind only,
+method `inflected_form`, reason `identity.inflected_form`; never a merge) →
+new (≥ confidence) or below-threshold review
+(`identity.new_below_confidence`) with a provisional URI. `identify_entity`
 remains as a legacy wrapper.
 
 ### 4.15 `graph_merge.py` — materialize a plan into a copy
@@ -641,8 +779,9 @@ remains as a legacy wrapper.
   canonical scope **once**; adds `document_merge_version`,
   `configuration_sha256` (over `configuration` plus the version and the
   confidence floor), and an `identity_mapping` from source keys to final
-  identity decisions. The pipeline passes the two prompt digests here, so a run
-  artifact names the templates that produced it.
+  identity decisions. The pipeline passes the two extraction prompt digests
+  and `schema_sha256` here, so a run artifact names the templates and the
+  schema that produced it.
 
 ### 4.17 `document_publication.py` — compile + atomic publish
 
@@ -653,13 +792,16 @@ remains as a legacy wrapper.
   loaded Turtle into in-memory roles and persists the union as one Turtle on
   each `publish` via `save_graph`.
 - `split_legacy_graph(graph, names)` / `initial_role_graphs(store, names)` /
-  `canonical_graph(roles, names)` (schema + data graphs = the identity scope) /
-  `shape_graphs(roles, names)`.
+  `canonical_graph(roles, names)` (schema graphs + configured `data_graphs` +
+  the target graph = the identity scope) / `shape_graphs(roles, names)` /
+  `copy_graph` / `union_graphs`.
 - `compile_document_publication(document, document_merge, candidate_graphs,
   packages, admission_plans, roles, names, validation_shapes=None)` — copies
   the target graph, adds the plan's domain triples, remaps candidate evidence
   onto decided canonical statements, materializes document/file source links,
   builds the review graph, and SHACL-validates the proposed data (no mutation).
+  Its `Publication` carries every role: target, provenance, and review are
+  new; schema, shapes, and data-graph roles are copied through unchanged.
 - `publish_document(store, plan)` — the one final `store.publish(...)`.
 - `remap_candidate_evidence` / `_copy_evidence` — every PROV/DQV occurrence is
   kept while reified statements are remapped to their final identity.
@@ -674,6 +816,7 @@ remains as a legacy wrapper.
   (`onto:sourceFile` / `onto:sourcePath`). Content identity is separate from
   file identity: identical content in different files shares a document but
   keeps separate file records.
+  The file IRI digest is `sha256(document_id + "\n" + path)`.
 - `link_statement_sources(graph, document_uri, file_uri)` — attaches
   `prov:wasDerivedFrom` + `onto:sourceFile` to evidence statements (skips the
   app-supplied `onto:Entity` root).
@@ -688,15 +831,18 @@ remains as a legacy wrapper.
 ### 4.19 `run_report.py` — human-readable reporting
 
 - `REPORT_DIRECTORY = Path("reports/runs")`; `default_report_path(source,
-  started_at=None)` → `<timestamp>_<source>.md`.
+  started_at=None)` → the path below.
 - `RunReporter(verbose=False, stream=None, extra_streams=(),
   markdown_streams=())` — one reporter object; plain terminal lines, verbose
-  sections, code blocks, and Markdown-safe output. Checkpoints: `run_started`,
+  sections, code blocks, and Markdown-safe output (helpers `line`,
+  `verbose_line`, `block`, `section`). Checkpoints: `run_started`,
   `source_started`, `blank_source`, `document_staging`, `window_started`,
   `context_selection`, `prompt_context`, `asking_model`, `llm_input`,
-  `model_replied`, `validation`, `window_admitted`, `reconciliation`,
-  `source_validation`, `publication_validation`, `merge_plan`, `dry_run`,
-  `saved`, `staging_failed`, `finished`, `dry_run_finished`, `failed`.
+  `model_replied`, `validation` (also lists `validation["dropped"]`),
+  `window_admitted`, `link_check`, `reconciliation`, `source_validation`,
+  `publication_validation`, `merge_plan`, `dry_run`, `saved`,
+  `staging_failed`, `finished`, `dry_run_finished`, `failed`.
+- Report file name: `%Y-%m-%d_%H-%M-%S_%f_<source stem>.md`.
 - Helpers `skeleton_label` / `skeleton_restriction` are shared with the viewer.
 
 ### 4.20 `vocabulary.py` — the starter vocabulary lock
@@ -714,101 +860,214 @@ the generated `class:` / `relation:` / `fact:` IRI when nothing was declared.
 That is what lets an imported RDF vocabulary keep its own IRIs instead of
 gaining `class:*` twins: merge planning and the collision check both ask the
 vocabulary. `_match(declared, generated, name)` and `local_name(iri)` are the
-two small helpers. `class_names` / `relation_names` /
-`fact_names` are sorted display names; `is_empty` is the "no starter yet"
-signal the studio shows.
+two small helpers (`_match` prefers the generated IRI when it is declared,
+then a declared label or local name with the same slug).
+`declares_class` / `declares_relation` / `declares_fact` answer "is this name
+declared?" (used by `link_check.add_expected_link`). `class_names` /
+`relation_names` / `fact_names` are sorted display names; `is_empty` is the
+"no starter yet" signal the studio shows.
 
 `read_vocabulary` also keeps each property's declared `rdfs:domain` /
-`rdfs:range` (`domains`, `ranges`) and each class's declared parents
+`rdfs:range` (`domains`, `ranges` — ranges only for relations; one value
+each, read with `graph.value`) and each class's declared parents
 (`parents`). `is_a(class, wanted)` follows `rdfs:subClassOf` upward;
 `domain_of`, `range_of`, and `label_of` are the readers the endpoint check,
 the link check, and the health report use.
 
-### 4.30 Connectivity in data-only ingestion
+### 4.21 Connectivity in data-only ingestion (overview)
 
-Data-only ingestion (the studio's mode) adds four things to every window and
-document. All of them are off in legacy (non data-only) runs.
+Data-only ingestion (the studio's mode, CLI `--data-only`) adds these to
+every window and document; none of them runs in a legacy (non data-only) run:
 
-- **`schema_context.py`** — `render_core_schema(graph)` renders the whole
-  starter schema (classes, `Subject --relation--> Object` with meaning, facts)
-  plus three rules (no relations on `Entity` — or, for a schema without the
-  root class, "leave out anything no class fits" —, declared direction only,
-  base-form names). It is rendered once per run, placed first in every
-  window's context, and paid from `PROMPT_BUDGET["schema_tokens"]` (3,000),
-  not from `context_tokens`; the word-matched `declared` section is then
-  left out. A schema over its budget falls back to word matching, with a
-  report line. `schema_digest(graphs)` goes into the run configuration as
-  `schema_sha256`.
-- **`document_context.py`** — the per-window header (`Path:` relative to
-  `RunRequest.source_root`, `Title:`, `Section:` heading trail, `Window: k of
-  n`), the *document anchors* (this document's staging entities of an anchor
-  class — a class that is the subject of some relationship — most linked
-  first, at most 8, reuse by exact name + kind), and the *same folder* block
-  (canonical anchor entities whose `onto:sourceFile` record has an
-  `onto:sourcePath` in the same folder, shown with `id:` and allowed as
-  `existing_id`). These blocks are paid as fixed prompt tokens.
-- **Endpoint check** (`candidate_validation._check_endpoints`) — a relation's
-  subject/object and a fact's subject must have the declared domain/range
-  class (or a subclass); an `existing_id` entity is checked by its graph kind.
-  Codes `relation.domain_mismatch`, `relation.range_mismatch`,
-  `fact.domain_mismatch` go through repair first; if only those remain after
-  repair, `drop_endpoint_mismatches` removes just those records and the
-  window continues (`validation["dropped"]`, reported).
-- **`link_check.py`** — *expected links* are SHACL `sh:minCount 1` +
-  `sh:severity sh:Warning` property shapes in the shapes graph
-  (`text-to-ontology-expect`; SHACL validation now passes
-  `allow_warnings=True`, so warnings never block). After the last window,
-  `find_gaps` lists anchor entities missing one (skipping those whose
-  canonical twin already has it), at most `ExtractionConfig.max_link_checks`
-  (5). Each gap gets one `link_check_user` prompt with the subject, up to 20
-  range-class candidates (keys `c1…`), and passages (window 1 plus windows
-  naming the subject or a candidate, ≤ 2,500 tokens). The answer
-  `{"links": [{object, evidence, confidence}]}` is kept only when the
-  evidence is a word-for-word quote from the passages; it is then turned
-  into an ordinary candidate package, validated, and admitted as a synthetic
-  window `link-<hash>`, so reconciliation, provenance, and publication need
-  no special case. `DocumentResult.link_check` holds the summary.
-- **Names** — `source_concepts.same_word_stem` / `same_name_stem` treat
-  "Polpharma"/"Polpharmy" as one word (≥ 5 shared characters, ending ≤ 2).
+- the **core schema** block — the whole starter schema, first in every
+  window's context (§4.22);
+- the **document header**, **document anchors**, and **same-folder** blocks
+  (§4.23);
+- the **endpoint check** in the validation gate (§4.8): a wrongly connected
+  relation/fact goes through repair first; if only endpoint mismatches remain
+  after repair, `drop_endpoint_mismatches` removes just those records and the
+  window continues (`validation["dropped"]`, reported);
+- the **link check** after the last window (§4.24), on by default
+  (`ExtractionConfig.link_check`, CLI `--no-link-check`).
+
+The four fixed blocks are shown before the selected context and paid by
+adding their estimated size to `fixed_prompt_tokens` (`pipeline.budget_for`),
+so they never squeeze the `context_tokens` allowance.
+
+Two things apply in **every** run, not only data-only:
+
+- **Seed view** (§4.25): every prompt's context, the vocabulary, and the chat
+  read the seed view, not the full dataset.
+- **Names**: `source_concepts.same_word_stem` / `same_name_stem` treat
+  "Polpharma"/"Polpharmy" as one word (≥ 5 characters, endings ≤ 2 differ).
   `task_context` uses it as a `CONCEPT`-tier "inflected name match", so the
   existing card (with its `id:`) is shown; `entity_lookup.identity_decision`
   uses it only for a `review` decision (`inflected_form`), never a merge.
   Aliases are `skos:altLabel`, added through **Edit the graph**.
-- **`graph_health.py`** (`text-to-ontology-health`) — read-only numbers:
-  isolated and root-only entities, endpoint violations, missing expected
-  links, duplicate suspects, never-ingested source files, gold-link recall
-  and precision.
-
-**`seed_view.py`** — `seed_graphs(roles, names)` keeps the schema graphs
-whole and filters every data graph to statements whose predicate is declared
-(in schema or data), `rdf:type` to declared classes, and the `NAMING`
-predicates (`skos:prefLabel`/`altLabel`/`definition`, `rdfs:label`/`comment`,
-`onto:kind`); provenance, review, shapes, `owl:NamedIndividual`, and
-`skos:Concept` are left out. `seed_view` is the same as one graph;
-`store_roles(store, names)` reads the role graphs of a store. The pipeline
-builds every prompt's context from it (rebuilt after each publication) and
-passes the provenance graph separately to `folder_anchors`;
-`Workspace.seed_graph()` feeds the chat; `Workspace.dataset_text(view)` and
-the `dataset` operation serve `view=seed` (default) or `view=all` to the
-studio's view switch.
-
-**Plain RDF guard** — `graph_store.require_named_graphs(store, path)` raises
-`PlainRdfError` when a store holds triples in the default graph (a plain RDF
-file saved as `.trig`): every read would see nothing and every publication
-would drop them. `run_text_to_graph` calls it before reading the roles;
-`Workspace.require_dataset()` guards the dataset view, ingestion, the graph
-editor, and the chat, and `status()` reports the message as `error`.
 
 The studio keeps dropped folder structure under `sources/inbox/`
 (`workspace._write_source` cleans each part and never leaves the inbox) and
-passes the inbox as `source_root`. Provenance `onto:sourcePath` is unchanged
-(the path as discovered).
+passes the inbox as `RunRequest.source_root`, so the header shows
+`client/project/notes.md`. Provenance `onto:sourcePath` is unchanged (the path
+as discovered). `graph_health.py` (§4.26) is the separate, read-only tool that
+measures the result.
 
-### 4.21 `starter.py` — the starter ontology
+### 4.22 `schema_context.py` — the whole starter schema as one prompt block
+
+Read-only. Constants: `HEADING` (`CORE SCHEMA — the only classes and
+relationships you may use`), `RULES` (with a `${fallback}` slot),
+`WITH_ROOT` / `WITHOUT_ROOT`.
+
+- `render_core_schema(graph)` → one deterministic text block: every class
+  sorted by label with its `rdfs:comment` as meaning (`onto:Entity`, when
+  declared, comes last as "only for things that fit no class above");
+  `Domain --relation--> Range: meaning` lines (`anything` when undeclared);
+  `Domain . fact = Range` lines (`value` when undeclared); then three rules:
+  the most specific kind, declared direction only, base-form names with other
+  forms as aliases. The fallback rule is `WITH_ROOT` ("Use "Entity" only when
+  no class fits; an Entity cannot be ... in a relationship") when
+  `onto:Entity` is declared, else `WITHOUT_ROOT` ("Leave out anything no
+  class fits."). Graph text goes through `context_render.clean`/`field`.
+- `schema_digest(schema_graphs)` → 12 hex characters of the sha256 over
+  blank-node-canonicalized, sorted triples; recorded in the run configuration
+  as `schema_sha256` (in every run).
+- The pipeline renders it once per run from the seed view. When its estimated
+  size exceeds `PROMPT_BUDGET["schema_tokens"]` (3,000), the word-matched
+  schema selection is used instead and `reporter.line("Core schema: N tokens
+  is over the schema budget; ...")` says so. When it is shown, the
+  word-matched `declared` section is left out of the selected context.
+
+### 4.23 `document_context.py` — what a window knows about its document
+
+Read-only. Constants: `MAX_TITLE_CHARACTERS = 200`, `MAX_ANCHORS = 8`,
+`MAX_FOLDER_ANCHORS = 5`, `MAX_LINKS_PER_ANCHOR = 5`, and the three headings
+`HEADER_HEADING`, `ANCHOR_HEADING`, `FOLDER_HEADING`.
+
+- `document_title(text)` — the first Markdown heading, else the first
+  non-empty line (≤ 200 characters).
+- `heading_trail(text, start)` — the headings in force at a window's start,
+  e.g. `# A > ## B`.
+- `render_document_header(display_path, document_text, window, total)` —
+  `DOCUMENT CONTEXT ...` with `Path:` (relative to `RunRequest.source_root`),
+  `Title:`, `Section:`, `Window: k of n`. All text cleaned, so a path cannot
+  forge a delimiter.
+- `anchor_classes(vocabulary)` — the declared domain class of every
+  relation (a class that is the subject of some relationship).
+- `is_anchor(graph, entity, vocabulary, anchors)` — the entity's `onto:kind`
+  is an anchor class or a subclass of one.
+- `document_anchors(source_graph, vocabulary, limit=8)` — this document's
+  staging entities of an anchor class, most connected first (triples touching
+  them), then by name. `render_document_anchors(source_graph, vocabulary)` —
+  cards with name, kind, aliases and up to 5 links, **without** `id:` (reuse
+  is by exact name + kind); `""` when there are none.
+- `folder_anchors(graph, provenance, vocabulary, source_path, limit=5)` —
+  canonical anchor entities whose `onto:sourceFile` record has an
+  `onto:sourcePath` in the same folder (the current file excluded), most
+  supporting links first. `render_folder_anchors(graph, entities)` — the same
+  cards **with** `id:`; the pipeline adds those ids to the allowed
+  `existing_ids`.
+
+### 4.24 `link_check.py` — expected links, and one question per missing one
+
+Constants: `EXPECTED = onto:expected/`, `MAX_LINK_CHECKS = 5`,
+`MAX_CANDIDATES = 20`, `PASSAGE_TOKENS = 2_500`,
+`MIN_EVIDENCE_CHARACTERS = 8`.
+
+*Expected links* are SHACL `sh:minCount 1` + `sh:severity sh:Warning`
+property shapes in the shapes graph. Because SHACL validation passes
+`allow_warnings=True` (§4.12), they never block a document.
+
+- `expected_link_shape(class_iri, relation_iri, question)` — the shape
+  `onto:expected/<class>-<relation>` as a small graph (`sh:message` = the
+  question).
+- `expected_links(shapes_graph)` → sorted `[{class, relation, question}]`.
+- `add_expected_link(store, class_name, relation_name, question="",
+  names=None)` — the class and relation must be declared and the relation
+  must start at that class (or a parent), else `ValueError`; publishes into
+  the first shapes graph.
+- `find_gaps(source_graph, canonical, expected, vocabulary, limit=5)` — a
+  direct graph check (not pySHACL): this document's entities of the shape's class
+  that lack the link, skipping those whose canonical twin (same kind, a
+  shared name) already has it; most connected first.
+- `select_passages(windows, names, cap=2_500, count_tokens=estimate_tokens)`
+  — window 1 plus every window naming the subject or a candidate, in
+  document order, whole, stopping before the cap.
+- `object_candidates(source_graph, canonical, range_iri, vocabulary,
+  passages, limit=20)` — entities of the range class, this document's first,
+  then canonical ones (with their id); those the text names sort first; keys
+  `c1…`.
+- `link_check_prompt(gap, source_graph, vocabulary, candidates, passages,
+  library=None)` — renders the `link_check_user` template (§4.28).
+- `read_answer(answer, gap, source_graph, vocabulary, candidates, passages)`
+  → `(package or None, dropped notes)`. The answer is `{"links": [{object,
+  evidence, confidence}]}`; a link is kept only when its evidence is at least
+  8 characters and appears (case- and whitespace-folded) in the passages,
+  otherwise `link_check.unsupported_evidence`. The kept links become an
+  ordinary candidate package.
+- `link_window(document, gap, passages, index)` — a synthetic `TextWindow`
+  `link-<sha256[:16]>` with the passages as text.
+- `check_document_links(document, display_path, windows, source_graph,
+  canonical, expected, vocabulary, extractor, reporter=None, library=None,
+  limit=5)` → `(packages, summary)`; summary `{gaps, filled,
+  not_established, dropped}`. Each package passes `validate_candidates(...,
+  vocabulary=)`; there is no repair round, and an `InvalidResponseError`
+  makes the gap "not established". The pipeline admits each package like a
+  window, so reconciliation, provenance, and publication need no special
+  case; the summary is `DocumentResult.link_check`.
+- `main(argv)` — `text-to-ontology-expect GRAPH [CLASS RELATION [QUESTION]]
+  [--list]`.
+
+### 4.25 `seed_view.py` — the business-ontology view
+
+Read-only. `NAMING = {skos:prefLabel, skos:altLabel, skos:definition,
+rdfs:label, rdfs:comment, onto:kind}`.
+
+- `keep_in_seed(triple, declared_terms, declared_classes,
+  declared_properties)` — keeps a triple whose subject is a declared term, an
+  `rdf:type` to a declared class, a `NAMING` triple, or a triple with a
+  declared property.
+- `seed_graphs(roles, names)` → `{graph name: Graph}`: schema graphs whole;
+  data and target graphs filtered by `keep_in_seed`, with "declared" read from
+  schema + data (so legacy runs that declared in the data graph still work).
+  Provenance, review, shapes, `owl:NamedIndividual`, and `skos:Concept` types
+  are left out.
+- `seed_view(roles, names)` — their union as one graph, prefixes bound.
+- `store_roles(store, names)` — every role graph of a store.
+
+Used by the pipeline (every prompt's context and the vocabulary; rebuilt
+after each publication; the provenance graph is passed separately to
+`folder_anchors`), `Workspace.seed_graph()` (the chat), and the `dataset`
+operation's `view=seed` (default; `view=all` shows every role graph).
+
+### 4.26 `graph_health.py` — connectivity numbers (`text-to-ontology-health`)
+
+Read-only: no model call, nothing written. Constants: `NAME_PREDICATES`
+(`skos:prefLabel`, `skos:altLabel`, `rdfs:label`), `DOCUMENT = onto:document/`.
+
+- One function per number: `isolated_entities(data)`,
+  `root_only_entities(data, vocabulary)`, `endpoint_violations(data,
+  vocabulary)`, `missing_links(data, vocabulary, expected)` (expected links
+  from `link_check.expected_links`; there is no built-in list),
+  `duplicate_suspects(data, vocabulary)` (`same_name_stem` on pairs of
+  entities; compares every pair), `uncovered_sources(provenance, folder)`
+  (files whose `doc-<sha>` has no `onto:document/` record),
+  `gold_scores(data, vocabulary, gold_links)` → `{gold, found, recall,
+  checked, correct, precision, missing}`.
+- `health_report(graph_path, sources=None, gold_path=None)` → dict; always
+  uses the default `GraphNames()`; schema = schema graphs, data = target +
+  data graphs.
+- `format_report(report, limit=20)` → short text; `main(argv=None)` —
+  `text-to-ontology-health GRAPH [--sources DIR] [--gold FILE] [--json]`.
+- The gold file is `{"links": [{subject, predicate, object}]}`; see
+  `eval/gold.example.json` (real ones are `eval/*.local.json`, git-ignored).
+
+### 4.27 `starter.py` — the starter ontology
 
 Constants: `DEFAULT_GRAPH = Path("ontology.trig")`, `MIN_CLASSES = 2`,
 `MAX_CLASSES = 20`, `MAX_ASSERTIONS = 40`, `XSD_TYPES` (short name → XSD
-datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
+datatype), `XSD_NAMES` (`"string, integer, decimal, float, boolean, date,
+datetime, anyURI"`, the `${xsd_names}` value), `STARTER_SHAPE` (the repair
+contract text), `STARTER_PROMPT`.
 
 - `starter_prompt(text)` — one prompt: JSON with `classes`, `relations`,
   `facts`; relations carry domain + range class names, facts carry a domain and
@@ -831,12 +1090,13 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   fact `fact:<slug>` (`owl:DatatypeProperty`, domain, range). Everything else
   starts empty, so an old dataset is replaced whole.
 - `create_starter(text, graph_path, extractor=None, names=None)` — propose and
-  publish; returns the proposal.
+  publish; returns the proposal. It always uses the default prompts (only
+  `Workspace.create_starter` passes its prompt library).
 - `proposal_summary(proposal)` — the short plain-text listing.
 - `build_parser()` / `main(argv)` — `text-to-ontology-starter [INFO|-] [GRAPH]
   [--model]`; reads a file or standard input. Importing an RDF document from
-  the command line is the root script `ttl_to_trig.py SOURCE OUTPUT [--force]`
-  (`import_publication` in memory, then one publication to OUTPUT).
+  the command line is the root script `ttl_to_trig.py SOURCE OUTPUT [--force]
+  [--concepts-as-classes]` (§4.37).
 - **Importing RDF instead of asking the model**: `RDF_SUFFIXES` (suffix →
   rdflib format), `RDF_FORMATS` (the order tried when the suffix says nothing),
   `RDF_SIGNS` (the content sniff). `looks_like_rdf(name, text)` trusts a known
@@ -854,7 +1114,7 @@ datatype), `STARTER_SHAPE` (the repair contract text), `STARTER_PROMPT`.
   data graph, the rest as support. `_triples(parsed)` reads a graph or a
   dataset.
 
-### 4.22 `prompts.py` — editable prompt templates
+### 4.28 `prompts.py` — editable prompt templates
 
 Every prompt the application sends is a named template here: defaults in code
 (the tested wording), overrides in one JSON file beside the dataset. Templates
@@ -862,21 +1122,28 @@ use `string.Template` placeholders (`${context}`, `${text}`), not
 `str.format`, because these prompts carry JSON braces a human edits by hand and
 should never have to escape.
 
-- `DEFAULT_PROMPTS` — `extraction_system`, `extraction_user`, `starter`,
-  `chat_system`, `chat_user`. The chat pair is what makes an answer prose
-  (`chat_system`) written from one subgraph (`chat_user`: `question`, `history`,
-  `scope_note`, `subgraph`).
+- `DEFAULT_PROMPTS` — six templates: `extraction_system`, `extraction_user`,
+  `starter`, `link_check_user`, `chat_system`, `chat_user`. The chat pair is
+  what makes an answer prose (`chat_system`) written from one subgraph
+  (`chat_user`). `link_check_user` is the one question per missing expected
+  link (§4.24).
 - `PROMPT_FIELDS` / `REQUIRED_FIELDS` — the placeholders a template may use and
-  the ones it must keep (`extraction_user`: `context`, `text`; `starter`:
-  `text` required, the numeric caps optional).
-- `ADVICE` — non-blocking hints for a human editor (a missing `entities` list,
-  a missing `confidence`, ...).
+  the ones it must keep: `extraction_user` `context`, `text` (both required);
+  `starter` `text` required, `min_classes`, `max_classes`, `xsd_names`
+  optional; `link_check_user` `question`, `relation`, `subject`,
+  `candidates`, `passages` (the last three required); `chat_user`
+  `question`, `history`, `scope_note`, `subgraph` (`question`, `subgraph`
+  required).
+- `ADVICE` — non-blocking hints for a human editor, for `extraction_user`,
+  `link_check_user`, and `starter` (a missing `entities` list, a missing
+  `confidence`, ...).
 - `PREVIEW_VALUES` — the small fixed sample values the studio previews with.
 - `PromptLibrary(path=None, defaults=None)` — `names()`, `text(name)`,
   `is_default(name)`, `fields(name)`, `required(name)`, `digest(name)` (12 hex
   characters, for run reports), `describe(name=None)` (the record the editor
   uses), `validate(name, text)` (an error string or None), `advice(name, text)`,
-  `render(name, values)`, `set(name, text)`, `reset(name)`. Overrides live in
+  `render(name, values)`, `set(name, text)`, `reset(name)` (True when there
+  was an override to drop). Overrides live in
   `{"version": 1, "prompts": {...}}`; a corrupt file, or a stored template that
   no longer validates, is ignored rather than fatal; writes are atomic
   (`<file>.tmp` + `os.replace`) and only non-default entries are stored.
@@ -886,15 +1153,20 @@ should never have to escape.
   and `DEFAULT_LIBRARY`.
 - `ValueError` for a template that cannot be rendered (a missing value or an
   invalid placeholder) and `KeyError` for an unknown prompt name.
+- The run configuration records the `extraction_system` and `extraction_user`
+  digests (plus `schema_sha256`); the `link_check_user` digest is not
+  recorded.
 
-### 4.23 `graph_scope.py` — the relevant subgraph for one question
+### 4.29 `graph_scope.py` — the relevant subgraph for one question
 
 Read-only. Turns one topic text into a small, deterministic subgraph, with three
 faces: TriG for a viewer, a view directive for a frontend, and compact lines for
 a model. Constants: `MAX_TRIPLES = 300`, `MAX_TOKENS = 6000` (the token ceiling
 for one question's subgraph, overridable per question), `MAX_FOCUS = 20`,
 `MAX_NAMES = 60`, `SCOPE_GRAPH` (`.../graphs/scope`),
-`SCOPE_FILE = "scope.trig"`, `DECLARATION_PREDICATES`, `DEFAULT_LIMITS`.
+`SCOPE_FILE = "scope.trig"`, `DECLARATION_PREDICATES`, `DEFAULT_LIMITS`
+(`{triples, focus, tokens}`; the `tokens` entry is not read — rendering uses
+`budget or MAX_TOKENS`).
 
 - `select(text, graph, carry_over=(), limits=None)` → `Scope`. It reuses
   `task_context.build_task_context` for relevance, so the same read-only
@@ -919,8 +1191,10 @@ for one question's subgraph, overridable per question), `MAX_FOCUS = 20`,
 - `Scope` — frozen dataclass with `question`, `nodes`, `triples`, `dropped`,
   `focus_source` (`matched` / `loose` / `carried` / `empty`), `diagnostics`, and
   the three faces: `trig_text()` (one named graph), `view(file_name=SCOPE_FILE)`
-  (`{replace, files, mode, clearFilters, hideIsolated, focus}`), and
-  `render_for_model(budget=None, graph=None)`.
+  (`{replace: [file_name], files, mode: "instances", clearFilters: true,
+  hideIsolated: false, focus}`), and `render_for_model(budget=None,
+  graph=None)`; plus `summary()` → `{question, nodes, triples, dropped,
+  focus_source, diagnostics}`.
 - `render_for_model` writes two blocks before the statements, both charged to
   the budget first: `PREFIXES` (from `_namespace_map`, so a model can write an
   edit proposal with real IRIs) and `NAMES` (`_header`, one quoted label per
@@ -941,12 +1215,13 @@ for one question's subgraph, overridable per question), `MAX_FOCUS = 20`,
 - `parse_trig(text)` — reads a scope document back to one graph (tests,
   frontends that check what they were sent).
 
-### 4.24 `graph_chat.py` — one conversation about the graph
+### 4.30 `graph_chat.py` — one conversation about the graph
 
 Talking is a turn: select the relevant subgraph, render it, send the question
 with a little history, remember the answer *and* the subgraph behind it. Asking
 is injected, so this module never touches a network. Constants:
-`HISTORY_TURNS = 6`, `MAX_TURNS = 200`, `TRANSCRIPT_VIEWS = 20`, `MAX_FOCUS`.
+`HISTORY_TURNS = 6`, `MAX_TURNS = 200`, `TRANSCRIPT_VIEWS = 20`,
+`MAX_FOCUS = graph_scope.DEFAULT_LIMITS["focus"]` (20).
 
 - `Turn(role, text, scope, index, view)` — one thing said; `role` is `you` or
   `graph`, `scope` is the summary (for an answer it also carries `rendered`, how
@@ -957,21 +1232,23 @@ is injected, so this module never touches a network. Constants:
   `transcript()` (the newest `TRANSCRIPT_VIEWS` turns also carry their `view`,
   so a long conversation does not grow without bound), `recent()` (the last few
   turns for the prompt), `state()`, `reset()`, and
-  `ask(message, graph, ask, limits=None, budget=None, on_step=None)`. `ask`
-  returns `{answer, scope}`; `on_step(scope, rendered)` is called after
-  selection so a frontend can show what is about to be sent.
+  `ask(message, graph, ask, limits=None, budget=None, on_step=None)`.
+  `on_step(scope, rendered)` is called after selection so a frontend can show
+  what is about to be sent.
 - `_remember(scope)` — the focus for the next question: the newest matched
   resources first, then what was already being discussed, bounded by `MAX_FOCUS`.
-- `chat_prompt(question, scope, history, graph, library, budget)` — the exact
+- `chat_prompt(question, scope, history, graph=None, library=None,
+  budget=None)` — the exact
   prompt one turn would send, for a preview or a test.
 
-### 4.25 `graph_edit.py` — change the graph by hand, or from a proposal
+### 4.31 `graph_edit.py` — change the graph by hand, or from a proposal
 
 An edit is a patch written the way a person writes Turtle: additions are plain
 statements, removals are the same statement on a line that starts with `- `.
 Parsing alone never applies anything: `preview` parses and checks and returns a
 stable `patch_id`, and `apply` writes exactly the triples that were previewed.
-Constants: `EDIT_BASE` (`.../candidate/edit/`), `REMOVAL = "-"`,
+Constants: `EDIT_BASE` (`CANDIDATE_BASE + "edit/"` =
+`http://example.org/text-ontology/edit/`), `REMOVAL = "-"`,
 `PREVIEW_LIMIT = 40`, `VOCABULARY_TYPES`, `SYSTEM_NAMESPACES`.
 
 - `parse_patch(text)` → `(added, removed, errors)`. Prefix declarations are
@@ -1000,10 +1277,10 @@ Constants: `EDIT_BASE` (`.../candidate/edit/`), `REMOVAL = "-"`,
   `statement_uri(triple)` exactly as publishing addresses statements.
 - `fenced_turtle(text)` — every ```turtle / ```trig / bare ``` block of an
   answer, in order; this is how a chat answer's proposal is found.
-- `data_turtle(graph)` — the editable part of the graph as Turtle with its
-  prefixes.
+- `data_turtle(graph, limit=None)` — the editable part of the graph as Turtle
+  with its prefixes (`limit` is accepted but not used).
 
-### 4.26 `workspace.py` — the application state and its long jobs
+### 4.32 `workspace.py` — the application state and its long jobs
 
 The backend state for one dataset, with no HTTP and no argument parsing.
 
@@ -1021,7 +1298,9 @@ The backend state for one dataset, with no HTTP and no argument parsing.
   `model_replied`, `window_admitted`, `saved`). The pipeline runs once per file
   and therefore always reports "1 of 1", so the workspace supplies the real
   file number and count; `_percent(within_file)` makes the bar span the whole
-  drop and never move backwards.
+  drop. Note: `model_replied` always reports half of the current file's
+  share, so for a document with 3 or more windows the bar steps back on a
+  late window's reply (the docstring promises it never moves backwards).
 - `Workspace(graph_path="ontology.trig", sources_dir="sources/inbox",
   model=None, names=None, extractor=None, prompts_path=None)` — `prompts` is
   the `PromptLibrary` for this dataset (default
@@ -1033,42 +1312,55 @@ The backend state for one dataset, with no HTTP and no argument parsing.
   `{ok: false, error}`, never an exception).
   Reading: `canonical_graph()`
   (schema + configured data + target), `triple_count()`, `source_names()`,
-  `status()` (graph, triples, `ready`, class/relation/fact names, inbox files),
-  `dataset_text()` (schema + shapes + data + target as one TriG text, prefixes
-  bound, provenance left out), `progress_state(job_id)`.
-  Writing: `reset()` (unlink the graph file and every direct child file of the
-  inbox, then re-open an empty store; `_check_reset_target` refuses when the
-  inbox is the working directory, one of its parents, or the dataset's own
-  directory), `create_starter(text, progress=None)` (propose + publish on this
-  workspace's store, reporting model calls and the write step when a `progress`
-  is given), `edit_current()` (the target data graph as Turtle), 
-  `edit_preview(text, allow_new_vocabulary=False, source="hand")` (check a patch
-  and remember exactly what applying it would do; `self.edits` maps a
-  `patch_id` to the checked `Patch`), `edit_apply(patch_id)` (write exactly
-  those triples, with PROV evidence, answering the new Turtle),
-  `_with_proposals(turns)` (check any Turtle block in a chat answer and attach
-  it as an unapplied proposal; called by `chat_ask` and `chat_state`),
-  `chat_state()`, `chat_reset()`, `chat_ask(message, on_step=None)`
-  (one turn over `canonical_graph()`, answering
-  `{ok, answer, scope: {..., view}, turns}`), `start_chat(message)` and
-  `_chat_job` (the same turn as the one background job, so the page gets the
-  progress bar), `ask_text(prompt, system=None)` (a prose answer from the
-  extractor, never JSON),
+  `require_dataset()` (`require_named_graphs`, §4.2), `status()` (`{ok, error,
+  graph, triples, ready, classes, relations, facts, sources}`; `error` is the
+  `PlainRdfError` message or None), `seed_graph()` (the seed view, §4.25),
+  `dataset_text(view="seed")` (calls `require_dataset()`; `"seed"` → the seed
+  graphs, `"all"` → every role graph including provenance and review, one
+  TriG text with prefixes bound; anything else is `ValueError`),
+  `progress_state(job_id)`.
+  Writing: `reset()` (unlink the graph file, then every file under the inbox
+  recursively and the folders left empty, deepest first, then re-open an
+  empty store; `_check_reset_target` refuses when the inbox is the working
+  directory, one of its parents, or the dataset's own directory),
+  `create_starter(text, progress=None)` (propose + publish on this
+  workspace's store with its prompt library, reporting model calls and the
+  write step when a `progress` is given), `edit_current()` (`{ok, turtle,
+  bytes, triples}` for the target data graph),
+  `edit_preview(text, allow_new_vocabulary=False, source="hand")` (check a
+  patch against `canonical_graph()` and the shape graphs and remember exactly
+  what applying it would do; `self.edits` keeps only the latest checked
+  `Patch`, under its `patch_id`), `edit_apply(patch_id)` (write exactly those
+  triples, with PROV evidence, answering `{ok, evidence, log, status,
+  turtle}`), `_with_proposals(turns)` (check any Turtle block in a chat answer
+  and attach it as an unapplied proposal; called by `chat_ask` and
+  `chat_state`), `chat_state()`, `chat_reset()`, `chat_ask(message,
+  on_step=None, budget=None)` (calls `require_dataset()`; one turn over
+  `seed_graph()`, answering `{ok, answer, scope: {..., view}, turns}`),
+  `start_chat(message, budget=None)` and `_chat_job` (the same turn as the
+  one background job, so the page gets the progress bar: 10 % "selecting the
+  relevant subgraph", then 40 % "... asking the model"),
+  `ask_text(prompt, system=None)` (a prose answer from the extractor, never
+  JSON),
   `import_starter(name, text)` (parse an RDF document and publish it
   as the starter vocabulary in one write, answering
   `{ok, summary, log, status}` or `{ok: false, error}`),
-  `ingest(files, log, progress=None)` (write each dropped text into
-  the inbox, then run the pipeline once per file with
-  `MergeConfig(require_declared_vocabulary=True)`, reporting into `log` and
-  moving the bar per file and window), `_write_source(name, text)` (safe name,
-  never overwrites), and the two job launchers a transport uses:
+  `ingest(files, log, progress=None)` (calls `require_dataset()`, skips blank
+  texts, writes each dropped text into the inbox, then runs the pipeline once
+  per file with `MergeConfig(require_declared_vocabulary=True)`,
+  `source_root=self.sources_dir`, and `prompts=self.prompts`, reporting into
+  `log` and moving the bar per file and window; returns the saved names
+  relative to the inbox), `_write_source(name, text)` (keeps the dropped
+  folder structure, cleans each part with `_safe_part`, never leaves the
+  inbox, never overwrites: a clash becomes `notes.md-2`, `-3`, ...), and the
+  two job launchers a transport uses:
   `start_starter(text)` / `start_ingest(files)` claim the slot, run the work in
   a daemon thread, and return the job id (or `None` when one is already
   running).
 - Module constants: `DEFAULT_GRAPH = Path("ontology.trig")`,
   `DEFAULT_SOURCES = Path("sources/inbox")`.
 
-### 4.27 `operations.py` — every capability as one named operation
+### 4.33 `operations.py` — every capability as one named operation
 
 The contract between a frontend and the backend: one registry of names, each
 mapping to a small function `(workspace, payload) -> plain JSON record`. No
@@ -1081,21 +1373,25 @@ HTTP, no objects, no browser.
 - `describe()` — the published manifest: name, summary, argument names, and
   whether it answers with a `job_id` instead of a result.
 - `call(workspace, name, payload=None)` — run one operation; an unregistered
-  name raises `UnknownOperation`.
-- The registry today: `status`, `dataset`, `progress` (`job`), `reset`,
-  `starter.create` (`text`, background), `ingest` (`files`, background),
-  `operations.list`, `starter.import` (`name`, `text`), `prompts.list`,
-  `prompts.save` (`name`, `text`), `prompts.reset` (`name`),
-  `prompts.preview` (`name`), `chat.ask` (`message`, background),
+  name raises `UnknownOperation` (a `KeyError` subclass).
+- The registry today (18): `status`, `dataset` (optional `view` = `seed` |
+  `all`, answering `{ok, trig, view, name}`; `view` is read but not listed in
+  `args`), `progress` (`job`), `reset`, `operations.list`, `starter.create`
+  (`text`, background), `starter.import` (`name`, `text`), `ingest`
+  (`files`, background), `chat.ask` (`message`, `budget`, background),
   `chat.state`, `chat.reset`, `edit.current`, `edit.preview` (`text`,
-  `allow_new_vocabulary`), `edit.apply` (`patch_id`).
+  `allow_new_vocabulary`), `edit.apply` (`patch_id`), `prompts.list`,
+  `prompts.save` (`name`, `text`), `prompts.reset` (`name`),
+  `prompts.preview` (`name`). There is no health operation.
 - Payload helpers: `_started(workspace, job)` (the background answer, or the
-  "a job is already running" refusal), `_integer`, `_files`.
+  "a job is already running" refusal), `_integer`, `_truthy`, `_files`.
 
-### 4.28 `studio.py` — the HTTP transport (and the page it serves)
+### 4.34 `studio.py` — the HTTP transport (and the page it serves)
 
 Carries things and nothing else: no state, no domain logic.
 
+- Constants: `PAGE_NAME = "frontend/triple-lens.html"`, `DEFAULT_PORT = 8765`,
+  `ASSET_TYPES`.
 - `find_page(explicit=None)` — the `frontend/triple-lens.html` page: the given
   path, then the working directory, then the repository root next to the
   package.
@@ -1106,21 +1402,25 @@ Carries things and nothing else: no state, no domain logic.
   traversal or arbitrary files are refused.
 - `StudioHandler` — a generic dispatcher, not a list of endpoints:
   `GET /` and the assets; `GET /api/op/<name>?arg=value` for read operations;
-  `POST /api/op/<name>` with a JSON body for the rest. An unknown operation is
-  the only 404; an operation's own failure answers `{ok: false, error}` with
-  HTTP 200 so a page can show the message.
-- `StudioServer(ThreadingHTTPServer)` — `daemon_threads = True`; threading
+  `POST /api/op/<name>` with a JSON body for the rest. An unknown operation
+  (or any other `/api/...` path) is a 404; an operation that raises
+  `RuntimeError`, `OSError`, `ValueError`, or `KeyError` answers `{ok: false,
+  error: "<Type>: message"}` with HTTP 200 so a page can show the message
+  (other exception types are not caught).
+- `StudioServer(ThreadingHTTPServer)` — `daemon_threads = True`,
+  `allow_reuse_address = True`; threading
   exists only so a page can poll while a job runs, while the `Progress` slot in
   the workspace keeps graph writes strictly serial (one job at a time).
 - `create_server(workspace, host="127.0.0.1", port=8765, tries=10, assets=None)`
   — a `StudioServer` with the workspace and assets bound to a handler subclass;
-  a taken port falls through to the next free one, and `main` prints the
-  `server_address` it actually got, plus the manifest URL.
+  a taken port falls through to the next free one (`port=0` binds any free
+  port), and `main` prints the `server_address` it actually got, plus the
+  manifest URL. A missing page is `Error: ...` and exit 1.
 - `build_parser()` / `main(argv)` — `text-to-ontology-studio [--graph]
   [--sources] [--page] [--host] [--port] [--model] [--reset] [--no-browser]`;
   `--reset` cleans up and exits, otherwise it serves and prints the URL.
 
-### 4.29 The frontend split
+### 4.35 The frontend split
 
 The page is the visualization; the studio frontend is a separate file that the
 page loads only when it is served over HTTP. All three files live in
@@ -1142,7 +1442,10 @@ this section is the file-level detail of the frontend half.
   through the view API. It contains no domain logic, so a new backend
   capability needs only a new button here. It adds three things to the page:
   - a **studio row** in the top bar (`#studiobar`, under the lens's own row):
-    the dataset status (file name, triples, sources), then one button per
+    the dataset status (file name, triples, sources), the view switch
+    (`#stView`: **Seed ontology** / **Everything**, which calls `dataset
+    {view}`, names the file `*.seed.trig` or `*.trig`, and applies it with
+    `{replace: true, files, resetFilters: true}`), then one button per
     action — **Starter ontology…**, **Add sources…**, **Prompts…**, **Edit the
     graph…** — then **Clear view**, **Reset everything**, the last line the
     studio said (click it for the log), and **Log**; the progress bar for a
@@ -1150,7 +1453,10 @@ this section is the file-level detail of the frontend half.
   - one **dialog** per action (`<dialog>` elements appended to the body):
     Starter ontology (description box, Create, an RDF/Turtle/TriG drop zone and
     file picker for import, the vocabulary in force), Add sources (a drop zone
-    and picker that refuse RDF with a pointer to the starter dialog), Prompts
+    and picker that accept whole folders — the relative path,
+    `entry.fullPath` / `webkitRelativePath`, is sent as the file name — and
+    refuse RDF-looking files, decided in `studio.js` by suffix, with a pointer
+    to the starter dialog), Prompts
     (template picker, monospace editor, validation and advice note, Preview,
     Save, Back to default), Edit the graph (loads the Turtle on open; Reload the
     graph, **allow new classes and relations**, Preview changes with a `+`/`-`
@@ -1168,14 +1474,63 @@ this section is the file-level detail of the frontend half.
     full graph again** and **Export subgraph** appear above the composer. Export
     downloads the answer's stored TriG scope, including nodes outside the
     canvas's one-node focus. The options under the
-    composer are the subgraph size and the "show the subgraph after each
-    answer" checkbox (on by default); **New conversation** in the column's
-    header forgets the thread. A chat answer that contains a Turtle block also
+    composer are the subgraph size (compact 2500 / normal 6000, the default /
+    wide 12000 tokens, sent as `chat.ask {budget}`) and the "show the subgraph
+    after each answer" checkbox (on by default); **New conversation** in the
+    column's header forgets the thread, and a collapse button (`#stCollapse`)
+    folds the column. A chat answer that contains a Turtle block also
     shows `proposed change: +N −M` with **Apply this patch**, which goes
     through the same preview id. A failed question stays in the transcript
     above the error bubble.
 - `frontend/studio.css` — the studio frontend's styles, injected as a
   `<link>` by the loader in the page when it is not opened from `file://`.
+
+### 4.36 The viewer — `view_ontology.py`, `view_report.py`, `view_html.py`
+
+Read-only: the viewer never writes to a graph; only `--html` writes a file.
+
+- `view_ontology.py` — `load_view_graph(path, name=None)`: a non-`.trig` path
+  goes through `graph_management.open_graph`; a `.trig` path is wrapped in
+  `ReadOnlyGraphStore(RdflibGraphStore(...))` and returns the union of all
+  named graphs, or only graph `name`. Terminal reporters `report_partitions`,
+  `report_skeleton_help`, `report_skeleton`, `report_patterns`, `label`.
+  `main()` (no argv parameter): `[graph=ontology.trig] [-g/--named GRAPH]
+  [-html/--html [FILE=ontology_views.html]]`.
+- `view_report.py` — the views as plain data (no HTML, no writes).
+  Constants `METATYPES`, `EVENT_FIELDS`; helpers `prefix_table`, `shorten`,
+  `describe`, `triple_rows`, `class_entries`, `property_entries`,
+  `skeleton_section`, `pattern_rows`, `instance_cards`, `shape_entries`,
+  `event_entries`, `candidate_entries`, `header_rows`.
+  `build_report(path, graph, views)` → `{graph: {path, triples, generated,
+  counts, partitioned, prefixes}, triples, skeleton, patterns, instances,
+  support: {events, candidates, shapes, header}}`.
+- `view_html.py` — one self-contained page, no external assets.
+  `PAGE_STYLE`, `PAGE_SCRIPT`, `escape`, `pipeline_diagram`, one
+  `*_section(report)` per section (head, prefix, pipeline, partitions,
+  skeleton, patterns, instances, support, controls, glossary);
+  `render_page(report)` embeds the report as JSON with `</` escaped;
+  `write_report(path, graph, views, destination)` writes the page and returns
+  `destination`.
+
+### 4.37 Root scripts
+
+- `ontology.py` / `view_ontology.py` — compatibility wrappers: insert `src/`
+  into `sys.path`, then call `text_to_ontology.cli:main` /
+  `text_to_ontology.view_ontology:main` (the viewer wrapper turns an
+  `OSError` into exit 1).
+- `ttl_to_trig.py SOURCE OUTPUT [--force] [--concepts-as-classes]` — turns a
+  plain RDF file into a role-split TriG dataset through
+  `starter.import_publication` (keeping the file's own IRIs). It refuses
+  SOURCE == OUTPUT, an existing OUTPUT without `--force`, and a file with no
+  classes or properties. `--concepts-as-classes` (`concepts_as_classes(graph)`,
+  `with_concepts_as_classes(text, name)`) also declares every `skos:Concept`
+  an `owl:Class`, turns `skos:broader` into `rdfs:subClassOf`, and fills
+  `rdfs:label` from `skos:prefLabel` and `rdfs:comment` from
+  `dct:description` (else `skos:definition`). Unlike the two wrappers it has
+  no `sys.path` shim, so the package must be installed (`pip install -e .`).
+- `trig_to_ttl.py FILE.trig [...]` — writes the hard-coded target data graph
+  (`.../graphs/data`) of each file to `<same name>.ttl`, overwriting it
+  (`export_data_graph(trig_path)`; `main` returns 2 without arguments).
 
 ---
 
@@ -1207,14 +1562,14 @@ Imports (rdflib only). Constants: `SCHEMA_TYPES`, `AUDIT_TYPES`
 
 ### 5.2 `graph_skeleton.py` — compact declared structural core
 
-Unchanged contract: `supported_restriction`, `structural_triples`,
+`supported_restriction`, `structural_triples`,
 `create_graph_skeleton(schema_graph)` → explicit classes/object/datatype
 properties, named subclass/domain/range axioms, labels, and only complete
 supported restrictions (six forms). No inference; skeleton ⊆ schema input.
 
 ### 5.3 `graph_patterns.py` — empirical usage patterns
 
-Unchanged contract: `eligible` (excludes `onto:kind` and RDF/RDFS/OWL/SH/SKOS
+`eligible` (excludes `onto:kind` and RDF/RDFS/OWL/SH/SKOS
 namespaces), `usable_classes` (most-specific explicit types), `object_ranges`,
 `class_populations`, `observed_relationships(schema_graph, instance_graph)` →
 sorted pattern records with occurrences/distinct subjects/population/coverage/
@@ -1242,21 +1597,30 @@ phrase 2.0 / keyword 1.0, heading +2.0, repeat +0.5 each capped 3.0, early
   normalized)`, capped at `MAX_CONCEPTS`. `kind` ∈ mention|phrase|keyword;
   `origin` ∈ heading|capitalized-span|frequency.
 - `text_phrases(text, longest)` → normalized word-run → first position index.
+- `same_word_stem(first, second)` / `same_name_stem(first, second)` — two
+  words (or names, word by word) are the same word up to an inflected ending:
+  `MIN_STEM_CHARACTERS = 5`, `MAX_ENDING_CHARACTERS = 2`. Used by
+  `task_context` (inflected name match), `entity_lookup` (inflected-form
+  review), and `graph_health` (duplicate suspects).
 
 ### 5.6 `task_context.py` — select the context one source needs
 
-Unchanged contract. `DEFAULT_LIMITS`: classes 12, properties 16, restrictions
+`DEFAULT_LIMITS`: classes 12, properties 16, restrictions
 8, patterns 20, resources 15, examples 12, hierarchy_hops 1, instance_hops 1,
 match_tokens 8, overlap_tokens 2, concepts 40, direct_matches 40. Tiers 1–8
 (`DIRECT_NAME` → `INDIRECT`); relevance outranks frequency; all bounded
 expansion with visited sets (cycles terminate). Returns a `ContextPackage`
 {concepts, schema, patterns, resources, examples, labels, diagnostics}.
 `build_task_context(text, source_graph, limits=None)` composes views +
-concepts + `entity_catalog`.
+concepts + `entity_catalog` and calls `select_task_context(text, concepts,
+ontology_views, native_entities=None, limits=None)`. When no exact phrase or
+concept matches a name, `stem_index` / `inflected_match` try
+`same_name_stem` and record a `CONCEPT`-tier "inflected name match".
+`local_name` is shared with the viewer and `run_report`.
 
 ### 5.7 `context_render.py` — render, assemble, budget
 
-Unchanged contract: `render_context_items(package, namespace_manager=None)`
+`render_context_items(package, namespace_manager=None)`
 (items with section/priority/text/dependencies; sections declared / observed /
 resources / examples), `assemble_context(rendered_items)` (fixed order, empty
 sections omitted), `allowance(budget_config)` (context_tokens ceiling and/or
@@ -1272,9 +1636,10 @@ graph text is cleaned/defused/truncated (`MAX_FIELD_CHARACTERS = 240`,
 
 ### 5.8 `prompt_budget.py` — estimate, allowance, packing
 
-Unchanged contract. `PROMPT_BUDGET` (approved 2026-08-17):
-`total_limit 30_000`, `context_tokens 1_400`, `fixed_prompt_tokens 400`,
-`output_reserve 4_000`, `safety_margin 500`; `DEFAULT_CHARS_PER_TOKEN = 3`.
+`PROMPT_BUDGET`: `total_limit 30_000`, `context_tokens 1_400`,
+`schema_tokens 3_000` (the cap on the data-only core schema, §4.22),
+`fixed_prompt_tokens 400`, `output_reserve 4_000`, `safety_margin 500`;
+`DEFAULT_CHARS_PER_TOKEN = 3`.
 `estimate_tokens`, `context_allowance` (clamped ≥ 0), `fit_context_items`
 (with dependency bundles, never slices; `dropped_ids` names the dropped whole
 items).
@@ -1298,8 +1663,25 @@ items).
 | `document_publication` | `compile_document_publication(document, merge, candidates, packages, plans, roles, names, shapes)` | `DocumentPublicationPlan` |
 | `graph_store` | `RdflibGraphStore.publish(publication)` | atomic TriG persistence |
 | `merge_policy` | `plan_graph_merge(graph, candidates, provenance, ...)` | MergePlan (see 4.13) |
-| `entity_lookup` | `identity_decision(entity, catalog, ...)` | `{status, uri, method, identity_score, suggestions, reason_codes}` |
-| `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=(), vocabulary=None)` | `ValidationResult` |
+| `entity_lookup` | `identity_decision(entity, catalog, ...)` | `{local_id, status, uri, method, identity_score, suggestions, reason_codes}` |
+| `candidate_validation` | `validate_candidates(data, graph, allowed_existing_ids=(), vocabulary=None)` | plain dict `{valid, candidates\|None, issues, counts}` |
+| `candidate_validation` | `drop_endpoint_mismatches(data, validation)` | `(kept_data, {records, messages})`, or `None` if any other error remains |
+| `graph_store` | `require_named_graphs(store, path=None)` | nothing, or raises `PlainRdfError` |
+| `graph_store` | `unnamed_triples(store)` | int (triples in the default graph) |
+| `schema_context` | `render_core_schema(graph)` | the core schema text |
+| `schema_context` | `schema_digest(schema_graphs)` | 12 hex characters |
+| `document_context` | `render_document_header(display_path, document_text, window, total)` | header text |
+| `document_context` | `document_anchors(source_graph, vocabulary, limit=8)` | list of entity IRIs |
+| `document_context` | `render_document_anchors(source_graph, vocabulary)` / `render_folder_anchors(graph, entities)` | block text, or `""` |
+| `document_context` | `folder_anchors(graph, provenance, vocabulary, source_path, limit=5)` | list of canonical entity IRIs |
+| `seed_view` | `seed_graphs(roles, names)` / `store_roles(store, names)` | `{graph name: Graph}` |
+| `seed_view` | `seed_view(roles, names)` | one `Graph` |
+| `link_check` | `expected_links(shapes_graph)` | sorted `[{class, relation, question}]` |
+| `link_check` | `add_expected_link(store, class_name, relation_name, question, names)` | the shapes graph (published), or `ValueError` |
+| `link_check` | `find_gaps(source_graph, canonical, expected, vocabulary, limit)` | `[{entity, class, relation, question}]` |
+| `link_check` | `check_document_links(...)` | `(packages, {gaps, filled, not_established, dropped})` |
+| `graph_health` | `health_report(graph_path, sources=None, gold_path=None)` | plain dict |
+| `graph_health` | `format_report(report, limit=20)` | short text |
 | `prompts` | `PromptLibrary(path).render(name, values)` | the finished prompt text |
 | `prompts` | `PromptLibrary(path).set(name, text)` | an error string, or None when stored |
 | `prompts` | `PromptLibrary(path).describe()` | `[{name, text, default, required, fields, error, advice}]` |
@@ -1314,15 +1696,16 @@ items).
 | `vocabulary` | `Vocabulary.class_iri(kind)` / `relation_iri(p)` / `fact_iri(p)` | the declared IRI, or the generated one |
 | `graph_scope` | `select(text, graph, carry_over, limits)` | `Scope` (triples + view + model text) |
 | `graph_scope` | `Scope.view(file_name)` | the directive a frontend applies |
-| `graph_chat` | `ChatSession.ask(message, graph, ask, ...)` | `{answer, scope}` (and two new turns) |
+| `graph_chat` | `ChatSession.ask(message, graph, ask, ...)` | `{answer, scope, summary}` (and two new turns) |
 | `graph_chat` | `ChatSession.transcript()` | `[{role, text, scope, index, view}]` |
 | `graph_edit` | `preview(graph, text, source, allow_new_vocabulary, shapes)` | `Patch` (triples, errors, warnings, `patch_id`) |
 | `graph_edit` | `parse_patch(text)` | `(added, removed, errors)` |
 | `graph_edit` | `publication(store, names, patch)` | `(Publication, evidence)` — target and provenance only |
 | `graph_edit` | `fenced_turtle(answer)` | the Turtle blocks of an answer |
 | `graph_edit` | `data_turtle(graph)` | the editable graph as Turtle |
-| `studio` | `Studio.status()` | `{ok, graph, triples, ready, classes, relations, facts, sources}` |
-| `studio` | `Studio.ingest(files, log)` | list of saved source names |
+| `workspace` | `Workspace.status()` | `{ok, error, graph, triples, ready, classes, relations, facts, sources}` |
+| `workspace` | `Workspace.ingest(files, log, progress=None)` | list of saved source names (relative to the inbox) |
+| `workspace` | `Workspace.dataset_text(view="seed")` | one TriG text (`seed` or `all`), or `ValueError` |
 | `workspace` | `Workspace.start_starter(text)` / `start_ingest(files)` | job id, or `None` when a job runs |
 | `workspace` | `Workspace.progress.snapshot(job_id)` | `{ok, job_id, running, label, detail, percent, result}` |
 | `operations` | `call(workspace, name, payload)` | one plain JSON record (`UnknownOperation` for a bad name) |
@@ -1331,7 +1714,7 @@ items).
 | `studio` | `create_server(workspace, host, port, tries, assets)` | `StudioServer` (a `ThreadingHTTPServer`) |
 | `publication_sources` | `materialize_sources(graph, document, merge, canonical)` | None (mutates the evidence graph) |
 | `view_report` | `build_report(path, graph, views)` | plain report dict for the HTML page |
-| `view_html` | `write_report(...)` | writes one self-contained HTML page |
+| `view_html` | `write_report(path, graph, views, destination)` | writes one self-contained HTML page, returns `destination` |
 
 ---
 
@@ -1339,9 +1722,10 @@ items).
 
 - **Roles** (`GraphNames`): `schema` (declared classes/properties), `shapes`
   (SHACL shape graphs), `data` (target canonical data graph), `provenance`
-  (evidence + source links), `review` (withheld candidates). The Lturtle
+  (evidence + source links), `review` (withheld candidates). The
   `entity:`/`class:`/`relation:`/`fact:` namespaces still name the resources
-  inside the data graph.
+  inside the data graph (classes and properties keep an imported
+  vocabulary's own IRIs, §4.20).
 - **Seed** (virtual, via `seed_graph` → `split_legacy_graph`): `onto:ontology`,
   `onto:Entity`, `onto:EntityShape` (targets `onto:Entity`, requires
   `skos:prefLabel` minCount 1). Applied only when a store is wholly fresh.
@@ -1355,8 +1739,10 @@ items).
   the seed's `onto:Entity` root and `EntityShape`, everything else empty.
   This is the vocabulary data-only ingestion is locked to.
 - **Each accepted entity** is typed `onto:Entity`, `owl:NamedIndividual`,
-  `skos:Concept`, and `class:<Kind>`; carries `skos:prefLabel`, `rdfs:label`,
-  `onto:kind`, optional aliases/comment.
+  `skos:Concept`, and its kind class (`class:<Kind>`, or the declared IRI in
+  data-only mode); carries `skos:prefLabel`, `rdfs:label`, `onto:kind`,
+  optional aliases/comment. The seed view (§4.25) hides the
+  `owl:NamedIndividual` / `skos:Concept` types from prompts and the chat.
 - **Each relation/fact** becomes `relation:<slug>`
   `owl:ObjectProperty` / `fact:<slug>` `owl:DatatypeProperty` with a label.
   In data-only mode the declarations are not written again: the statement
@@ -1373,58 +1759,96 @@ items).
   confidence, decision reasons; no timestamps, no raw text).
 - **Review graph**: withheld identities and assertions as `prov:Collection` +
   reified statements + `prov:wasDerivedFrom` (from `build_review_graph`).
+- **Expected links** (shapes graph, via `link_check.add_expected_link`):
+  `onto:expected/<class>-<relation>` node shapes with one `sh:minCount 1`,
+  `sh:severity sh:Warning` property rule and an `sh:message` question.
+- **Hand edits** (provenance graph, via `graph_edit`): one `prov:Activity`
+  `onto:edit/<patch_id>` per applied patch plus one `rdf:Statement` per added
+  or removed triple.
 
 ---
 
-## 8. Cross-module import graph (main edges)
+## 8. Cross-module import graph (every package import)
+
+Built from the `from .x import ...` lines of every module.
 
 ```
-cli.py ──► api.py (RunRequest, run_text_to_graph),
-           graph_management.py (LocalTurtleStore), llm.py (OpenRouterExtractor),
-           run_report.py (RunReporter, default_report_path)
-api.py  ──► pipelines + stores (re-exports; no logic of its own)
-pipeline.py ──► windowing, source_staging, source_parse, llm, repair,
-                candidate_validation, candidate_graph, source_reconciliation,
-                source_validation, document_merge, document_publication,
-                merge_policy, entity_lookup (indirect), graph_merge,
-                graph_store, graph_management, ingest_sources, task_context,
-                prompt_budget, run_report
-document_publication.py ──► graph_store (GraphNames, Publication, RdflibGraphStore),
-                            graph_partition (partition), graph_management (seed_graph),
-                            candidate_graph (PROVISIONAL), publication_sources,
-                            source_validation
-document_merge.py ──► merge_policy, candidate_graph, graph_merge
-source_staging.py ──► merge_policy (plan_graph_merge, canonical_json),
-                      candidate_graph, context_render, prompt_budget, graph_merge
-source_reconciliation.py ──► candidate_graph (DQV), graph_management (ONTO...)
+__main__.py ──► cli
+cli.py ──► api (RunRequest, run_text_to_graph), graph_management (LocalTurtleStore),
+           llm (OpenRouterExtractor), pipeline (ExtractionConfig, MergeConfig),
+           run_report (RunReporter, default_report_path)
+api.py ──► graph_management, graph_store, document_publication, llm,
+           source_reconciliation, source_validation, pipeline (re-exports; no logic)
+pipeline.py ──► prompts, candidate_graph, candidate_validation (incl. drop_endpoint_mismatches),
+                document_context, graph_management (save_graph), graph_merge,
+                graph_store (incl. require_named_graphs), link_check, ingest_sources, llm,
+                merge_policy, document_merge, document_publication, prompt_budget, repair,
+                run_report, schema_context, seed_view, source_parse, source_staging,
+                source_reconciliation, source_validation, task_context, vocabulary, windowing
+document_publication.py ──► candidate_graph (CANDIDATE_BASE, provisional_entity_iri),
+                            graph_management (seed_graph), graph_partition, publication_sources,
+                            graph_store (GraphNames, Publication, RdflibGraphStore),
+                            source_validation (embedded_shape_graph, validate_source_graph)
+document_merge.py ──► candidate_graph (provisional_entity_iri), graph_merge (slug),
+                      merge_policy (build_provenance, canonical_json, plan_graph_merge)
+source_staging.py ──► candidate_graph, context_render, merge_policy, graph_merge, prompt_budget,
+                      graph_store (lazy, inside retain_staging)
+source_reconciliation.py ──► candidate_graph (CANDIDATE_MAPPING_VERSION, DQV), graph_management
 source_validation.py ──► (pySHACL only, imported lazily)
 merge_policy.py ──► entity_lookup, graph_management, graph_merge
-candidate_validation.py ──► entity_lookup (entity_catalog, identity_key),
-                            graph_management, graph_merge (class_uri, label, slug)
-candidate_graph.py ──► graph_management (FACT, RELATION, bind), graph_merge (class_*)
-graph_store.py ──► graph_partition (for legacy import), graph_management (bind)
+entity_lookup.py ──► graph_management (ONTO), source_concepts (same_name_stem)
+graph_merge.py ──► entity_lookup, graph_management
+candidate_validation.py ──► candidate_graph (PROVISIONAL), entity_lookup, graph_management, graph_merge
+candidate_graph.py ──► graph_management (FACT, RELATION, bind), graph_merge (class_*, slug)
+publication_sources.py ──► entity_lookup (identity_key), graph_management (ONTO), graph_merge
+graph_store.py ──► graph_management (bind), graph_partition (legacy import)
 vocabulary.py ──► graph_management (FACT, RELATION), graph_merge (class_uri, slug)
-starter.py ──► document_publication (split_legacy_graph), graph_management,
-               graph_merge, graph_store, llm, repair
-workspace.py ──► graph_management (bind), graph_store, llm, pipeline,
-                prompts, run_report, starter, vocabulary
-prompts.py ──► (stdlib only: no rdflib, no project imports)
+repair.py ──► llm (InvalidResponseError)
+source_parse.py ──► prompts, llm (ask_llm)
+windowing.py ──► prompt_budget (estimate_tokens)
+schema_context.py ──► context_render (clean, field), graph_management (ONTO)
+document_context.py ──► context_render (clean, field), graph_management (ONTO)
+seed_view.py ──► graph_management (ONTO, bind), vocabulary
+link_check.py ──► prompts, candidate_validation, context_render, document_context, entity_lookup,
+                  graph_management, graph_merge, graph_store, llm, prompt_budget,
+                  source_concepts (normalize), vocabulary, windowing (TextWindow)
+graph_health.py ──► entity_lookup, graph_management, graph_store, ingest_sources,
+                    link_check (expected_links), source_concepts, vocabulary,
+                    windowing (make_source_document)
+starter.py ──► prompts, document_publication (split_legacy_graph), graph_management, graph_merge,
+               graph_partition, graph_store, llm, repair, source_validation (embedded_shape_graph),
+               vocabulary
+graph_scope.py ──► graph_management (BASE; CLASS/ENTITY/... lazily), prompt_budget, task_context
+graph_chat.py ──► graph_scope, prompts
+graph_edit.py ──► candidate_graph (CANDIDATE_BASE), graph_management, graph_store,
+                  source_validation, starter (parse_rdf), vocabulary
+workspace.py ──► graph_edit, document_publication (shape_graphs), graph_chat, graph_management (bind),
+                 graph_store (incl. PlainRdfError, require_named_graphs), llm, pipeline, prompts,
+                 run_report, starter, seed_view, vocabulary
+prompts.py ──► (stdlib only)
 operations.py ──► (nothing from the package: it only names capabilities)
-studio.py ──► operations, workspace (transport only)
+studio.py ──► operations (UnknownOperation, call), workspace (DEFAULT_GRAPH, DEFAULT_SOURCES, Workspace)
 task_context.py ──► entity_lookup, graph_patterns (STRUCTURAL, eligible), ontology_views, source_concepts
 context_render.py ──► prompt_budget, task_context (TEXT_PREDICATES, datatype_term)
-ontology_views.py ──► graph_partition, graph_skeleton, graph_patterns
+ontology_views.py ──► graph_partition, graph_patterns, graph_skeleton
+graph_patterns.py ──► graph_management (ONTO)
+run_report.py ──► graph_partition, graph_skeleton, task_context (local_name)
 view_report.py ──► graph_management (ONTO), graph_patterns, run_report, task_context
-view_ontology.py ──► graph_management, graph_store (ReadOnlyGraphStore, RdflibGraphStore),
-                     ontology_views, run_report, view_html, task_context
+view_html.py ──► view_report (build_report)
+view_ontology.py ──► graph_management (open_graph), graph_store (ReadOnlyGraphStore, RdflibGraphStore),
+                     ontology_views, run_report, task_context, view_html
+root scripts: ontology.py → cli.main; view_ontology.py → view_ontology.main;
+              ttl_to_trig.py → graph_store, starter; trig_to_ttl.py → rdflib only
 ```
 
 Deliberate seams: `source_concepts` / `prompt_budget` have no rdflib or `llm`;
 `graph_partition` / `graph_skeleton` / `graph_management` / `llm` /
-`ingest_sources` / `source_concepts` / `prompt_budget` have no project imports
-(except `graph_patterns` → `graph_management.ONTO`); `windowing` depends on
-`prompt_budget.estimate_tokens` only; pySHACL is imported lazily inside
-`validate_source_graph`.
+`ingest_sources` / `source_concepts` / `prompt_budget` / `prompts` /
+`operations` import nothing from the package; `windowing` depends on
+`prompt_budget.estimate_tokens` only. Three imports are lazy (inside a
+function): pySHACL in `validate_source_graph`, `graph_store` in
+`source_staging.retain_staging`, and the namespace constants in
+`graph_scope`.
 
 ---
 
@@ -1436,20 +1860,24 @@ source files ──► find_text_files / read_source ──► make_source_docum
                                                           ▼
                               plan_windows()  →  overlapping TextWindows
                                                           │
-                 per window:  task_context over final graph  +  task_context over staging graph
+                 per window:  task_context over the seed view  +  task_context over staging graph
                                                           │
                           layered_context_text()  →  one budgeted block (source items "(this document)")
+                          data-only: header + core schema + document anchors + same folder placed first
                                                           │
                           make_prompt() → extract_validated() → [repair ≤ N]
                                                           │
                           validate_candidates(..., vocabulary=...)  (same gate every attempt;
-                                                          undeclared class/predicate under data-only → error → window rejected)
+                                                          undeclared class/predicate under data-only → error → window rejected;
+                                                          only endpoint mismatches left → drop_endpoint_mismatches, window kept)
                                                           │
                           plan_window_admission(source staging graph only; PROVISIONAL IRIs)
                                                           │
                           build_candidate_graph()  →  window candidate graph (evidence, kept)
                           apply_merge_plan()  →  source staging graph grows
                                                           │ (all windows)
+                          data-only: check_document_links() → one question per missing expected link;
+                                     quoted answers admitted as synthetic windows "link-<hash>"
                                                           ▼
               reconcile_document()  →  report (entities, aliases, overlap supports, unresolved, conflicts)
               build_source_artifact()  →  deterministic N-Triples + metadata
@@ -1474,16 +1902,19 @@ initial information ──► starter_prompt() → extract_validated() → valid
                                                           │
                           schema + shapes graphs  =  the frozen starter vocabulary
                                                           ▼
-page + panel ──► GET  /api/op/status|dataset|operations.list|progress?job=N
+page + panel ──► GET  /api/op/status|dataset?view=seed|all|operations.list|progress?job=N
              ──► POST /api/op/reset          → unlink dataset + inbox files → empty store
              ──► POST /api/op/starter.create → {job_id}   (the operation registry)
              ──► POST /api/op/ingest {files} → {job_id} → sources/inbox/ → run_text_to_graph(data_only)
+             ──► POST /api/op/chat.ask {message, budget} → {job_id} → graph_scope + graph_chat over the seed view
+             ──► POST /api/op/edit.preview / edit.apply → graph_edit → one publication (target + provenance)
              (the transport only calls operations.call(workspace, name, payload))
 
-Both long jobs run in one background thread at a time; the page polls
-the `progress` operation every 400 ms and moves the bar from the pipeline's own
-checkpoints (model call N for the starter; file, window, and publication for
-ingestion). `progress` never touches the store, so polling while a publication
+The three long jobs (starter, ingestion, chat) run in one background thread
+at a time; the page polls the `progress` operation every 400 ms and moves the
+bar from the pipeline's own checkpoints (model call N for the starter; file,
+window, and publication for ingestion; selection and the model call for the
+chat). `progress` never touches the store, so polling while a publication
 is being applied cannot read a half-written graph.
 ```
 
@@ -1500,7 +1931,7 @@ publication only apply already-made decisions.
 | Item | Value |
 |---|---|
 | Base namespace | `http://example.org/text-ontology/` |
-| Role / resource namespaces | `entity/ class/ relation/ fact/ graphs/(schema\|shapes\|data\|provenance\|review) provisional/ metric/ staging/ candidate/ document/ source-file/ statement/ review/` |
+| Role / resource namespaces | `entity/ class/ relation/ fact/ graphs/(schema\|shapes\|data\|provenance\|review\|scope) provisional/ metric/ staging/ edit/ expected/ document/ source-file/ statement/ merge-event/ merge-candidate/ merge-proposed-entity/` |
 | Default output dataset | `ontology.trig` (`.ttl` = explicit legacy Turtle compatibility) |
 | Window target / overlap | `800` / `100` tokens (`WINDOW_STRATEGY_VERSION = 2`) |
 | Document ID / window ID | `doc-<sha256[:16]>` / `win-<sha256[:16]>` |
@@ -1510,9 +1941,9 @@ publication only apply already-made decisions.
 | Auto-accept confidence | `0.80` (`AUTO_ACCEPT_MIN_CONFIDENCE`) |
 | Close-spelling threshold | `0.96` (`CLOSE_SPELLING_THRESHOLD`, review-only) |
 | Default repair attempts | `2` (`ExtractionConfig.repair_attempts`) |
-| Default LLM model | `qwen/qwen3.5-35b-a3b:nitro` |
-| Env vars | `OPENROUTER_MODEL` / `OPENROUTER_API_KEY` |
-| LLM | `https://openrouter.ai/api/v1/chat/completions`, temperature `0`, max output `4,096` tokens, timeout `60` s, title `"Simple Text to Ontology"`, system prompt `"Extract knowledge. Return only JSON."` |
+| Default LLM model | OpenRouter `google/gemma-4-26b-a4b-it:free` (`DEFAULT_MODEL`); Google `gemini-3.1-flash-lite` |
+| Env vars | `LLM_PROVIDER` (default `openrouter`, or `google`); `OPENROUTER_API_KEY` / `OPENROUTER_MODEL`; `GEMINI_API_KEY` / `GEMINI_MODEL` / `GEMINI_REASONING_EFFORT` (default `none`); `OPENROUTER_MAX_TOKENS` (both providers) |
+| LLM | OpenRouter `https://openrouter.ai/api/v1/chat/completions` (header `X-OpenRouter-Title: Simple Text to Ontology`) or Google `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`; temperature `0`, max output `4,096` tokens (`MAX_OUTPUT_TOKENS`), timeout `60` s, HTTP 429/500/502/503 retried after 2, 5, 15 s, system prompt `"Extract knowledge. Return only JSON."` |
 | Accepted source extensions | `.txt .md .rst .csv .json .jsonl .yaml .yml .xml .html .log` |
 | Seed graph size | 8 triples |
 | Data-only ingestion | `MergeConfig.require_declared_vocabulary` (default `False`); CLI flag `--data-only`; the studio always sets it |
@@ -1522,16 +1953,19 @@ publication only apply already-made decisions.
 | Workspace | `DEFAULT_GRAPH` `ontology.trig`, `DEFAULT_SOURCES` `sources/inbox` (`workspace.py`) |
 | Studio transport | `DEFAULT_PORT` 8765 (next free port when taken), page `frontend/triple-lens.html`, assets `.js`/`.css` beside it, host `127.0.0.1`, `StudioServer(ThreadingHTTPServer)`, one job at a time |
 | Transport routes | `GET /` · `GET /studio.js` · `GET /studio.css` · `GET /api/op/<name>?arg=value` · `POST /api/op/<name>` |
-| Operations | `status` · `dataset` · `progress {job}` · `reset` · `starter.create {text}` → `{job_id}` · `ingest {files:[{name,text}]}` → `{job_id}` · `operations.list` |
-| Studio jobs | starter: `model call N` (10 %, +25 % per call) → `writing the schema and shapes` (88 %) → 100 %; ingestion: per file (1/8 of the bar per file, half of it per window) with `starting`, `window k/n, asking the model`, `model replied`, `admitted`, `published` |
+| Operations (18) | `status` · `dataset {view}` · `progress {job}` · `reset` · `operations.list` · `starter.create {text}` → `{job_id}` · `starter.import {name, text}` · `ingest {files:[{name,text}]}` → `{job_id}` · `chat.ask {message, budget}` → `{job_id}` · `chat.state` · `chat.reset` · `edit.current` · `edit.preview {text, allow_new_vocabulary}` · `edit.apply {patch_id}` · `prompts.list` · `prompts.save {name, text}` · `prompts.reset {name}` · `prompts.preview {name}` |
+| Studio jobs | starter: `model call N` at `min(10 + 25·N, 80)` % → `writing the schema and shapes` (88 %) → 100 %; ingestion: each file gets `1/files` of the bar; inside it window k starts at `(k-1)/n`, `model replied` is always at `1/2`, `admitted` at `k/n`, `published` at the end; chat: 10 % selecting, 40 % asking the model |
 | Studio polling | panel polls `progress {job}` (400 ms) while `running` is true |
-| Scope caps | `MAX_TRIPLES` 300, `MAX_TOKENS` 2500, `MAX_FOCUS` 20, `SCOPE_FILE` `scope.trig`, `SCOPE_GRAPH` `.../graphs/scope` |
+| Scope caps | `MAX_TRIPLES` 300, `MAX_TOKENS` 6000, `MAX_FOCUS` 20, `MAX_NAMES` 60, `SCOPE_FILE` `scope.trig`, `SCOPE_GRAPH` `.../graphs/scope`; studio subgraph sizes 2500 / 6000 / 12000 |
 | Chat session | `HISTORY_TURNS` 6, `MAX_TURNS` 200, `TRANSCRIPT_VIEWS` 20 |
-| Edits | `REMOVAL = "-"`, `PREVIEW_LIMIT` 40, `EDIT_BASE` `.../candidate/edit/`; the vocabulary is frozen unless `allow_new_vocabulary` |
-| Prompt templates | `extraction_system`, `extraction_user`, `starter`; placeholders `context`, `text`, `min_classes`, `max_classes`, `xsd_names`; digest 12 hex characters |
+| Edits | `REMOVAL = "-"`, `PREVIEW_LIMIT` 40, `EDIT_BASE` `http://example.org/text-ontology/edit/`; the vocabulary is frozen unless `allow_new_vocabulary` |
+| Prompt templates | `extraction_system`, `extraction_user`, `starter`, `link_check_user`, `chat_system`, `chat_user`; placeholders `context`, `text`, `min_classes`, `max_classes`, `xsd_names`, `question`, `relation`, `subject`, `candidates`, `passages`, `history`, `scope_note`, `subgraph`; digest 12 hex characters |
 | Prompt overrides | `prompts.local.json` beside the dataset (git-ignored); `{"version": 1, "prompts": {...}}`; only non-default entries are stored |
-| Console scripts | `text-to-ontology` · `text-to-ontology-starter` · `text-to-ontology-studio` |
-| Prompt budget | `total_limit 30_000 · context_tokens 1_400 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3` |
+| Console scripts | `text-to-ontology` (`cli:main`) · `text-to-ontology-starter` (`starter:main`) · `text-to-ontology-studio` (`studio:main`) · `text-to-ontology-health` (`graph_health:main`) · `text-to-ontology-expect` (`link_check:main`) |
+| Prompt budget | `total_limit 30_000 · context_tokens 1_400 · schema_tokens 3_000 · fixed_prompt_tokens 400 · output_reserve 4_000 · safety_margin 500`; `chars_per_token 3`; data-only fixed blocks are added to `fixed_prompt_tokens` per window |
+| Link check | `MAX_LINK_CHECKS` 5 (`ExtractionConfig.max_link_checks`), `MAX_CANDIDATES` 20, `PASSAGE_TOKENS` 2 500, `MIN_EVIDENCE_CHARACTERS` 8; expected-link shapes `onto:expected/<class>-<relation>` |
+| Document context | `MAX_TITLE_CHARACTERS` 200, `MAX_ANCHORS` 8, `MAX_FOLDER_ANCHORS` 5, `MAX_LINKS_PER_ANCHOR` 5 |
+| Name stems | `MIN_STEM_CHARACTERS` 5, `MAX_ENDING_CHARACTERS` 2 (`source_concepts`) |
 | Selection caps | classes 12, properties 16, restrictions 8, patterns 20, resources 15, examples 12 |
 | Traversal caps | `hierarchy_hops` 1, `instance_hops` 1 |
 | Matching caps | `concepts` 40, `direct_matches` 40, `match_tokens` 8, `overlap_tokens` 2 |
@@ -1554,18 +1988,25 @@ lever on prompt size; where both apply the smaller wins.
 |---|---|---|
 | Missing source path | `ingest_sources.find_text_files` | `RuntimeError("Source does not exist: {source}")` |
 | No text-like files | `pipeline.run_text_to_graph` | `RuntimeError("No text-like files found")` |
-| Missing API key | `llm.ask_llm` | `RuntimeError("Set OPENROUTER_API_KEY first")` |
-| OpenRouter HTTP error | `llm.ask_llm` | `RuntimeError(f"OpenRouter error {code}: {message}")` |
-| Non-JSON / invalid JSON answer | `llm.ask_llm` | `InvalidResponseError(...)` (caught by `repair._attempt`) |
+| Unknown `LLM_PROVIDER` | `llm.provider_name` | `RuntimeError` naming the known providers |
+| Missing API key | `llm.ask_choice` | `RuntimeError(f"Set {key} first")` (e.g. `Set GEMINI_API_KEY first`) |
+| HTTP error (after retries for 429/500/502/503) | `llm.ask_choice` | `RuntimeError(f"{provider_name()} error {code}: {message}")` |
+| Empty / non-JSON / invalid JSON answer | `llm.ask_llm` | `InvalidResponseError(...)` (caught by `repair._attempt`) |
+| Plain RDF file saved as `.trig` (triples in the default graph) | `graph_store.require_named_graphs` (pipeline, workspace) | `PlainRdfError` pointing at `ttl_to_trig.py`; the studio's `status()` shows it as `error` |
 | Invalid candidate package | `pipeline._extract_window` | `RuntimeError(format_validation_failure(...))` |
 | Undeclared class/relation/fact (data-only) | `candidate_validation.validate_candidates` | validation errors `entity.undeclared_kind`, `relation.undeclared_predicate`, `fact.undeclared_predicate` → repair → rejected window |
+| Relation/fact between the wrong classes (data-only) | `candidate_validation._check_endpoints` | `relation.domain_mismatch` / `relation.range_mismatch` / `fact.domain_mismatch` → repair; if only these remain, those records are dropped and the window continues (not an error) |
+| Expected link with an unknown class/relation, or a relation that does not start at the class | `link_check.add_expected_link` | `ValueError` (the CLI prints `Error: ...`, exit 1) |
+| Link-check evidence not quoted from the passages | `link_check.read_answer` | the link is dropped (`link_check.unsupported_evidence`), the gap is "not established" |
 | Rejected starter proposal | `starter.propose_starter` | `RuntimeError(format_starter_failure(...))` |
 | Unparseable RDF import | `starter.parse_rdf` | `ValueError` listing the formats tried |
 | RDF import without vocabulary | `starter.import_publication` | `ValueError` naming the triple count |
 | Page file not found | `studio.find_page` | `RuntimeError("Could not find frontend/triple-lens.html…")` |
 | Studio port in use | `studio.main` | `Error: cannot listen on {host}:{port}` + `SystemExit(1)` |
-| Unknown operation | `operations.call` / `StudioHandler` | `UnknownOperation` / `{ok: false, error}` with HTTP 404 |
-| Operation failure | `operations.call` | `{ok: false, error}` with HTTP 200 (only unknown names are 404) |
+| Unknown operation | `operations.call` / `StudioHandler` | `UnknownOperation` (a `KeyError`) / `{ok: false, error}` with HTTP 404 |
+| Operation failure | `StudioHandler` | a `RuntimeError`/`OSError`/`ValueError`/`KeyError` → `{ok: false, error: "<Type>: message"}` with HTTP 200 (only unknown names are 404; other exception types are not caught) |
+| Unknown dataset view | `Workspace.dataset_text` / `dataset` operation | `ValueError` / `{ok: false, error}` |
+| Reset of an unsafe inbox | `Workspace._check_reset_target` | `RuntimeError("Refusing to reset ...")` when the inbox is the working directory, one of its parents, or the dataset's folder |
 | Missing operation arguments | the operation itself | `{ok: false, error}` naming what was missing |
 | Template that cannot be used | `prompts.PromptLibrary.validate` | an error string: empty, a missing required placeholder, an unknown placeholder, a bare `$` |
 | Template that cannot be rendered | `prompts.PromptLibrary.render` | `ValueError` naming the missing value |
@@ -1578,9 +2019,11 @@ lever on prompt size; where both apply the smaller wins.
 | Source SHACL non-conformance | `pipeline.run_text_to_graph` | `SourceValidationError` (carries validation, artifact, report, sidecar) |
 | Proposed-data SHACL non-conformance | `pipeline.run_text_to_graph` | `PublicationValidationError` (carries plan, validation) |
 | Final graph changed mid-window | `pipeline._process_document` | `RuntimeError("the final ontology changed during window processing")` |
+| Final graph changed during reconciliation | `pipeline.run_text_to_graph` | `RuntimeError("the final ontology changed during source reconciliation")` |
+| Unknown export format | `graph_store.export_dataset` | `ValueError` |
 | Duplicate role names / bad staging ns | `graph_store.GraphNames.validate` | `ValueError` |
 | Budget without ceiling/arithmetic | `context_render.allowance` | `KeyError` |
-| `main()` catches `RuntimeError`/`OSError` | `cli.main` | print to stderr, `SystemExit(1)` |
+| `main()` catches `RuntimeError`/`OSError` | `cli.main` | `reporter.failed(error)`, `Error: ...` to stderr, `SystemExit(1)` |
 
 Source and publication validation errors leave the final graphs unchanged;
 `--dry-run` never calls `store.publish`.
@@ -1589,24 +2032,44 @@ Source and publication validation errors leave the final graphs unchanged;
 
 ## 12. Current data snapshot (`ontology.trig`, as parsed from the file)
 
-The dataset holds five roles. Current sizes at the time of writing
-(numbers grow with every run, so the repository tests do **not** pin them):
+Recounted with rdflib on 2026-10-12 (commit `635c95c`). The file changes with
+every starter, import, and ingestion, so the repository tests do **not** pin
+these numbers.
 
-| Named graph | Current triples |
+| Named graph | Triples |
 |---|---|
-| `graphs/schema` | ~2 (seed ontology structure) |
-| `graphs/shapes` | ~5 (the embedded `EntityShape` from the seed) |
-| `graphs/data` (target) | ~10 900 |
-| `graphs/review` | ~2 700 |
-| `graphs/provenance` | ~111 700 |
-| union of all graphs | ~125 300 |
+| `graphs/schema` | 316 |
+| `graphs/data` (target) | 356 |
+| `graphs/provenance` | 10 |
+| `graphs/shapes` | — (not present) |
+| `graphs/review` | — (not present) |
+| default graph | 0 |
+| all named graphs | 682 |
 
-Entity kinds currently present include `Person`, `Organization`, `Brand`,
-`Project`, `Place`, `Technology`, `Concept`, `Process`, `Component`, and many
-more; domain properties include ~344 `relation:*` and ~486 `fact:*` predicates
-with ~1 100 relation and ~1 150 fact assertions. Exact partition/skeleton/
-pattern numbers are pinned on the frozen miniature in
-`tests/fixtures/miniature_repository.ttl`, not on the live dataset.
+What it holds today is an **imported vocabulary, not extracted data**: an
+ECMP/SKOS knowledge-asset vocabulary (`https://example.org/ecmp/...` IRIs,
+compare `ecmp_seed.ttl`). The schema graph declares 39 classes, all with
+ECMP IRIs: 35 glossary terms under `.../ecmp/lingaro/asset/` (`client`,
+`project-repo`, `proposal`, `person`, `technology`, ... — SKOS concepts also
+declared as classes, which is what `ttl_to_trig.py --concepts-as-classes`
+produces) plus 4 `ecmp:vocab#` classes; and 9 object and 13 datatype
+properties, also ECMP IRIs. The data graph holds 35 `skos:Concept` resources and a few
+`ecmp:Domain` / `ecmp:CompanyProfile` / `ecmp:DataAsset` individuals; there
+are no `onto:Entity` individuals and no `relation:*` / `fact:*` statements
+yet, and no `onto:Entity` root class (so the core schema uses the "leave out
+anything no class fits" rule, §4.22).
+
+Other dataset files in the repository, for comparison:
+
+| File | Graphs (triples) |
+|---|---|
+| `seed_ontology.trig` | schema 220 (5 classes incl. `onto:Entity`, 6 object + 34 datatype properties), shapes 5, provenance 1 |
+| `ontology_bckp.trig` | schema 226, shapes 12, data 1 294, provenance 53 713, review 856 |
+| `backups/ontology.init-schema-only.trig` | schema 226, shapes 12 |
+| `backups/ontology.2026-10-09.before-connectivity.trig` | schema 226, shapes 5, data 5 779, provenance 172 464, review 1 680 |
+
+Exact partition/skeleton/pattern numbers are pinned on the frozen miniature
+in `tests/fixtures/miniature_repository.ttl`, not on a live dataset.
 
 ---
 
@@ -1632,7 +2095,7 @@ pattern numbers are pinned on the frozen miniature in
 | `test_graph_management.py` | Seed structure (8 triples), no reseed, prefix bindings, atomic save/round-trip. |
 | `test_ingest_sources.py` | Direct-file acceptance, recursive/sorted/filtered discovery, graph exclusion, missing source, utf-8 replace. |
 | `test_source_parse.py` | Prompt contains source + selected context + JSON contract (per-record confidence); `parse_source` delegates to `ask_llm`. |
-| `test_llm.py` | No dedicated file — `llm` is exercised through the patched boundary. |
+| `test_llm_answer.py` | The chat client without a network: an empty answer is an `InvalidResponseError` naming the reason, a normal answer parses, `openrouter` is the default provider, `google` uses its own address/key/model and `reasoning_effort` (default `none`, configurable), a missing key names the variable, an unknown provider is a clear error, the model override is what is sent, a busy answer is retried and retries end. |
 | `test_source_concepts.py` | Record fields/vocabularies, determinism, Unicode preservation, weighting/caps, word-boundary phrases, no rdflib/`llm` import. |
 | `test_ontology_views.py` | The five fields; façade equals direct calls; lossless partition; observations never become declared structure. |
 | `test_task_context.py` | Tier order, name/label/alias matching, bounded expansion, restriction bundles, patterns, native vs generic cards, caps, determinism. |
@@ -1648,12 +2111,34 @@ pattern numbers are pinned on the frozen miniature in
 | `test_install_smoke.py` | The package imports and the console script is installed. |
 | `test_graph_edit.py` | Patch parsing (additions, removals, shared prefixes, a comment, a missing full stop, both kinds of parse error), fenced Turtle blocks, preview (stable id, both sides of the diff, new vocabulary frozen or allowed, undeclared use as error or warning, an absent removal as a warning, a class/property collision, SHACL as a warning), the provenance records matching the publishing statement IRIs, the publication touching only target and provenance, and the workspace operations end to end (current, preview, apply, a refused patch never stored, the toggle travelling with the preview). |
 | `test_graph_chat.py` | The scope selector: focus from the question, statements plus declarations, the triple cap with a reported `dropped`, a well-connected node not pushing the schema out, deterministic output, carry-over for a follow-up, an empty match, the TriG/view/model faces, and the summary. The chat: a turn answers from the subgraph, the transcript keeps each subgraph (bounded to the newest turns), history reaches the prompt, reset, an edited chat prompt, and the workspace operations end to end. |
-| `test_prompts.py` | The three defaults and their validity, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
+| `test_prompts.py` | Every default template is valid, the `KeyError`/`ValueError` messages, the placeholder rules (required, unknown, bare `$`, escaped `$$`), the advisory checks, the override file (store, refuse, reload, reset, corrupt file, stale template), the digest, and that an edited template reaches `make_prompt`, `starter_prompt`, and `parse_source`. |
 | `test_vocabulary.py` | `read_vocabulary` over the seed and a starter schema; slug-based `declares_*` matching; relations never read as facts; blank nodes skipped; unlabelled declarations fall back to the IRI. |
 | `test_starter_import.py` | RDF detection (suffix and content sniff), `parse_rdf` for Turtle/TriG/unknown/garbage, partitioning a plain ontology into roles, importing this project's own named graphs role for role (keeping a foreign graph as data), refusing a document with no vocabulary, an atomic failure leaving the old dataset alone, the operation answers, and the end-to-end proof that data-only ingestion after an import types individuals with the imported classes and predicates and creates no `class:*` twins. |
 | `test_starter.py` | Proposal checking (sections, camelCase names, unknown domain/range, duplicates, counts), repair of a messy answer, `starter_publication` roles and triples, `proposal_summary`, `create_starter` replacing an old dataset. |
 | `test_data_only.py` | The data-only gate end to end: declared extraction accepted with the schema and shapes unchanged, undeclared kind/predicate rejected and nothing written, no declarations in a data-only plan, and the permissive default still declaring as before. |
 | `test_studio.py` | Three layers in one file: `Workspace` status/dataset/reset/`_write_source` round trips, data-only ingestion and its error, and the job layer (progress from model calls and per-file/window checkpoints, a monotonic bar across several dropped files, a failed job finishing with its error, results handed only to the job that asked, one job at a time); the operation registry (manifest equals the registry, every operation answers plain JSON, unknown names raise, missing arguments are reported, a running job is refused); `Assets` (page + panel + styles served, traversal and unknown types refused); and the HTTP transport (`/`, `/studio.js`, `/studio.css`, `GET`/`POST /api/op/<name>`, 404 for unknown operations and old routes). |
+| `test_connectivity_pipeline.py` | Data-only ingestion end to end with a fake extractor: a window that matches nothing still sees the whole core schema, the run records `schema_sha256`, an old `extraction_user` override still works, every window carries path/title/earlier anchors, earlier-window entities show no temporary IRI (a copied one is cleared, not fatal), a wrong link is repaired first and dropped alone if still wrong, the link check fills a gap from quoted evidence / adds nothing for an unquoted or empty answer / makes no call without a gap / can be switched off, a canonical client is a candidate with its `id:`, and same-folder entities reach a later file's prompt and may be used as `existing_id`. |
+| `test_schema_context.py` | `render_core_schema`: every class/relation/fact once with its meaning, the root class last with its limit, order independent of triple order, graph text cannot forge prompt structure; `schema_digest` stable and schema-dependent. |
+| `test_document_context.py` | Title from a heading / first line / nothing, heading trail by level, the header lines, a path cannot forge a delimiter, anchor classes = subjects of relationships, anchors most linked first and at most 8, no anchors → no block, same-folder entities only from files in that folder. |
+| `test_endpoint_checks.py` | Domain/range checks: declared direction passes, wrong subject/object class and a fact on the wrong class are mismatches, a subclass fits, an `existing_id` entity is checked by its graph kind, nothing new without a vocabulary, only the mismatched records are dropped, other errors keep the old behaviour; `read_vocabulary` reads domains, ranges, and parents. |
+| `test_link_check.py` | Expected-link shapes read back (a violation shape is not one), a missing expected link warns but conforms, `add_expected_link` checks names, gaps (with/without the link, closed by a canonical twin, the limit), passages (first window plus windows naming a name, in order, the cap), candidates (range class only, named first, canonical with id), a quoted link becomes an ordinary package, unquoted evidence or an unknown key is dropped, a shapeless answer is nothing, and the `link_check_user` template validates and previews. |
+| `test_name_forms.py` | `same_word_stem` / `same_name_stem` (same word with another ending, different words, word by word), an inflected name selects the existing card, an inflected form is held for review (`inflected_form`) only for the same kind, and an alias still resolves exactly. |
+| `test_seed_view.py` | The seed view keeps the schema whole, declared statements/names/kinds, drops bookkeeping and undeclared statements, leaves out provenance/review/shapes, counts declarations made in a data graph; `dataset` view `seed` is the default, `all` shows every named graph, an unknown view is a clear error, and the chat reads the seed view. |
+| `test_graph_health.py` | Each health number on a small graph: isolated and root-only entities, endpoint violations, missing expected links, duplicate suspects, gold recall/precision, uncovered sources, and the whole report from a file. |
+| `test_plain_rdf.py` | A plain RDF file saved as `.trig` is refused by ingestion and by the studio (`PlainRdfError`) and left alone; `ttl_to_trig.py`: classes to schema and individuals to data, `.trig` and `.ttl` sources split the same way, an existing output needs `--force`, a refused source never costs the existing output, the source is never the output, `--concepts-as-classes` (off by default) makes named, described classes with a hierarchy that can be an extracted kind, and a schema without a root class gets the "leave it out" rule. |
+
+**Running the tests**: `.venv/bin/python -m unittest discover -s tests -p
+'test_*.py'`. Status on 2026-10-12: `Ran 1072 tests`, `FAILED (errors=8,
+skipped=2)`.
+
+**Known issue — 8 errors from a deleted file.** Eight tests still read the
+repository's `ontology.ttl`, which commit `b90acdf` deleted, and fail with
+`FileNotFoundError`: `test_graph_partition` (2: `RepositoryGraphTest`,
+`InvariantTest`), `test_graph_patterns` (1), `test_ontology_views` (3),
+`test_graph_skeleton` (1), and `test_pipeline` (1: `RepositoryGraphTest`).
+They check that the working-tree dataset is never written; every other
+contract in those files passes. They need a new target (for example
+`ontology.trig` or a fixture) — not fixed yet.
 
 ---
 
@@ -1670,20 +2155,25 @@ pattern numbers are pinned on the frozen miniature in
    only the source staging graph; new entities get `provisional/<doc>/...`
    IRIs; canonical resolution happens once at document merge.
 4. **`existing_id` cannot resolve inside a window**: canonical resources are
-   not in the staging graph, and source-local items are marked `native: False`,
-   so nothing source-local can become a reusable `existing_id`.
+   not in the staging graph, and source-local items are marked `native: False`
+   and show no IRI, so nothing source-local can become a reusable
+   `existing_id`. The same-folder block (§4.23) is the exception that *adds*
+   canonical ids to the allowed `existing_ids`.
 5. **The final ontology is invariant during windowing**: a triple-level
    snapshot is compared after every window and after reconciliation; any change
    raises `RuntimeError`.
 6. **Repair never bypasses validation**: a repaired answer passes exactly the
    same `candidate_validation` gate; after `repair_attempts` failures (default
-   2, 0 disables) the window is rejected.
+   2, 0 disables) the window is rejected — except in data-only mode when the
+   only errors left are endpoint mismatches: then just those records are
+   dropped and the rest of the window is re-validated and kept.
 7. **Candidate graphs are evidence, not assertions**: asserted triples and
    their `rdf:Statement` reifications are both present, which is what lets
    reconciliation count independent supports without trusting reification alone.
-8. **pySHACL runs over a copy** with `inference="none"` and no infos/warnings;
-   shapes come from `ValidationConfig.shape_graphs`, else the configured shape
-   roles, else legacy embedded shapes.
+8. **pySHACL runs over a copy** with `inference="none"`, `allow_infos=False`,
+   and `allow_warnings=True` — a `sh:Warning` (such as an expected link) is
+   reported but never blocks; shapes come from `ValidationConfig.shape_graphs`,
+   else the configured shape roles, else legacy embedded shapes.
 9. **Exact duplicates corroborate**: an existing exact triple is planned as
    `duplicate` (any confidence) and is never re-added; each window's confidence
    measurement stays as independent evidence in the provenance graph.
@@ -1710,8 +2200,11 @@ pattern numbers are pinned on the frozen miniature in
 17. **`identity_key`/`slug` folding is lossy** (NFKD→ascii drops characters with
     no decomposition) while `source_concepts.normalize` is Unicode-preserving —
     three normalizations coexist on purpose and must not be unified carelessly.
-18. **Close spelling (≥ 0.96) is review-only**: it never auto-resolves and uses
-    only the preferred name, never aliases; kind mismatch blocks resolution.
+18. **Close spelling (≥ 0.96) and inflected forms are review-only**: they
+    never auto-resolve; the candidate's preferred name (not its aliases) is
+    compared with every name of same-kind entities; kind mismatch blocks
+    resolution. An inflected form ("Polpharmy" vs "Polpharma") becomes
+    `review` with `identity.inflected_form`.
 19. **Skeleton does no inference** and drops unsupported/incomplete
     restrictions whole; patterns are observations that never become axioms.
 20. **The context budget is charged pessimistically** (headings for every
@@ -1723,8 +2216,9 @@ pattern numbers are pinned on the frozen miniature in
 22. **An `existing_id` must have actually been shown**: only ids rendered as
     `id:` in the final budgeted prompt that still exist in `entity_catalog`
     are accepted by validation.
-23. **Validation fails closed**: one error rejects that window's whole package;
-    duplicates are warnings, not errors. `format_validation_failure` never
+23. **Validation fails closed**: one error rejects that window's whole package
+    (the endpoint-only exception of #6 aside); duplicates are warnings, not
+    errors. `format_validation_failure` never
     includes the raw model response.
 24. **Fact duplicate keys include the JSON type**: `"1"`, `1`, and `true` are
     distinct facts; NaN/±infinity and collections are rejected.
@@ -1740,13 +2234,15 @@ pattern numbers are pinned on the frozen miniature in
     `person`, and `PERSON` all fold to `class:person` and are accepted;
     a starter name in camelCase would fold differently on the way back
     (`label()` splits it), which is why `starter.validate_starter` refuses
-    camelCase and underscores in proposed names.
+    camelCase names and names that slug to `unnamed` (underscores pass:
+    `has_part` is fine).
 28. **A starter is written in one atomic publication** replacing all five
     roles, so re-running it replaces the previous starter instead of growing
     it; the previous data, provenance, and review graphs are gone.
 29. **The studio owns no state of its own** beyond the dataset file and the
-    inbox directory: `reset` unlinks the graph file and the inbox's direct
-    child files (never a directory), and re-opens an empty in-memory store.
+    inbox directory: `reset` unlinks the graph file and every file under the
+    inbox (recursively), removes the folders left empty, and re-opens an
+    empty in-memory store.
     The in-memory store is shared with the pipeline, so every answered request
     already sees the new state.
 30. **The studio is additive**: `frontend/triple-lens.html` still works
@@ -1757,9 +2253,11 @@ pattern numbers are pinned on the frozen miniature in
 31. **Studio progress is real, not a spinner**: the starter counts model calls
     (a repair attempt shows as `model call 2 (repairing the answer)`), and
     ingestion moves per file and per window from the pipeline's own reporter
-    checkpoints. The bar is monotonic by construction — the file number comes
-    from the studio, not from the per-file run, so a three-file drop reads
-    0 % → 33 % → 67 % → 100 % instead of restarting at zero.
+    checkpoints. The file number comes from the studio, not from the
+    per-file run, so a three-file drop reads 0 % → 33 % → 67 % → 100 %
+    instead of restarting at zero. Within one file the bar is *not* strictly
+    monotonic: `model replied` is always reported at half of the file's
+    share, so on a document with 3+ windows it steps back on late windows.
 32. **Only one studio job at a time**: the `Progress` slot serializes the two
     long jobs even though the HTTP server is threaded, so graph writes never
     interleave; reads a page makes during a job (`progress`) do not touch the
@@ -1769,8 +2267,9 @@ pattern numbers are pinned on the frozen miniature in
     beside the dataset, are validated before they are stored, and are ignored
     (not fatal) when a stored one stops validating. Because `Template` leaves
     braces alone, an edited JSON contract needs no escaping, and `$$` is a
-    literal dollar. The two extraction digests join the run configuration, so
-    an artifact names the templates that produced it, and `extractor_for_run()`
+    literal dollar. The two extraction digests (and `schema_sha256`) join the
+    run configuration, so an artifact names the templates that produced it
+    (the `link_check_user` digest is not recorded), and `extractor_for_run()`
     rebuilds the client per run so an edited system prompt takes effect.
 34. **An imported vocabulary keeps its IRIs**: `Vocabulary.class_iri` /
     `relation_iri` / `fact_iri` resolve a candidate name to the *declared* IRI,
@@ -1783,10 +2282,11 @@ pattern numbers are pinned on the frozen miniature in
 35. **Importing RDF belongs to the starter step, not to ingestion**: a dropped
     RDF/Turtle/TriG file is parsed and replaces the dataset like any starter
     (`starter.import`, or `python ttl_to_trig.py`), while the Add
-    sources zone refuses RDF and points at section 1 — feeding a syntax file to
-    the extractor would only produce noise.
+    sources zone refuses RDF-looking files (by suffix, in `studio.js`, which
+    also catches `.json`) and points at the Starter ontology dialog — feeding
+    a syntax file to the extractor would only produce noise.
 36. **A chat answer is only as wide as its scope**: each turn shows the model
-    one bounded subgraph (300 triples, types and labels ranked first, a slice
+    one bounded subgraph of the seed view (300 triples, types and labels ranked first, a slice
     reserved for declarations) and nothing else; the transcript keeps that same
     subgraph, so a reader can always see what the answer was based on. A
     follow-up carries the previous focus over, which is what makes "and
@@ -1801,11 +2301,15 @@ pattern numbers are pinned on the frozen miniature in
     those stored triples and nothing else, so editing the text box after a
     preview invalidates the button until the next preview. A chat answer's
     Turtle block goes through the same path and is never applied by the model.
+    Only the latest previewed patch is kept (`self.edits` holds one entry), and
+    every chat answer with a Turtle block is previewed again whenever the chat
+    state is read — so it can replace a pending hand-edit preview.
     Because the removal syntax is `- `, the parser shares the patch's prefix
     declarations with every removal line.
 39. **Showing a subgraph means showing only it**: the panel's default is to
-    replace the canvas with the scope's triples (`replace: true`, then the
-    scope file, `clearFilters`, `hideIsolated: false`, and the focus), because
+    replace the canvas with the scope's triples (`replace: ["scope.trig"]`,
+    the scope file, `mode: "instances"`, `clearFilters`, `hideIsolated: false`,
+    and the focus), because
     adding a handful of triples beside a large dataset is invisible. "With the
     full graph" keeps the additive behaviour, and "Show the full graph again"
     reloads the dataset with `resetFilters` so it comes back with the lens's own
@@ -1832,10 +2336,34 @@ pattern numbers are pinned on the frozen miniature in
     renders standalone, and the only contract between the two files is the
     `window.__lens` view API.
 44. **A view is data, not code**: `applyView({replace, files, mode, focus,
-    filters, hideIsolated, clearFilters})` is the whole picture-changing
-    surface; the lens resolves IRIs to nodes and filter keys to internal sets,
+    filters, hideIsolated, clearFilters, resetFilters})` is the whole
+    picture-changing surface (`focus` is one node IRI); the lens resolves IRIs to nodes and filter keys to internal sets,
     and ignores junk, so a backend bug can mislead the picture but cannot break
     the viewer.
+45. **Prompts see the seed view, not the dataset**: provenance, review,
+    shapes, bookkeeping types, and statements with undeclared predicates never
+    reach an extraction prompt or the chat. The core schema, the vocabulary,
+    and every window's selection are read from `seed_view(roles, names)`,
+    rebuilt after each publication; identity is still decided against the
+    full `canonical_graph(roles, names)`.
+46. **The data-only rules live in the core schema block, not in a template**:
+    "most specific kind", "declared direction only", and "base-form names"
+    are part of `render_core_schema`'s text, so they reach users with an old
+    `extraction_user` override and no template had to change. A schema too
+    big for `schema_tokens` falls back to word matching and loses those rules
+    for that run (the report says so).
+47. **The link check never invents a link**: one question per gap, at most
+    `max_link_checks`, no repair round; a link is kept only when its evidence
+    is quoted from the passages, and then it passes the same validation gate
+    (endpoint check included) and the same admission as a window. No gap, no
+    shapes, or `--no-link-check` → no extra model call.
+48. **A plain RDF file is refused, not emptied**: triples in the default graph
+    of a `.trig` file are invisible to every role read and would be dropped by
+    the next publication, so ingestion and the studio stop with
+    `PlainRdfError` and point at `ttl_to_trig.py`.
+49. **`RunResult.windows_processed` counts link-check packages too**: it adds
+    `len(staged.packages)`, which includes the synthetic `link-<hash>`
+    windows.
 
 ---
 

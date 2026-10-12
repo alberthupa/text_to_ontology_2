@@ -137,13 +137,14 @@
   <header>
     <p class="eyebrow">Active write path · source traced</p>
     <h1>The windowed document pipeline that turns text into a growing ontology</h1>
-    <p class="intro">The page follows one real run through every transitively related pipeline file. It shows the payload passed between methods, the read-only context branch (canonical plus <code>(this document)</code> staging), the validation and repair gates, the source-local admission loop, the two complete-source SHACL gates, the one canonical identity pass, and the single atomic publication — or, with <code>--dry-run</code>, the same plan without writing.</p>
-    <div class="command">text-to-ontology &lt;source file or directory&gt; [ontology.trig] [-v | --report] [--dry-run]</div>
+    <p class="intro">The page follows one real run through every transitively related pipeline file. It shows the payload passed between methods, the read-only context branch (canonical plus <code>(this document)</code> staging), the validation and repair gates, the source-local admission loop, the two complete-source SHACL gates, the one canonical identity pass, and the single atomic publication — or, with <code>--dry-run</code>, the same plan without writing. In data-only mode (<code>--data-only</code>, always on in the studio) it also shows the fixed prompt blocks (document header, core schema, anchors, same folder), the domain/range endpoint checks, and the link check after the last window.</p>
+    <div class="command">text-to-ontology &lt;source file or directory&gt; [ontology.trig] [-v | --report] [--dry-run] [--data-only] [--no-link-check]</div>
     <div class="facts">
       <span class="fact"><b>M7</b> document publication</span>
       <span class="fact"><b>windows</b> with token overlap</span>
       <span class="fact"><b>read-only plan</b> before mutation</span>
       <span class="fact"><b>one atomic publish</b> per non-empty file</span>
+      <span class="fact"><b>data-only</b> connectivity: core schema · anchors · link check</span>
     </div>
   </header>
   <div class="callout" style="margin-top:18px">
@@ -192,7 +193,7 @@
           <text class="title" x="86" y="115">cli.py → api.py</text><text class="method" x="58" y="140">main() · run_text_to_graph()</text><text class="small" x="58" y="157">source · graph · -v/--report/--dry-run</text>
         </g></a>
         <a href="#step-start" class="node blue"><g>
-          <rect x="42" y="214" width="240" height="82" rx="10"/><text class="title" x="58" y="240">graph_store.py</text><text class="method" x="58" y="263">initial_role_graphs()</text><text class="small" x="58" y="281">schema / shapes / data / prov / review</text>
+          <rect x="42" y="214" width="240" height="82" rx="10"/><text class="title" x="58" y="240">graph_store · seed_view</text><text class="method" x="58" y="263">require_named_graphs()</text><text class="small" x="58" y="281">roles → seed view for prompts</text>
         </g></a>
         <a href="#step-ingest" class="node blue"><g>
           <rect x="42" y="340" width="240" height="94" rx="10"/><rect class="step-bg" x="54" y="351" width="22" height="22" rx="6"/><text class="step" x="61" y="366">1</text>
@@ -208,7 +209,7 @@
         <g class="node violet"><rect x="486" y="226" width="272" height="52" rx="9"/><text class="method" x="502" y="250">document_staging()</text><text class="small" x="502" y="268">staging graph …/staging/&lt;doc&gt;</text></g>
         <a href="#step-context" class="node green"><g>
           <rect x="486" y="320" width="272" height="96" rx="10"/><rect class="step-bg" x="498" y="331" width="22" height="22" rx="6" style="fill:var(--green)"/><text class="step" x="505" y="346">3</text>
-          <text class="title" x="530" y="347">task_context.py ×2</text><text class="method" x="502" y="375">canonical + source_staging.layered_context_text()</text><text class="small" x="502" y="396">staging items marked (this document)</text><text class="small" x="502" y="412">one shared budget block</text>
+          <text class="title" x="530" y="347">task_context.py ×2</text><text class="method" x="502" y="370">layered_context_text()</text><text class="small" x="502" y="389">seed view + "(this document)" staging</text><text class="small" x="502" y="406">data-only: header · schema · anchors</text>
         </g></a>
         <a href="#step-model" class="node amber"><g>
           <rect x="486" y="464" width="272" height="84" rx="10"/><rect class="step-bg" x="498" y="475" width="22" height="22" rx="6" style="fill:var(--amber)"/><text class="step" x="505" y="490">4</text>
@@ -216,15 +217,20 @@
         </g></a>
         <a href="#step-validate" class="node red"><g>
           <rect x="486" y="596" width="272" height="84" rx="10"/><rect class="step-bg" x="498" y="607" width="22" height="22" rx="6" style="fill:var(--red)"/><text class="step" x="505" y="622">5</text>
-          <text class="title" x="530" y="623">candidate_validation.py</text><text class="method" x="502" y="651">validate_candidates()</text><text class="small" x="502" y="669">same gate every attempt; fail → reject window</text>
+          <text class="title" x="530" y="623">candidate_validation.py</text><text class="method" x="502" y="651">validate_candidates() + endpoints</text><text class="small" x="502" y="669">still wrong after repair → dropped</text>
         </g></a>
         <g class="node blue"><rect x="874" y="226" width="248" height="130" rx="10"/><text class="title" x="890" y="253">source_staging.py</text><text class="method" x="890" y="281">plan_window_admission()</text><text class="small" x="890" y="301">merge_policy vs staging graph ONLY</text><text class="small" x="890" y="319">provisional/&lt;doc&gt;/ IRIs</text><text class="small" x="890" y="337">candidate graph → evidence</text><text class="small" x="890" y="351">apply_merge_plan() → staging grows</text></g>
         <path class="flow" d="M402 386H450Q464 386 464 372V139H484"/><text class="payload" x="420" y="123">raw text</text>
         <path class="read-flow" d="M486 348V458Q486 472 484 472"/><text class="payload" x="498" y="444">canonical context</text><path class="read-flow" d="M758 272V318Q758 332 772 318"/><text class="payload" x="768" y="290">earlier windows</text>
         <path class="external-flow" d="M622 548H700Q714 548 714 562V594Q714 608 700 608"/><text class="payload" x="712" y="620">answer JSON</text>
         <path class="bad-flow" d="M622 596V468H600Q600 468 486 468"/><text class="payload" x="532" y="578">invalid → repair or reject</text>
-        <path class="flow" d="M758 680H872"/><text class="payload" x="800" y="668">valid candidates</text>
+        <path class="flow" d="M758 680H850Q862 680 862 668V340H872"/><text class="payload" x="772" y="698">valid candidates</text>
         <path class="feedback" d="M998 356V396Q998 410 998 426H486"/><text class="payload" x="600" y="430">next window reads the staging graph</text>
+        <a href="#step-links" class="node amber"><g>
+          <rect x="874" y="470" width="232" height="100" rx="10"/><rect class="step-bg" x="886" y="481" width="26" height="22" rx="6" style="fill:var(--amber)"/><text class="step" x="890" y="496">5b</text>
+          <text class="title" x="920" y="497">link_check.py</text><text class="method" x="890" y="523">check_document_links()</text><text class="small" x="890" y="542">data-only, after last window</text><text class="small" x="890" y="559">≤ 5 gaps · quoted evidence only</text>
+        </g></a>
+        <path class="read-flow" d="M940 356V468"/><text class="payload" x="946" y="456">gaps</text><path class="external-flow" d="M1050 468V358"/><text class="payload" x="1056" y="456">admitted</text>
         <path class="flow" d="M1122 356V510Q1122 524 1136 524H1176"/><text class="payload" x="1140" y="500">admitted package + candidate graphs</text>
 
         <a href="#step-reconcile" class="node violet"><g>
@@ -263,6 +269,7 @@
         <text class="lane-title" x="36" y="767" style="fill:var(--violet)">E · run_report.py — OBSERVES EVERY CHECKPOINT; NEVER WRITES</text>
         <g class="node violet"><rect x="474" y="790" width="270" height="56" rx="9"/><text class="method" x="490" y="814">context_selection()/prompt_context()</text><text class="small" x="490" y="832">skeleton · items · budget · ids</text></g>
         <g class="node violet"><rect x="770" y="790" width="240" height="56" rx="9"/><text class="method" x="786" y="814">window_admitted()</text><text class="small" x="786" y="832">new entities · assertions · review</text></g>
+        <g class="node violet"><rect x="1030" y="790" width="130" height="56" rx="9"/><text class="method" x="1044" y="814">link_check()</text><text class="small" x="1044" y="832">gaps · filled</text></g>
         <g class="node violet"><rect x="1176" y="790" width="258" height="56" rx="9"/><text class="method" x="1192" y="814">reconciliation()/source_validation()</text><text class="small" x="1192" y="832">report · SHACL pass/fail</text></g>
         <g class="node violet"><rect x="1458" y="790" width="238" height="56" rx="9"/><text class="method" x="1474" y="814">merge_plan()</text><text class="small" x="1474" y="832">identities + outcomes</text></g>
         <g class="node violet"><rect x="1720" y="790" width="238" height="56" rx="9"/><text class="method" x="1736" y="814">publication_validation()/dry_run()</text><text class="small" x="1736" y="832">proposed SHACL · plan</text></g>
@@ -282,14 +289,15 @@
     <p class="lead">These are the active calls made by <code>pipeline.run_text_to_graph()</code>, in execution order. Helpers are grouped under the stage that calls them.</p>
     <div class="steps">
       <article class="step-card" id="step-start"><h3><span class="number">0.</span> Start and open the dataset</h3><p class="purpose"><code>cli.main()</code> builds adapters and calls the one public API; the pipeline owns the loop.</p><div class="triplet">
-        <span class="key">receives</span><span class="value">CLI source path, optional graph path, optional <code>-v</code>, <code>--report</code>, <code>--dry-run</code>.</span>
-        <span class="key">calls</span><span class="value"><code>graph_store.initial_role_graphs()</code> reads schema / shapes / data / provenance / review; a wholly fresh store gets the virtual seed (schema + embedded EntityShape).</span>
-        <span class="key">returns</span><span class="value">The union graph used for context and identity. A missing dataset is seeded in memory; nothing is written yet.</span>
+        <span class="key">receives</span><span class="value">CLI source path, optional graph path, optional <code>-v</code>, <code>--report</code>, <code>--dry-run</code>, <code>--data-only</code>, <code>--no-link-check</code>.</span>
+        <span class="key">calls</span><span class="value"><code>graph_store.require_named_graphs()</code> refuses a plain RDF file (<code>PlainRdfError</code>; convert it with <code>python ttl_to_trig.py</code>). <code>document_publication.initial_role_graphs()</code> reads schema / shapes / data / provenance / review; a wholly fresh store gets the virtual seed (schema + embedded EntityShape). <code>seed_view.seed_view()</code> keeps only the schema and the business data.</span>
+        <span class="key">data-only</span><span class="value"><code>read_vocabulary()</code> freezes the starter vocabulary; <code>schema_context.render_core_schema()</code> renders the whole schema once per run (if it fits <code>schema_tokens</code>), <code>schema_digest()</code> names it, and <code>link_check.expected_links()</code> reads the expected links from the shapes graph.</span>
+        <span class="key">returns</span><span class="value">The union graph, and the seed view every prompt reads from. A missing dataset is seeded in memory; nothing is written yet.</span>
       </div></article>
       <article class="step-card" id="step-ingest"><h3><span class="number">1.</span> Discover and read sources</h3><p class="purpose"><code>ingest_sources.py</code> + <code>windowing.make_source_document()</code> turn a path into a stream of documents.</p><div class="triplet">
         <span class="key">receives</span><span class="value">Source path and output graph path.</span>
         <span class="key">calls</span><span class="value"><code>find_text_files()</code> (recursive, sorted, extension-filtered, graph-excluded); <code>read_source()</code> (UTF-8, replacement); <code>make_source_document()</code> (content-derived <code>doc-sha[:16]</code>).</span>
-        <span class="key">returns</span><span class="value">One document at a time. Whitespace-only files immediately skip the rest of the loop.</span>
+        <span class="key">returns</span><span class="value">One document at a time (it remembers its <code>source_path</code>). Whitespace-only files immediately skip the rest of the loop.</span>
       </div></article>
       <article class="step-card" id="step-windows"><h3><span class="number">2.</span> Plan reproducible windows</h3><p class="purpose"><code>windowing.plan_windows()</code> is source-only: text, digests, offsets.</p><div class="triplet">
         <span class="key">splits</span><span class="value">Block spans (headings/paragraphs) first; oversized blocks fall back to sentences, then to hard character chunks.</span>
@@ -297,22 +305,29 @@
         <span class="key">returns</span><span class="value"><code>list[TextWindow]</code>. Spans tile the normalized text (nothing dropped or duplicated), so the document tail is never lost.</span>
       </div></article>
       <article class="step-card" id="step-context"><h3><span class="number">3.</span> Select layered context per window</h3><p class="purpose"><code>source_staging.layered_context_text()</code> combines two read-only selections into one budgeted block.</p><div class="triplet">
-        <span class="key">canonical</span><span class="value"><code>task_context.build_task_context(window_text, final_graph)</code> — direct tiers 1–4, then bounded expansion 5–8.</span>
+        <span class="key">canonical</span><span class="value"><code>task_context.build_task_context(window_text, final_graph)</code> over the seed view — direct tiers 1–4 (inflected names count), then bounded expansion 5–8.</span>
         <span class="key">source</span><span class="value">The same selector against this document's staging graph; every rendered line is prefixed <code>(this document)</code>, and its resources are forced non-native.</span>
         <span class="key">budgets</span><span class="value">One shared allowance (<code>context_render.allowance()</code> − <code>assembly_overhead()</code>); <code>fit_context_items()</code> keeps complete dependency bundles only. Only canonical native resource cards can become reusable <code>existing_id</code>s.</span>
+        <span class="key">data-only</span><span class="value">Fixed blocks come first and are paid for outside the context allowance: <code>document_context.render_document_header()</code> (path, title, section, window k of n), the core schema, <code>render_document_anchors()</code> (this document's projects, clients, … from earlier windows), and <code>render_folder_anchors()</code> (entities already published from the same folder, with ids allowed as <code>existing_id</code>). The word-matched schema is then left out, because the core schema already holds it.</span>
         <span class="key">returns</span><span class="value">Context text, budget diagnostics, and the surviving <code>existing_ids</code>.</span>
       </div></article>
       <article class="step-card" id="step-model"><h3><span class="number">4.</span> Build the prompt and ask the model (with repair)</h3><p class="purpose"><code>source_parse.make_prompt()</code> renders the named <code>extraction_user</code> template from <code>prompts.py</code> (a studio-editable template, overrides in <code>prompts.local.json</code>); <code>repair.extract_validated()</code> bounds how messy answers are handled.</p><div class="triplet">
         <span class="key">prompt</span><span class="value"><code>make_prompt()</code> combines source, selected context, context rules, exact JSON shape, endpoint rules, and required per-record <code>confidence</code>.</span>
-        <span class="key">request</span><span class="value"><code>OpenRouterExtractor.extract()</code> → <code>llm.ask_llm()</code> (temperature 0, 60 s timeout).</span>
+        <span class="key">request</span><span class="value"><code>OpenRouterExtractor.extract()</code> → <code>llm.ask_llm()</code> (OpenRouter or Google by <code>LLM_PROVIDER</code>, temperature 0, 60 s timeout, busy answers retried). An empty or non-JSON answer is an <code>InvalidResponseError</code> that goes to repair.</span>
         <span class="key">repair</span><span class="value">An unparseable or contract-violating answer is sent back with its deterministic issue list for a corrected JSON, up to <code>repair_attempts</code> (default 2, 0 disables).</span>
         <span class="key">returns</span><span class="value">Parsed but untrusted JSON with <code>entities[]</code>, <code>relations[]</code>, <code>facts[]</code>.</span>
       </div></article>
       <article class="step-card" id="step-validate"><h3><span class="number">5.</span> Validate and admit one window</h3><p class="purpose"><code>candidate_validation.validate_candidates()</code> is the read-only structural gate; admission happens against the staging graph only.</p><div class="triplet">
         <span class="key">checks</span><span class="value">Containers and fields, local ID grammar, text normalization, endpoint references, allowed <code>existing_id</code>s, numeric confidence in [0,1], duplicates, and generated-URI role/type collisions.</span>
-        <span class="key">data-only</span><span class="value">With <code>vocabulary=read_vocabulary(graph)</code> (CLI <code>--data-only</code>, always on in the studio) an undeclared kind or predicate is an error: the answer is repaired with the declared names, and the starter's classes and relationships can never change.</span>
+        <span class="key">data-only</span><span class="value">With <code>vocabulary=read_vocabulary(graph)</code> (CLI <code>--data-only</code>, always on in the studio) an undeclared kind or predicate is an error: the answer is repaired with the declared names, and the starter's classes and relationships can never change. Every relation and fact must also connect the declared domain and range classes (subclasses count); a record still wrongly connected after the last repair is dropped alone by <code>drop_endpoint_mismatches()</code> and the rest of the window is kept.</span>
+        <span class="key">ids</span><span class="value">An <code>existing_id</code> that was not shown, is gone, or is a temporary id of this document is cleared with a warning; the entity is then matched by name and kind.</span>
         <span class="key">admit</span><span class="value"><code>source_staging.plan_window_admission()</code> plans against the staging graph with <code>provisional/&lt;doc&gt;/</code> IRIs for new entities; <code>candidate_graph.build_candidate_graph()</code> builds the PROV/DQV evidence; <code>graph_merge.apply_merge_plan()</code> grows the staging graph.</span>
         <span class="key">invalid</span><span class="value"><code>format_validation_failure()</code> raises a run-stopping error after repairs are exhausted. The final dataset is never touched.</span>
+      </div></article>
+      <article class="step-card" id="step-links"><h3><span class="number">5b.</span> Ask about missing expected links</h3><p class="purpose"><code>link_check.check_document_links()</code> runs once after the last window, in data-only mode, unless <code>--no-link-check</code>.</p><div class="triplet">
+        <span class="key">finds</span><span class="value"><code>find_gaps()</code>: entities of this document that lack an expected link (a SHACL warning shape with <code>sh:minCount 1</code>), most talked-about first, at most 5. A link the canonical graph already has is not a gap.</span>
+        <span class="key">asks</span><span class="value">One <code>link_check_user</code> prompt per gap: the question, the subject, candidate objects of the right class (canonical ones with their ids), and only the passages that mention them (≤ 2 500 tokens).</span>
+        <span class="key">accepts</span><span class="value">Only links whose evidence is quoted word for word from the passages and that pass <code>validate_candidates()</code>. Each accepted answer becomes one more synthetic window admitted to the staging graph; everything else is reported as "not established" and adds nothing.</span>
       </div></article>
       <article class="step-card" id="step-reconcile"><h3><span class="number">6.</span> Reconcile the complete source</h3><p class="purpose"><code>source_reconciliation.py</code> makes the document's local state explicit.</p><div class="triplet">
         <span class="key">report</span><span class="value"><code>reconcile_document()</code>: local entities, aliases, duplicate assertions with every independent candidate-graph/record/confidence support, unresolved identities, conflicts, counts.</span>
@@ -321,19 +336,19 @@
       </div></article>
       <article class="step-card" id="step-shacl"><h3><span class="number">7.</span> SHACL-validate the complete source</h3><p class="purpose"><code>source_validation.validate_source_graph()</code> gates the reconstructed source before any final planning.</p><div class="triplet">
         <span class="key">shapes</span><span class="value">Explicit <code>ValidationConfig.shape_graphs</code>, else configured shape roles, else embedded legacy shapes; all combined into one isolated graph.</span>
-        <span class="key">runs</span><span class="value">pySHACL over a copy of the source graph (<code>inference="none"</code>).</span>
+        <span class="key">runs</span><span class="value">pySHACL over a copy of the source graph (<code>inference="none"</code>). Warnings (such as a missing expected link) never fail it; only violations do.</span>
         <span class="key">fails</span><span class="value"><code>SourceValidationError</code> carries the standard report, the source artifact, the reconciliation report, and (optionally) the staging sidecar. Dataset unchanged.</span>
       </div></article>
       <article class="step-card" id="step-merge"><h3><span class="number">8.</span> Decide identity once for the document</h3><p class="purpose"><code>document_merge.py</code> merges the window packages into one document package and plans against the full canonical scope.</p><div class="triplet">
         <span class="key">collapse</span><span class="value"><code>build_document_candidates()</code>: safe source-local identities share one record; review-held identities stay separate; exact overlap assertions become one (strongest confidence wins).</span>
-        <span class="key">resolve</span><span class="value"><code>plan_document_merge()</code> calls <code>merge_policy.plan_graph_merge()</code> exactly once over schema + data graphs for existing/new/review decisions, accept/duplicate/review assertions, and deterministic audit triples.</span>
-        <span class="key">returns</span><span class="value">A complete document plan with an <code>identity_mapping</code> from source keys to final decisions.</span>
+        <span class="key">resolve</span><span class="value"><code>plan_document_merge()</code> calls <code>merge_policy.plan_graph_merge()</code> exactly once over schema + data graphs (the full canonical scope, not the seed view) for existing/new/review decisions, accept/duplicate/review assertions, and deterministic audit triples.</span>
+        <span class="key">returns</span><span class="value">A complete document plan with an <code>identity_mapping</code> from source keys to final decisions; the run configuration records the prompt digests and the <code>schema_sha256</code>.</span>
       </div></article>
       <article class="step-card" id="step-publish" style="grid-column:1 / -1"><h3><span class="number">9.</span> Compile and publish — or dry-run</h3><p class="purpose"><code>document_publication.py</code> builds the exact graph replacement without mutating anything, then makes one atomic call.</p><div class="triplet">
         <span class="key">compile</span><span class="value"><code>compile_document_publication()</code> copies the target graph, adds the plan's domain triples, remaps every PROV/DQV candidate occurrence onto the decided canonical statements, materializes document/file source records and <code>onto:statement/&lt;sha&gt;</code> links, and builds the review graph for withheld candidates.</span>
         <span class="key">validate</span><span class="value">The proposed post-merge data is SHACL-validated; a failure raises <code>PublicationValidationError</code> and nothing is written.</span>
         <span class="key">publish</span><span class="value"><code>publish_document()</code> = one <code>store.publish(Publication)</code> replacing target/provenance/review (schema/shapes/data copied through). <code>--dry-run</code> reports the proposed plan and sizes without this call.</span>
-        <span class="key">continue</span><span class="value">After a successful publish the in-memory roles update, so the next document's context and identity are computed against the larger dataset.</span>
+        <span class="key">continue</span><span class="value">After a successful publish the in-memory roles and the seed view update, so the next document's context and identity are computed against the larger dataset.</span>
       </div></article>
     </div>
   </section>
@@ -344,11 +359,11 @@
 
     <div class="budget-formula">
       <code>effective context budget = min(context_tokens, max(0, total_limit − fixed_prompt_tokens − source_tokens − output_reserve − safety_margin)) − assembly_overhead</code>
-      <p>Canonical items and <code>(this document)</code> staging items are rendered together, priced by the same counter, and only complete dependency bundles survive — least relevant first. Dropping a staging item only loses in-document context; dropping a canonical card removes the reusable <code>existing_id</code> it offered.</p>
+      <p>Canonical items and <code>(this document)</code> staging items are rendered together, priced by the same counter, and only complete dependency bundles survive — least relevant first. Dropping a staging item only loses in-document context; dropping a canonical card removes the reusable <code>existing_id</code> it offered. In data-only mode the fixed blocks (header, core schema, anchors, same folder) are added to <code>fixed_prompt_tokens</code> by <code>budget_for()</code>, so they are always shown and never trimmed.</p>
     </div>
 
     <div class="budget-flow" aria-label="Budget calculation flow">
-      <div class="budget-node"><span class="n">1</span><b>pipeline.budget_for(window.text)</b><code>dict(PROMPT_BUDGET, source_tokens=estimate_tokens(text))</code>The shared defaults are copied, then this window's estimated source cost is added.</div>
+      <div class="budget-node"><span class="n">1</span><b>pipeline.budget_for(window.text)</b><code>dict(PROMPT_BUDGET, source_tokens=estimate_tokens(text))</code>The shared defaults are copied, then this window's estimated source cost (and, in data-only mode, the fixed blocks' cost) is added.</div>
       <div class="budget-node"><span class="n">2</span><b>estimate_tokens(text)</b><code>ceil(len(text) / 3)</code>Deliberately pessimistic and deterministic. Longer source text increases <code>source_tokens</code>.</div>
       <div class="budget-node"><span class="n">3</span><b>context_render.allowance()</b><code>min(explicit ceiling, arithmetic remainder)</code>When both controls exist, the smaller one always wins; neither → <code>KeyError</code>.</div>
       <div class="budget-node"><span class="n">4</span><b>assembly_overhead()</b><code>item space = budget − headings − line breaks</code>Charged for every section the candidates could fill, so the assembled text never overruns.</div>
@@ -362,7 +377,8 @@
           <tbody>
             <tr><td>context_tokens</td><td>1,400</td><td class="effect-up">Usually more context</td><td>The direct ceiling and normal tuning knob. Lowering it drops lower-priority context sooner.</td></tr>
             <tr><td>total_limit</td><td>30,000</td><td class="effect-up">More arithmetic room</td><td>A bookkeeping limit, not a detected model window. At current defaults it normally does not bind because 1,400 is smaller.</td></tr>
-            <tr><td>fixed_prompt_tokens</td><td>400</td><td class="effect-down">Less context</td><td>Reserved estimate for instructions and fixed prompt structure.</td></tr>
+            <tr><td>fixed_prompt_tokens</td><td>400 (+ fixed blocks)</td><td class="effect-down">Less context</td><td>Reserved estimate for instructions and fixed prompt structure. In data-only mode the header, core schema, anchors, and same-folder blocks are added per window.</td></tr>
+            <tr><td>schema_tokens</td><td>3,000</td><td class="effect-up">Bigger schemas fit whole</td><td>Data-only only: the ceiling for the whole core schema block. A schema over it falls back to the word-matched schema selection, and the report says so.</td></tr>
             <tr><td>output_reserve</td><td>4,000</td><td class="effect-down">Less context</td><td>Space kept aside in the arithmetic for the answer. The separate OpenRouter request cap is 4,096 output tokens.</td></tr>
             <tr><td>safety_margin</td><td>500</td><td class="effect-down">Less context</td><td>Extra protection against estimation error.</td></tr>
             <tr><td>source_tokens</td><td>Per window</td><td class="effect-down">Less context</td><td>Calculated by <code>budget_for()</code> from the window text — not configured in <code>PROMPT_BUDGET</code>.</td></tr>
@@ -383,7 +399,7 @@
       </aside>
     </div>
 
-    <h3 style="margin:24px 0 10px;font:700 15px var(--mono)">Worked examples with the current defaults</h3>
+    <h3 style="margin:24px 0 10px;font:700 15px var(--mono)">Worked examples with the current defaults (without data-only fixed blocks)</h3>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Window size</th><th>Estimated source_tokens</th><th>Arithmetic remainder</th><th>Effective context budget</th><th>Likely effect</th></tr></thead>
@@ -405,7 +421,7 @@
 
   <section id="policy"><h2>Merge policy: the decision order matters</h2><p class="lead">For a valid package, the planner checks outcomes in this order. An earlier result wins; later rules do not override it. The same planner runs source-locally per window (provisional IRIs) and once more per document against the full canonical scope.</p>
     <div class="decision-flow">
-      <div class="decision"><b>1 · identity usable?</b>Ambiguous exact name, kind collision, close spelling, or low-confidence new identity goes to review.</div>
+      <div class="decision"><b>1 · identity usable?</b>Ambiguous exact name, kind collision, close spelling, an inflected form of a known name ("Polpharmy" for "Polpharma"), or low-confidence new identity goes to review.</div>
       <div class="decision"><b>2 · exact duplicate?</b>An existing triple is corroboration, even when confidence is below 0.80. It is not re-added.</div>
       <div class="decision"><b>3 · explicit conflict?</b>Functional or inverse-functional conflicts go to review. Existing canonical values are never overwritten.</div>
       <div class="decision"><b>4 · confidence ≥ 0.80?</b>New entities, fields, relations, and facts below the threshold go to review.</div>
@@ -420,32 +436,38 @@
         <li><code>context_selection()</code> prints concepts, graph candidates, selected items, reasons, and the full declared skeleton used by the selector; it labels that skeleton as not sent wholesale.</li>
         <li><code>prompt_context()</code> prints budget decisions, reusable IDs, and the exact selected context text (canonical + <code>(this document)</code> items).</li>
         <li><code>llm_input()</code> prints the exact system and user messages sent to the extraction LLM; <code>model_replied()</code> prints the parsed but still untrusted extraction record by record, with repair attempts reported.</li>
-        <li><code>validation()</code> prints pass/fail, normalization and duplicate counts, and path-addressed errors or warnings; <code>window_admitted()</code> reports what entered the staging graph.</li>
+        <li><code>validation()</code> prints pass/fail, normalization and duplicate counts, path-addressed errors or warnings, and any wrongly connected records dropped after repair; <code>window_admitted()</code> reports what entered the staging graph.</li>
+        <li><code>link_check()</code> reports the expected-link gaps of the document, which were filled, which were not established, and why answers were dropped.</li>
         <li><code>reconciliation()</code>, <code>source_validation()</code>, <code>merge_plan()</code>, and <code>publication_validation()</code> print the two SHACL results, identity methods, field and assertion outcomes, reason codes, conflicts, and counts.</li>
         <li><code>saved()</code> / <code>dry_run()</code> report the atomic publication or the plan that deliberately was not published.</li>
       </ol>
     </div>
   </section>
 
-  <section id="chat"><h2>Talking to the graph: a third read-only consumer</h2><p class="lead">The graph chat is the same selection idea applied to a question instead of a source text. <code>graph_scope.select()</code> reuses <code>task_context</code> to find what the question is about, collects the statements around those resources (types and labels first, a slice reserved for the declarations), caps the result by whole triples, and hands back three faces: TriG for the viewer, a view directive for the frontend, and compact lines for the model. Nothing here writes, and the transcript keeps the subgraph behind every answer, so what the model saw is always visible. The pipeline above is untouched.</p><p class="lead">What a model is actually handed is the scope's <em>rendered</em> text, and that has its own token ceiling: a PREFIXES block, a NAMES block (each label once), then short statements. Whole triples are dropped when the ceiling is reached and the count is reported, so a partial view of the graph is visible to the reader as well as to the model.</p></section>
+  <section id="chat"><h2>Talking to the graph: a third read-only consumer</h2><p class="lead">The graph chat is the same selection idea applied to a question instead of a source text, and it reads the same seed view (<code>seed_view.py</code>) the prompts do. <code>graph_scope.select()</code> reuses <code>task_context</code> to find what the question is about, collects the statements around those resources (types and labels first, a slice reserved for the declarations), caps the result by whole triples, and hands back three faces: TriG for the viewer, a view directive for the frontend, and compact lines for the model. Nothing here writes, and the transcript keeps the subgraph behind every answer, so what the model saw is always visible. The pipeline above is untouched.</p><p class="lead">What a model is actually handed is the scope's <em>rendered</em> text, and that has its own token ceiling: a PREFIXES block, a NAMES block (each label once), then short statements. Whole triples are dropped when the ceiling is reached and the count is reported, so a partial view of the graph is visible to the reader as well as to the model.</p></section>
 
   <section id="edit"><h2>Editing the graph: a fourth writer, previewed first</h2><p class="lead">A hand edit or a chat proposal is a patch: additions are Turtle, removals are the same statement with <code>- </code> in front. <code>graph_edit.preview()</code> parses and checks it (new vocabulary is refused unless the toggle is on, undeclared names are refused while the vocabulary is frozen, SHACL violations are warnings) and stores the exact triples under a patch id; <code>graph_edit.publication()</code> then writes those stored triples into the target graph and adds one <code>prov:Activity</code> plus an <code>rdf:Statement</code> per triple to the provenance graph, in the same single atomic <code>publish()</code> the pipeline uses. Schema, shapes and review graphs are never touched by an edit.</p></section>
 
-  <section id="files"><h2>Active files and their main methods</h2><p class="lead">This is the transitive execution path of the CLI. Viewer/report-generation files are separate read-only tools (<code>view_ontology.py</code>, <code>view_report.py</code>, <code>view_html.py</code>) and are not called by this command. Everything a frontend can ask for is a named operation (<code>operations.py</code>): one registry, one generic HTTP path (<code>/api/op/&lt;name&gt;</code>), and the page only draws what comes back. The state and the two long jobs live in <code>workspace.py</code>; <code>studio.py</code> is transport only. Two further entry points wrap the same loop: <code>starter.py</code> (paste → checked starter ontology → one atomic publication) and <code>studio.py</code> (local page + API that creates the starter, ingests dropped files data-only, and resets), which read the frozen vocabulary through <code>vocabulary.py</code>.</p>
+  <section id="files"><h2>Active files and their main methods</h2><p class="lead">This is the transitive execution path of the CLI. Viewer/report-generation files are separate read-only tools (<code>view_ontology.py</code>, <code>view_report.py</code>, <code>view_html.py</code>) and are not called by this command. Everything a frontend can ask for is a named operation (<code>operations.py</code>): one registry, one generic HTTP path (<code>/api/op/&lt;name&gt;</code>), and the page only draws what comes back. The state and the two long jobs live in <code>workspace.py</code>; <code>studio.py</code> is transport only. Two further entry points wrap the same loop: <code>starter.py</code> (paste → checked starter ontology → one atomic publication) and <code>studio.py</code> (local page + API that creates the starter, ingests dropped files data-only, and resets), which read the frozen vocabulary through <code>vocabulary.py</code>. Two small read-mostly commands sit beside them: <code>text-to-ontology-health</code> (<code>graph_health.py</code>, connectivity numbers) and <code>text-to-ontology-expect</code> (<code>link_check.py</code>, declare or list expected links). The root script <code>ttl_to_trig.py</code> turns a plain RDF ontology into a dataset; <code>trig_to_ttl.py</code> exports the data graph as Turtle.</p>
     <div class="table-wrap"><table><thead><tr><th>File</th><th>Main active methods</th><th>Responsibility in this run</th></tr></thead><tbody>
       <tr><td>ontology.py</td><td>main() <span class="tag">wrapper</span></td><td>Adds <code>src/</code> to <code>sys.path</code> and delegates to <code>text_to_ontology.cli:main</code>.</td></tr>
-      <tr><td>cli.py</td><td>build_parser(), main()</td><td>Argument parsing, adapter selection (<code>LocalTurtleStore</code> for <code>.ttl</code>), verbose/report/dry-run wiring, exit codes.</td></tr>
+      <tr><td>cli.py</td><td>build_parser(), main()</td><td>Argument parsing, adapter selection (<code>LocalTurtleStore</code> for <code>.ttl</code>), verbose/report/dry-run/data-only/link-check wiring, exit codes.</td></tr>
       <tr><td>api.py</td><td>run_text_to_graph()</td><td>The documented public API; re-exports request/result types and adapters.</td></tr>
       <tr><td>run_report.py</td><td>RunReporter, default_report_path()</td><td>Compact terminal output, verbose terminal output, or file-only Markdown reports under <code>reports/runs/</code>.</td></tr>
-      <tr><td>graph_store.py</td><td>RdflibGraphStore, GraphNames, Publication, import_legacy_turtle()</td><td>Named-graph store boundary; one atomic TriG <code>publish()</code>; role names and validation.</td></tr>
+      <tr><td>graph_store.py</td><td>RdflibGraphStore, GraphNames, Publication, require_named_graphs(), import_legacy_turtle()</td><td>Named-graph store boundary; one atomic TriG <code>publish()</code>; role names and validation; refuses a plain RDF file (<code>PlainRdfError</code>).</td></tr>
       <tr><td>graph_management.py</td><td>bind(), open_graph(), seed_graph(), save_graph(), LocalTurtleStore</td><td>Legacy Turtle lifecycle, namespaces, seed, atomic Turtle persistence for the compatibility path.</td></tr>
       <tr><td>ingest_sources.py</td><td>find_text_files(), read_source()</td><td>Source discovery, ordering, graph exclusion, text input.</td></tr>
       <tr><td>windowing.py</td><td>make_source_document(), plan_windows(), load_source_document()</td><td>Content-derived document IDs and reproducible overlapping windows.</td></tr>
       <tr><td>source_staging.py</td><td>plan_window_admission(), layered_context_text(), retain_staging()</td><td>One provisional staging graph per document; provisional IRIs; layered budgeted context; failure sidecar.</td></tr>
+      <tr><td>seed_view.py</td><td>seed_view(), seed_graphs()</td><td>Schema plus business data only: what every prompt (and the chat) reads.</td></tr>
+      <tr><td>vocabulary.py</td><td>read_vocabulary(), Vocabulary.is_a(), domain_of(), range_of()</td><td>Data-only: the frozen starter classes, relations, facts, and their declared endpoints.</td></tr>
+      <tr><td>schema_context.py</td><td>render_core_schema(), schema_digest()</td><td>Data-only: the whole core schema as one prompt block, and its hash.</td></tr>
+      <tr><td>document_context.py</td><td>render_document_header(), render_document_anchors(), folder_anchors(), render_folder_anchors()</td><td>Data-only: document header, this document's anchors, same-folder entities.</td></tr>
       <tr><td>source_parse.py</td><td>make_prompt(), parse_source(), parse_prompt()</td><td>Extraction instructions, JSON contract, source/context composition, and prompt dispatch.</td></tr>
-      <tr><td>llm.py</td><td>SYSTEM_PROMPT, ask_llm(), OpenRouterExtractor</td><td>System message, OpenRouter request, and JSON response parsing.</td></tr>
+      <tr><td>llm.py</td><td>SYSTEM_PROMPT, ask_llm(), OpenRouterExtractor</td><td>System message, OpenRouter or Google request (with retries), and JSON response parsing.</td></tr>
       <tr><td>repair.py</td><td>repair_prompt(), extract_validated(), ExtractionOutcome</td><td>Bounded self-repair of unparseable or invalid answers; every attempt re-validated.</td></tr>
-      <tr><td>candidate_validation.py</td><td>validate_candidates(), format_validation_failure()</td><td>Fail-closed structure, normalization, references, confidence, duplicates, compatibility.</td></tr>
+      <tr><td>candidate_validation.py</td><td>validate_candidates(), drop_endpoint_mismatches(), format_validation_failure()</td><td>Fail-closed structure, normalization, references, confidence, data-only endpoint checks, duplicates, compatibility.</td></tr>
+      <tr><td>link_check.py</td><td>expected_links(), find_gaps(), check_document_links()</td><td>Data-only: one targeted question per missing expected link; quoted evidence only.</td></tr>
       <tr><td>candidate_graph.py</td><td>build_candidate_graph(), provisional_entity_iri(), literal_value()</td><td>Validated package → deterministic PROV/DQV candidate RDF (evidence).</td></tr>
       <tr><td>source_reconciliation.py</td><td>reconcile_document(), build_source_artifact(), SourceGraphArtifact</td><td>Complete-document report + deterministic canonical N-Triples artifact.</td></tr>
       <tr><td>source_validation.py</td><td>validate_source_graph(), combine_shape_graphs(), embedded_shape_graph()</td><td>The pySHACL gate over one complete source graph; <code>SourceValidationError</code>.</td></tr>
@@ -457,12 +479,13 @@
       <tr><td>publication_sources.py</td><td>source_records(), materialize_sources(), supported_triples()</td><td>Document/file source records, <code>onto:statement/&lt;sha&gt;</code> links, resource summaries.</td></tr>
       <tr><td>task_context.py</td><td>build_task_context(), select_task_context(), direct_matches(), expand()</td><td>Relevance matching, bounded expansion, ContextPackage creation (canonical and staging).</td></tr>
       <tr><td>context_render.py</td><td>prepare_prompt_context(), render_context_items(), assemble_context(), allowance()</td><td>Safe semantic rendering, section assembly, budget coordination, reusable-ID list.</td></tr>
-      <tr><td>prompt_budget.py</td><td>estimate_tokens(), context_allowance(), fit_context_items()</td><td>Pessimistic token estimate and all-or-nothing dependency packing.</td></tr>
-      <tr><td>source_concepts.py</td><td>extract_source_concepts(), text_phrases()</td><td>Source-only concept signals and whole-word phrase index (no RDF, no LLM).</td></tr>
+      <tr><td>prompt_budget.py</td><td>PROMPT_BUDGET, estimate_tokens(), context_allowance(), fit_context_items()</td><td>Pessimistic token estimate and all-or-nothing dependency packing.</td></tr>
+      <tr><td>source_concepts.py</td><td>extract_source_concepts(), text_phrases(), same_name_stem()</td><td>Source-only concept signals, whole-word phrase index, inflected-name test (no RDF, no LLM).</td></tr>
       <tr><td>ontology_views.py</td><td>build_ontology_views()</td><td>Façade returning schema, instance, support, skeleton, patterns.</td></tr>
       <tr><td>graph_partition.py</td><td>partition_graph(), choose_view()</td><td>Lossless, disjoint schema/instance/support split.</td></tr>
       <tr><td>graph_skeleton.py</td><td>create_graph_skeleton(), structural_triples(), supported_restriction()</td><td>Explicit declared class/property core; no inference.</td></tr>
       <tr><td>graph_patterns.py</td><td>observed_relationships(), pattern_record()</td><td>Empirical class–property–range usage evidence.</td></tr>
+      <tr><td>graph_health.py <span class="tag">separate</span></td><td>health_report(), format_report()</td><td>Not called by a run: the connectivity numbers to judge one (<code>text-to-ontology-health</code>).</td></tr>
     </tbody></table></div>
   </section>
   <footer>Source of truth: the current Python files in this repository. This page intentionally documents the active <code>text-to-ontology</code> command (and its <code>python3 -m text_to_ontology</code> / <code>python ontology.py</code> equivalents), not the separate <code>view_ontology.py</code> viewer path.</footer>

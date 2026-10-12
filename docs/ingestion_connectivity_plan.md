@@ -1,8 +1,8 @@
 # Ingestion connectivity plan
 
-Status: P0–P6 implemented on branch `connectivity` (2026-10-09). P0-T3
-(fresh baseline) and P7 (rebuild and compare) need real model runs and your
-gold file — not done yet.
+Status: P0–P6 implemented on branch `connectivity` (2026-10-09, re-checked
+against the code 2026-10-12). P0-T3 (fresh baseline) and P7 (rebuild and
+compare) need real model runs and your gold file — not done yet.
 Written: 2026-10-09, against branch `starter-ontology` (commit `77be670`).
 
 ### Where the implementation differs from the plan below
@@ -14,19 +14,38 @@ Written: 2026-10-09, against branch `starter-ontology` (commit `77be670`).
   `extraction_user` template (P2-T4, P3-T4, P4-T1). That way they also reach
   users who saved their own `extraction_user` override, and no template
   changed.
+- **The schema budget is 3,000 tokens**, not 2,000
+  (`PROMPT_BUDGET["schema_tokens"] = 3_000`, P1-T2).
+- **Fixed blocks are paid by their real size.** `fixed_prompt_tokens` stays
+  400; `pipeline.budget_for` adds the measured size of the document header,
+  core schema, anchors, and same-folder block to it for each window (P3-T2).
+- **Anchors are a separate block, not a new `task_context` tier** (P3-T3).
+  `document_context.render_document_anchors` puts them before the selected
+  context, ordered by how many triples touch them in the staging graph (most
+  linked first), then by name, at most 8.
 - **Provenance `onto:sourcePath` is unchanged** (the path as discovered). The
   path relative to the ingestion root (`RunRequest.source_root`) is used only
   for the prompt header (P3-T1).
+- **No `expected_links.py`.** `expected_link_shape`, `expected_links`,
+  `add_expected_link`, and the `text-to-ontology-expect` command live in
+  `link_check.py` (P5-T1). Shapes are named `onto:expected/<class>-<relation>`.
 - **Gaps are found by a direct graph check**, not by running pySHACL
   (P5-T2): the expected links are still read from the SHACL warning shapes.
+  A gap is skipped when a canonical entity with the same kind and a shared
+  name already has the link.
 - **The link-check answer is a small `{"links": [...]}` shape** with
   candidate keys; the code builds the ordinary candidate package from it
-  (P5-T3). The model never writes entity records there.
+  (P5-T3). The model never writes entity records there. In the
+  `link_check_user` template only `subject`, `candidates`, and `passages` are
+  required; `question` and `relation` are optional. Evidence must be at
+  least 8 characters and appear (case- and space-folded) in the passages.
 - **The health report has no built-in expected links** (P0-T1): it reports
   missing links only for shapes declared with `text-to-ontology-expect`.
 - **Repair stays in `repair.py`**, which now also keeps the last parsed
   answer on its outcome, so the pipeline can drop wrongly connected records
   after repair (P2-T3).
+- **Same-folder anchors** (P6-T1) are ranked by how many `onto:sourceFile`
+  links from other files of the folder point at them, at most 5.
 
 ## 1. The problem in one example
 

@@ -1,6 +1,6 @@
 # Run reports
 
-`python ontology.py SOURCE GRAPH --report` writes a verbose Markdown report to
+`text-to-ontology SOURCE GRAPH --report` (or `python3 ontology.py SOURCE GRAPH --report`) writes a verbose Markdown report to
 `reports/runs/` and keeps the terminal silent on a successful run.
 
 The report separates the full graph skeleton used by context selection from the

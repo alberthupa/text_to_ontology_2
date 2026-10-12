@@ -55,8 +55,9 @@ conversation with the graph.
    vocabulary, its individuals become data, and its own IRIs are kept — after
    the import, ingestion types and links new individuals with *those* names. A
    file that declares no classes or properties is refused, and a failed import
-   leaves the previous dataset untouched. On the command line, see
-   [Bring your own ontology](#bring-your-own-ontology).
+   leaves the previous dataset untouched. A dropped file that is not RDF is
+   put into the description box instead, for you to read and send. On the
+   command line, see [Bring your own ontology](#bring-your-own-ontology).
 
 Both long steps run in the background while the page polls the `progress`
 operation, so the studio shows a progress bar under the studio row: the
@@ -69,7 +70,10 @@ Only one job runs at a time, so graph writes never interleave.
    their directory structure: each file is written into `sources/inbox/` under
    its folders (`client/project/notes.md`) and ingested through the ordinary
    pipeline. Every window's prompt shows that path, the document's title, and
-   the heading it sits under.
+   the heading it sits under. Inside a dropped folder only the source text
+   types are picked up (`.txt`, `.md`, `.rst`, `.csv`, `.json`, `.jsonl`,
+   `.yaml`, `.yml`, `.xml`, `.html`, `.log`); an RDF/Turtle file is refused
+   here and belongs under **Starter ontology…**.
    Ingestion is **data-only**: the starter's classes and relationships are
    frozen, so a dropped text can add individuals and statements but can never
    add, rename, or retype a class or a relationship. A record that names
@@ -80,15 +84,18 @@ Only one job runs at a time, so graph writes never interleave.
 
    - every window sees the **whole starter schema** (every class, every
      relationship with its direction and meaning), not just the parts its
-     words happen to match;
+     words happen to match (a schema too big for its 3 000-token allowance,
+     `schema_tokens` in `prompt_budget.py`, falls back to word matching);
    - a relationship or fact between the wrong classes (`Lingaro --has
      client-->` when `has client` starts at a Project) is sent back for
      repair, and dropped on its own if the repair fails;
    - later windows see the projects, clients, … earlier windows found
      (*document anchors*), and files see those already published from their
      own folder (*same folder*), with ids they may reuse;
-   - after a document, each missing **expected link** is asked about once,
-     and kept only with evidence quoted from the text (see *Expected links*).
+   - after a document, each missing **expected link** is asked about once
+     (at most 5 questions per document), and kept only with evidence quoted
+     from the text (see
+     [Expected links](#expected-links-names-and-graph-health)).
 
    The same restriction on the command line is `--data-only`:
 
@@ -100,9 +107,11 @@ Only one job runs at a time, so graph writes never interleave.
    predicate is declared as it is extracted. The studio always uses data-only.
 
 3. **Edit the ingestion prompt.** **Prompts…** opens the prompt sent for every
-   source window: pick a template (`extraction_user` is the main one,
-   `extraction_system` is the system message, `starter` is the starter prompt),
-   edit it, and press **Save prompt**. Placeholders stay in the text — the
+   source window, and every other prompt: pick a template (`extraction_user`
+   is the main one, `extraction_system` is its system message, `starter` is
+   the starter prompt, `link_check_user` is the expected-link question, and
+   `chat_system` / `chat_user` are the graph chat), edit it, and press
+   **Save prompt**. Placeholders stay in the text — the
    panel tells you which ones are required and which are allowed, refuses a
    template that would break a run, and shows advisory notes (a missing
    `entities` list, a missing `confidence`). **Preview** renders the template
@@ -173,13 +182,18 @@ Only one job runs at a time, so graph writes never interleave.
 
 The studio serves `frontend/triple-lens.html`, the studio frontend beside it
 (`frontend/studio.js`, `frontend/studio.css`), and one generic JSON path over a registry of named
-operations, and binds to localhost only. `GET /api/op/operations.list` lists
+operations, and binds to localhost (`127.0.0.1`) by default. `GET /api/op/operations.list` lists
 everything a client may ask for; adding a capability is one small function in
 `src/text_to_ontology/operations.py`, never a new route. The state and the two
 long jobs live in `src/text_to_ontology/workspace.py`; the transport carries and
 nothing else.
 Opened straight from disk, the same page is exactly the standalone viewer: no
 server, no studio, everything read in the browser.
+
+Studio options: `--graph` (default `ontology.trig`), `--sources` (default
+`sources/inbox`), `--port` (the next free port is used when it is taken),
+`--host`, `--model` (overrides the configured model), `--page` (serve a
+different lens page), `--no-browser`, and `--reset`.
 
 ## The seed view
 
@@ -241,7 +255,8 @@ application reads and writes only its named graphs. Opening such a file is
 refused with a message (the studio status says *not a studio dataset*), so
 nothing is dropped by accident.
 
-Convert it once with `ttl_to_trig.py`:
+Convert it once with `ttl_to_trig.py` (it imports the package, so run
+`pip install -e .` first):
 
 ```bash
 python ttl_to_trig.py my_ontology.ttl ontology.trig            # new dataset
@@ -266,9 +281,16 @@ triple stays as it was:
 
 ```bash
 python ttl_to_trig.py glossary.ttl ontology.trig --concepts-as-classes
+python ttl_to_trig.py ecmp_seed.ttl ontology.trig --concepts-as-classes   # the example glossary in this repo
 ```
 
-`trig_to_ttl.py` is the way back: it exports the data graph as Turtle.
+`trig_to_ttl.py` is the way back: it exports the data graph of each TriG file
+you name as Turtle, next to it with the same name
+(`python trig_to_ttl.py ontology.trig` writes `ontology.ttl`, replacing it).
+
+`seed_ontology.trig` is a ready dataset with only a schema and shapes (no
+data): copy it to `ontology.trig` to start ingesting without asking the model
+for a starter.
 
 ## Expected links, names, and graph health
 
@@ -286,8 +308,12 @@ After each document, a project still missing its client gets one targeted
 question with the passages that mention it. A link is added only when the
 model quotes its evidence word for word from those passages; otherwise the run
 report says `not established`. A missing expected link never blocks a
-document. `--no-link-check` (or `ExtractionConfig(link_check=False)`) turns
-the questions off.
+document. At most 5 links are asked about per document
+(`ExtractionConfig(max_link_checks=...)`). The questions are part of
+data-only ingestion (the studio, or `--data-only`); `--no-link-check` (or
+`ExtractionConfig(link_check=False)`) turns them off. Running
+`text-to-ontology-expect ontology.trig` with no class lists the links, like
+`--list`.
 
 **Teach it a name.** Names are matched exactly, plus one tolerance: a word
 with a different ending ("Polpharmy" for "Polpharma") makes the existing
@@ -307,6 +333,7 @@ were never ingested, and how many links you know to be true are in the graph:
 
 ```bash
 text-to-ontology-health ontology.trig --sources notes/ --gold eval/gold.local.json
+text-to-ontology-health ontology.trig --json      # the full report as JSON
 ```
 
 The gold file lists links you know (`eval/gold.example.json` shows the
@@ -323,10 +350,11 @@ pip install -e .
 `pyproject.toml` is the single dependency declaration (`rdflib` and `pyshacl`
 are the runtime dependencies); there is no `requirements.txt`. Python 3.12+ is
 required.
-The tests need the same editable install:
+The tests need the same editable install (without it the tests cannot import
+the package):
 
 ```bash
-python3 -m unittest discover -s tests -p 'test_*.py'
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## Configure the model provider
@@ -354,7 +382,7 @@ too, but it serves them slowly (over a minute per window).
 
 ```text
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=google/gemma-4-31b-it
+OPENROUTER_MODEL=google/gemma-4-31b-it    # optional; the default is google/gemma-4-26b-a4b-it:free
 ```
 
 Avoid reasoning-heavy models for extraction: `qwen/qwen3.5-35b-a3b` often
@@ -406,6 +434,7 @@ Save a detailed report as a timestamped Markdown file under `reports/runs/`:
 text-to-ontology documents/ ontology.trig --report
 ```
 
+`-v` / `--verbose` prints every intermediate step to the terminal instead.
 `--report` writes to the file only, so a successful run stays silent in the
 terminal. The report includes the exact system and user messages sent to the
 extraction LLM. Generated reports are ignored by Git because
@@ -445,14 +474,16 @@ print(result.triples, "triples in", result.graph_path)
 ```
 
 `RunRequest` carries the source, the graph path, and the configuration:
-`WindowingConfig` (window target/overlap size in tokens), `ContextConfig`,
-`ExtractionConfig`, `MergeConfig`, `ValidationConfig` (optional explicit SHACL
-shape graphs), `GraphNames`, `ProcessingConfig`, and `dry_run`
-(`retain_staging_on_failure` exports a failed document's staging graphs to a
-sidecar TriG file next to the output graph for diagnosis; by default they are
-discarded; `require_declared_vocabulary` turns ingestion data-only, so the
-classes and relationships already declared are the only ones the model may
-use).
+`WindowingConfig` (window target/overlap size in tokens, 800/100 by default),
+`ContextConfig` (the prompt budget), `ExtractionConfig` (repairs and the link
+check), `MergeConfig`, `ValidationConfig` (optional explicit SHACL shape
+graphs), `GraphNames`, `ProcessingConfig`, `prompts` (edited templates), and
+`dry_run`. Two switches worth knowing:
+`MergeConfig(require_declared_vocabulary=True)` turns ingestion data-only, so
+the classes and relationships already declared are the only ones the model may
+use; `ProcessingConfig(retain_staging_on_failure=True)` exports a failed
+document's staging graphs to a sidecar TriG file next to the output graph for
+diagnosis (by default they are discarded).
 When the model's answer is messy — unparseable JSON or a contract violation —
 it is sent back to the model for self-repair up to
 `ExtractionConfig(repair_attempts=...)` times (default 2; 0 disables repair)
@@ -498,7 +529,8 @@ For each document the run prints one line about its staging graph and windows,
 for example `Document doc-13ed72f8: 6 window(s); staging graph ...`, plus one
 `Window k/n admitted ...` line per window showing how the source graph grew.
 After the last window it prints `Reconciled source:` and `SHACL source
-validation:` lines before any final merge plan is built.
+validation:` lines before any final merge plan is built, and in data-only runs
+one `Link check:` line about the expected links.
 The numbers behind the prompt budget live in `PROMPT_BUDGET` in
 `prompt_budget.py`; `context_tokens` is the ceiling
 on how much ontology context one prompt may carry, and lowering it makes the
@@ -554,7 +586,7 @@ All importable code lives in the `text_to_ontology` package under `src/`.
 The root scripts `ontology.py` and `view_ontology.py` are thin compatibility
 wrappers that call the packaged modules, so both old workflows keep working.
 `ttl_to_trig.py` turns a plain RDF file into a dataset, and `trig_to_ttl.py`
-exports the data graph back to Turtle.
+exports the data graph back to Turtle (both need the installed package).
 
 The pipeline that runs when you invoke the program:
 
@@ -562,7 +594,9 @@ The pipeline that runs when you invoke the program:
 - `src/text_to_ontology/pipeline.py` — the run loop, the request/result
   dataclasses, and the extractor/reporter contracts
 - `src/text_to_ontology/cli.py` — the command line: argument parsing, adapters,
-  exit codes (also reachable as `python3 -m text_to_ontology`)
+  exit codes
+- `src/text_to_ontology/__main__.py` — makes `python3 -m text_to_ontology` run
+  the CLI; `__init__.py` holds the package version
 - `src/text_to_ontology/prompts.py` — every model prompt as a named, validated,
   editable template (defaults in code, overrides in `prompts.local.json`)
 - `src/text_to_ontology/graph_scope.py` — the relevant subgraph for one
@@ -597,6 +631,8 @@ The pipeline that runs when you invoke the program:
 - `src/text_to_ontology/ingest_sources.py` — finding and reading source files
 - `src/text_to_ontology/source_parse.py` — building the prompt and parsing the
   LLM's answer
+- `src/text_to_ontology/repair.py` — bounded self-repair: a messy answer goes
+  back to the model with its issue list, a few times at most
 - `src/text_to_ontology/candidate_validation.py` — validating and normalizing a
   response before merge
 - `src/text_to_ontology/merge_policy.py` — read-only merge planning: identity
@@ -622,8 +658,11 @@ The pipeline that runs when you invoke the program:
   overlapping text windows
 - `src/text_to_ontology/graph_merge.py` — materializing a completed plan (and
   the legacy direct merger) into the graph
-- `src/text_to_ontology/graph_management.py` — opening, seeding, naming, and
-  atomically saving the graph
+- `src/text_to_ontology/graph_store.py` — the named-graph store behind one
+  small API (get, put, query, one atomic `publish`), the graph names
+  (`GraphNames`), and the refusal of plain RDF files
+- `src/text_to_ontology/graph_management.py` — the namespaces, the tiny initial
+  seed graph, and the legacy single-Turtle (`.ttl`) store
 - `src/text_to_ontology/llm.py` — the tiny chat client (OpenRouter or Google)
 
 Choosing what the LLM gets to see. All read-only: none of these writes to the
@@ -663,8 +702,8 @@ Read-only tools that derive smaller views of an existing graph:
 
 And the rest:
 
-- `pyproject.toml` — package metadata and the two dependencies (`rdflib`,
-  `pyshacl`)
+- `pyproject.toml` — package metadata, the two dependencies (`rdflib`,
+  `pyshacl`), and the five console commands
 - `frontend/triple-lens.html` — the one self-contained viewer page (it also
   exposes the `window.__lens` view API the studio draws through)
 - `frontend/studio.js` / `frontend/studio.css` — the studio frontend (top-bar
@@ -675,11 +714,24 @@ And the rest:
 - `tests/fixtures/miniature_repository.ttl` — the frozen miniature graph the
   exact partition/skeleton/pattern tests run against
 - `ontology.trig` — the named-graph dataset created by the default run
+- `seed_ontology.trig` — a schema-and-shapes-only starter dataset
+- `ecmp_seed.ttl` — an example plain-Turtle SKOS glossary to try
+  `ttl_to_trig.py --concepts-as-classes` on
+- `backups/` — saved copies of earlier datasets
+- `eval/gold.example.json` — the shape of a gold-links file for
+  `text-to-ontology-health --gold`
+- `reports/` — `reports/runs/` receives the `--report` Markdown files
+  (git-ignored); `reports/README.md` explains them
 
 The accepted directory file extensions are listed near the top of
 `ingest_sources.py`. A directly supplied file is always read, regardless of
 extension.
 
 ## Read more
+
+- `docs/current_architecture.md` — the detailed architecture
+- `docs/app_map.html` — a map of the application
+- `docs/data_flow.html` — how data flows through a run
+
 TTL Graph Generalization techniques
 What about wiki?
