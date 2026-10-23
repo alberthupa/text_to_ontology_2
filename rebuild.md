@@ -17,6 +17,15 @@ Persistent RDF storage must be selected through configuration. Required target a
 
 Create a new repository/package. Treat the old repository as a source of algorithms, behavior examples, fixtures, and UI assets. Do not import it at runtime or copy its package wholesale. Rewrite boundaries first, then selectively adapt useful functions.
 
+### New project identity and workspace
+
+- Repository and directory name: `text_to_ontology_3`.
+- Python import package: `text_to_ontology_3`; distribution name: `text-to-ontology-3`.
+- On the current machine, create the project at `/home/albert/repos2/text_to_ontology_3`, beside the reference repository. On another machine, use the same sibling-directory arrangement under a suitable workspace root.
+- Initialize an independent Git repository, virtual environment, dependency lock, and test configuration. Do not nest the project inside `text_to_ontology_2` or use a worktree of its history.
+- Keep a separate reference checkout of `text_to_ontology_2` at the pinned code commit below. Fetch the specification separately from the reference branch; do not reset an existing working checkout to obtain the baseline.
+- Creating or configuring a hosted Git repository is separate from initializing the local repository; its remote URL has not yet been selected.
+
 ## 2. Source baseline and how to use this specification
 
 Reference repository: https://github.com/alberthupa/text_to_ontology_2  
@@ -86,7 +95,7 @@ RDF is a deliberate domain technology. RDFLib terms and small detached `Graph` v
 Suggested layout (names may change; dependencies may not):
 
 ```text
-src/graph_app/
+src/text_to_ontology_3/
     domain/
         ontology/
         ingestion/
