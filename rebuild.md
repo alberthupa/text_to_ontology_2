@@ -69,6 +69,7 @@ For each task: read its listed sources; implement the new contract; adapt the sm
 - Schema, shapes, data, provenance, review, and temporary candidate/staging content have explicit roles and graph IRIs.
 - A document is processed in staging before accepted knowledge changes. Failed extraction/validation must not publish that document's partial knowledge.
 - Successful publication commits domain statements and their evidence/review records together.
+- Re-ingesting a changed document replaces that source's earlier contributions atomically. Statements still supported by other documents or explicit curation remain; re-ingesting unchanged content creates no duplicate statements or evidence.
 - Data-only ingestion cannot silently expand the ontology. Schema modification is a separate explicit capability.
 - Identity ambiguity is reported; uncertain matches are not silently merged.
 - Missing links may be proposed only from supporting content. Folder paths are context hints unless a separate, explicit policy permits another use.
@@ -163,6 +164,16 @@ Local TriG requires a cross-process write lock, revision check inside that lock,
 Use cases are callable synchronously. A job runner optionally wraps them for background execution. Start with a simple local implementation and serial writes per dataset; do not confuse a UI progress slot with a storage concurrency guarantee.
 
 Documents, job records, chat sessions, prompt overrides, and pending previews are separate state concerns. A simple SQLite sidecar is a suitable initial adapter for durable application state; original document bytes can live in a source adapter. Store graph knowledge/evidence in RDF without forcing every operational record into RDF. Keep sidecar state coordinated by operation IDs; do not claim a distributed transaction across SQLite and the RDF store.
+
+### Document identity and re-ingestion policy
+
+- A source occurrence has a stable identity within a dataset, separate from its content hash. For files, use a configured source collection ID plus normalized relative path; for supplied text, accept an explicit source key. Do not use a machine-specific absolute path as the portable identity.
+- Identical content at different source keys represents separate supporting occurrences. Re-ingesting an unchanged occurrence with the same effective processing configuration is an idempotent no-op. A deliberate reprocess or changed effective configuration may produce a new extraction revision, replacing the previous one rather than accumulating duplicate support.
+- Changed content at the same source key creates a proposed replacement revision. Stage, reconcile, and validate the complete replacement before changing accepted knowledge.
+- Commit removal of that source's obsolete support and addition of its new support in one guarded publication. Preserve statements supported by another source or explicit curation; remove an obsolete statement only when no retained support remains. Preserve entity IRIs still referenced by retained statements; do not perform implicit orphan-entity cleanup.
+- Extraction, validation, or publication failure leaves the source's previous accepted revision and contributions intact. An empty replacement follows the same validation/publication rules; it cannot bypass configured constraints.
+- A renamed/moved source key is a new occurrence unless an explicit relocation operation identifies it as the same source. A file missing from a later directory scan is not an implicit deletion request. Automatic relocation and source deletion workflows are outside this rebuild unless separately specified.
+- Track accepted source revision and statement support durably enough to rebuild operational indexes after a crash. Legacy statements without known support must not be deleted automatically by source replacement.
 
 ## 5. Delivery sequence and milestone gates
 
@@ -276,6 +287,7 @@ E03 proves storage interchangeability on TriG and Jena/Fuseki before feature arc
 | E06.4 | Implement `IngestDocuments` service composing the document phases and guarded commit. Re-plan/revalidate on conflict only under an explicit bounded policy. Define per-document partial success for batches. | `run_text_to_graph` in `pipeline.py`, pipeline/windowing tests | Completed documents remain committed after a later failure; current document has no partial commit; dry run never mutates persistent state. |
 | E06.5 | Rebuild expected-link checks as evidence-backed candidate proposals, using the same validation/planning path. | `link_check.py`, `document_context.py`, connectivity plan/tests | No supporting evidence yields "not established"; endpoint/vocabulary rules are still enforced. |
 | E06.6 | Add run results/events, durable operation receipts, and optional failed-staging retention as a separate explicit policy. | `run_report.py`, `SourceGraphArtifact`, `retain_staging` | Retry after response loss does not duplicate evidence; reports identify committed, failed, and uncommitted documents. |
+| E06.7 | Implement source revision replacement using the document identity and re-ingestion policy above. Plan support removals/additions and resulting domain changes together; preserve other-source, curated, and unknown legacy support. | Source/evidence construction in `publication_sources.py`, E02 guarded publication, new source-revision fixtures | Unchanged ingestion is a no-op; changed content removes only unsupported obsolete statements; shared statements and entity identities survive; failed replacement preserves the previous revision; identical content at two paths retains two supports. |
 
 ### E07 — Rebuild graph reading, quality analysis, and graph chat
 
