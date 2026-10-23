@@ -227,7 +227,7 @@ As an explicit integration improvement, check the final assembled request agains
 | M2: reliable knowledge publication | E04–E06 | Import ontology, ingest a multi-window document, validate and commit evidence-backed knowledge on two backends. |
 | M3: inspection and curation | E07–E08 | Health, bounded graph chat, and revision-safe edit preview/apply. |
 | M4: all invocation surfaces | E09–E10 | Python/API/CLI/UI/skills invoke shared services; jobs survive the documented lifecycle. |
-| M5: release parity | E11 | TriG and Jena pass adapter gates; migration, representative evaluation, packaging, and end-to-end parity pass. |
+| M5: release parity | E11 | TriG and Jena pass adapter gates; migration, packaging, and end-to-end parity pass. |
 
 E03 proves storage interchangeability on TriG and Jena/Fuseki before feature architecture is accepted. No Neptune account, credentials, infrastructure, SDK, live spike, or adapter implementation is required for this rebuild. E09's schemas/operation registry begin in E01 and its adapters grow with each completed use case.
 
@@ -398,7 +398,6 @@ E03 proves storage interchangeability on TriG and Jena/Fuseki before feature arc
 | E11.1 | Build end-to-end acceptance suite: imported ontology, multi-window extraction, aliases/conflicts, SHACL failure, provenance, expected links, chat proposal, edit conflict, retry, and export. | Pipeline/connectivity/starter/edit/chat tests | Tests check public behavior and RDF meaning; no live model required for deterministic CI. |
 | E11.2 | Complete live Jena/Fuseki adapter contract tests for publication, revision, authentication where configured, and retry behavior. Record supported versions/modes. | E03 work, new adapter suite | All advertised backends pass their contract gates. Neptune is listed only as a future adapter target and is excluded from this release gate. |
 | E11.3 | Implement explicit legacy TriG/Turtle import and graph-role migration. Provide dry-run inventory, backup instructions, and integrity checks. | Existing dataset codecs, `ttl_to_trig.py`, legacy adapter behavior | Migration preserves intended graph meaning/evidence and explains intentional changes; existing data is never silently overwritten. |
-| E11.4 | Evaluate representative real documents with a user-supplied gold file; compare graph health/connectivity against baseline. Keep confidential data outside git. | Connectivity plan P0/P7; `eval/gold.example.json`, health metrics | Report actual quality/recall findings separately from unit-test pass counts; do not claim old pending evaluation was completed. |
 | E11.5 | Measure snapshot/query/publication cost and graph size limits; document current scaling envelope and targeted next improvements. | Old snapshot/publication flow as baseline | Large-graph bottlenecks are measured; no blanket promise of constant-memory ingestion or native inference parity. |
 | E11.6 | Finish installation/deployment docs, configuration examples, operation catalog, storage matrix, ADRs, reuse map, and operator recovery procedures. | README/install-smoke patterns | Clean install and example workflow work without the old repo; dependencies and backend setup are explicit. |
 
