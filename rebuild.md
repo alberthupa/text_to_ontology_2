@@ -13,7 +13,7 @@ The application starts with an existing or generated ontology. It extracts knowl
 
 The same capabilities must be available through a public Python API, an HTTP API, CLI commands/scripts, a web UI, and agent skills. Skills invoke the CLI, HTTP API, or optional MCP tools; they do not implement a separate application.
 
-Persistent RDF storage must be selected through configuration. Required target adapters are local TriG, Apache Jena/Fuseki, Amazon Neptune RDF, and later other RDF databases. A backend switch must not require changing extraction, identity, validation, editing, or chat logic. Backend differences must be explicit and tested.
+Persistent RDF storage must be selected through configuration. Required adapters for this rebuild are local TriG and Apache Jena/Fuseki. Amazon Neptune RDF is a future adapter target, not an implementation requirement or release gate. A backend switch must not require changing extraction, identity, validation, editing, or chat logic. Backend differences must be explicit and tested.
 
 Create a new repository/package. Treat the old repository as a source of algorithms, behavior examples, fixtures, and UI assets. Do not import it at runtime or copy its package wholesale. Rewrite boundaries first, then selectively adapt useful functions.
 
@@ -169,13 +169,13 @@ Documents, job records, chat sessions, prompt overrides, and pending previews ar
 | Milestone | Epics | Demonstration |
 | --- | --- | --- |
 | M0: foundations | E00–E02 | Enforced dependency rules; typed core contracts; storage contract suite with memory/local adapters. |
-| M1: storage proof | E03 | One shared graph use case runs unchanged on local TriG and Jena/Fuseki. Neptune adapter design is validated early. |
+| M1: storage proof | E03 | One shared graph use case runs unchanged on local TriG and Jena/Fuseki. Core services have no dependency on either concrete adapter. |
 | M2: reliable knowledge publication | E04–E06 | Import ontology, ingest a multi-window document, validate and commit evidence-backed knowledge on two backends. |
 | M3: inspection and curation | E07–E08 | Health, bounded graph chat, and revision-safe edit preview/apply. |
 | M4: all invocation surfaces | E09–E10 | Python/API/CLI/UI/skills invoke shared services; jobs survive the documented lifecycle. |
-| M5: release parity | E11 | Neptune passes live adapter gates; migration, representative evaluation, packaging, and end-to-end parity pass. |
+| M5: release parity | E11 | TriG and Jena pass adapter gates; migration, representative evaluation, packaging, and end-to-end parity pass. |
 
-E03 is an early architectural proof, not a reason to wait for every cloud environment before implementing features. Production Neptune support remains a release gate. E09's schemas/operation registry begin in E01 and its adapters grow with each completed use case.
+E03 proves storage interchangeability on TriG and Jena/Fuseki before feature architecture is accepted. No Neptune account, credentials, infrastructure, SDK, live spike, or adapter implementation is required for this rebuild. E09's schemas/operation registry begin in E01 and its adapters grow with each completed use case.
 
 ## 6. Epics and implementation tasks
 
@@ -224,14 +224,14 @@ E03 is an early architectural proof, not a reason to wait for every cloud enviro
 
 **Goal:** uncover storage assumptions before rebuilding the large pipeline.  
 **Depends on:** E02.  
-**Epic acceptance:** local and Jena run the same shared use case; Neptune has an explicit, tested implementation path.
+**Epic acceptance:** local and Jena run the same shared use case; future adapters can implement the documented ports without changing application/domain code.
 
 | Task | What to implement | Old sources to inspect/reuse | Acceptance |
 | --- | --- | --- | --- |
 | E03.1 | Implement reusable SPARQL transport/result normalization where genuinely common. Keep binding serialization, errors, timeouts, and authentication at adapter boundaries. | `GraphStore.query`; existing query contract tests | SELECT/ASK/CONSTRUCT results preserve RDF terms; special characters and IRIs are handled safely. |
 | E03.2 | Implement Jena/Fuseki adapter against a specified deployment mode. Verify multi-graph transaction and atomic revision behavior using current official docs and live integration tests. | No old Jena adapter exists; use E02 contract | A failed publication cannot partially update data/provenance/review; independent clients cannot both commit the same stale revision. |
-| E03.3 | Investigate and implement Neptune RDF adapter: authentication, query/update behavior, limits, retry semantics, and transaction/revision strategy. Record backend-specific decisions in an ADR. | No old Neptune adapter exists | Current official docs and a live spike establish supported guarantees. Mark untested configurations unavailable; do not present mocks as backend proof. |
-| E03.4 | Run a shared vertical slice: import a tiny ontology, query it, publish evidence with a fact, export, reopen, and compare. | `GraphNames`, import/export helpers, store tests | Same application service and expected RDF meaning on TriG and Jena. Neptune live gate must pass by E11. |
+| E03.3 | Document the extension procedure for a future RDF adapter, with Neptune as a future target. List required ports, configuration registration, capability declarations, and contract tests. Keep endpoint/authentication/transaction details inside adapters. | E02 ports and contract suite; no old Neptune adapter exists | TriG and Jena use the same services and contract suite. Documented extension points require no changes to application/domain logic; no Neptune implementation, placeholder adapter, SDK, credentials, or live tests are added. Neptune support remains unverified until a later adapter passes its own live gates. |
+| E03.4 | Run a shared vertical slice: import a tiny ontology, query it, publish evidence with a fact, export, reopen, and compare. | `GraphNames`, import/export helpers, store tests | Same application service and expected RDF meaning on TriG and Jena. |
 | E03.5 | Document adapter capability matrix, external-writer rules, operational setup, and backend switching. | New work | Changing config is sufficient for the slice; provider-specific code is absent from core. |
 
 ### E04 — Rebuild ontology creation, import, and vocabulary management
@@ -336,12 +336,12 @@ E03 is an early architectural proof, not a reason to wait for every cloud enviro
 
 **Goal:** finish the rebuild with demonstrated behavior and storage portability.  
 **Depends on:** E03–E10.  
-**Epic acceptance:** representative workflows pass on TriG, Jena, and Neptune; release can be installed and configured independently.
+**Epic acceptance:** representative workflows pass on TriG and Jena; release can be installed and configured independently.
 
 | Task | What to implement | Old sources to inspect/reuse | Acceptance |
 | --- | --- | --- | --- |
 | E11.1 | Build end-to-end acceptance suite: imported ontology, multi-window extraction, aliases/conflicts, SHACL failure, provenance, expected links, chat proposal, edit conflict, retry, and export. | Pipeline/connectivity/starter/edit/chat tests | Tests check public behavior and RDF meaning; no live model required for deterministic CI. |
-| E11.2 | Complete live remote adapter contract tests, especially Neptune publication/revision/authentication/retry behavior. Record supported versions/modes. | E03 work, new adapter suite | Unsupported or unverified configurations cannot be labeled supported; all advertised backends pass the release gate. |
+| E11.2 | Complete live Jena/Fuseki adapter contract tests for publication, revision, authentication where configured, and retry behavior. Record supported versions/modes. | E03 work, new adapter suite | All advertised backends pass their contract gates. Neptune is listed only as a future adapter target and is excluded from this release gate. |
 | E11.3 | Implement explicit legacy TriG/Turtle import and graph-role migration. Provide dry-run inventory, backup instructions, and integrity checks. | Existing dataset codecs, `ttl_to_trig.py`, legacy adapter behavior | Migration preserves intended graph meaning/evidence and explains intentional changes; existing data is never silently overwritten. |
 | E11.4 | Evaluate representative real documents with a user-supplied gold file; compare graph health/connectivity against baseline. Keep confidential data outside git. | Connectivity plan P0/P7; `eval/gold.example.json`, health metrics | Report actual quality/recall findings separately from unit-test pass counts; do not claim old pending evaluation was completed. |
 | E11.5 | Measure snapshot/query/publication cost and graph size limits; document current scaling envelope and targeted next improvements. | Old snapshot/publication flow as baseline | Large-graph bottlenecks are measured; no blanket promise of constant-memory ingestion or native inference parity. |
@@ -380,6 +380,8 @@ E03 is an early architectural proof, not a reason to wait for every cloud enviro
 - Code is readable by an intermediate Python developer: focused functions, explicit arguments, simple control flow, no unexplained generic machinery.
 
 ## 9. Deliberate first-release limits
+
+- Implement TriG and Jena/Fuseki storage only. Preserve a documented adapter boundary for future Neptune support; do not claim Neptune compatibility before a real adapter proves the required guarantees.
 
 - Begin with serialized application writes per dataset; retain revision guards for separate processes/clients.
 - Begin with detached snapshots for operations requiring full SHACL/identity scope, with documented size limits. Storage interchangeability and large-graph scalability are separate goals.
