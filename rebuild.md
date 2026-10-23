@@ -448,3 +448,12 @@ E03 proves storage interchangeability on TriG and Jena/Fuseki before feature arc
 Start with E00, E01, and E02. The first useful running slice is: configure storage → import a tiny named-graph dataset → read/query it → publish a revision-guarded change with evidence → export and reopen it. Prove that same slice on local TriG and Jena before rebuilding extraction.
 
 For each subsequent capability, build the shared use case first, then expose it through Python/CLI/HTTP. Add UI and skills once the operation contract is stable. Complete the behavior and adapter gates before claiming feature parity.
+
+### Independent-agent execution and progress
+
+- Read the new project's `AGENTS.md` and this specification before implementing. Start with E00–E02 and demonstrate the local storage slice; then prove the same slice on Jena/Fuseki in E03 before accepting feature architecture.
+- Maintain `docs/progress.md` as the durable handoff ledger. Record the current task, completed task IDs, relevant files/commits, commands and verification outcomes, decisions, blockers, and the next concrete step. Update it after each completed task and before handing off unfinished work.
+- Mark a task complete only when its acceptance condition has evidence. Distinguish passed checks, failed checks, and checks not run. Record unavailable dependencies explicitly and continue independent work where possible. Do not claim full completion while required checks remain pending.
+- Make routine implementation choices using this plan and the simplicity rule. Record them in the ledger or an ADR when architectural. Ask for clarification only when a material product decision is absent; do not expand scope to solve hypothetical future needs.
+- Implement E07's basic graph reading/chat independently of edit proposals. Complete E08's preview/apply mechanism before integrating E07.5 chat-generated edit proposals; a proposal always uses that shared preview contract.
+- At handoff, summarize implemented behavior, verification evidence, remaining tasks/blockers, and the next action. Keep enough context in repository files for a fresh agent to resume without this conversation.
