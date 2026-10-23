@@ -165,6 +165,36 @@ Use cases are callable synchronously. A job runner optionally wraps them for bac
 
 Documents, job records, chat sessions, prompt overrides, and pending previews are separate state concerns. A simple SQLite sidecar is a suitable initial adapter for durable application state; original document bytes can live in a source adapter. Store graph knowledge/evidence in RDF without forcing every operational record into RDF. Keep sidecar state coordinated by operation IDs; do not claim a distributed transaction across SQLite and the RDF store.
 
+### Preserve the existing graph-context token budgeting
+
+The reference implementation already selects relevant graph material, renders it compactly, and shrinks the context to the remaining prompt allowance. Adapt this mechanism rather than designing a replacement from scratch. Keep relevance selection, rendering, and token fitting separately callable and testable.
+
+Read these sources at the pinned code commit:
+
+- `task_context.py`: `build_task_context` / `select_task_context` select relevant schema, patterns, resources, and example assertions with deterministic priorities and bounded expansion.
+- `context_render.py`: `render_context_items`, `assembly_overhead`, `allowance`, and `prepare_prompt_context` render complete items, charge headings/separators, and apply the configured allowance.
+- `prompt_budget.py`: `context_allowance` computes remaining capacity; `fit_context_items` keeps priority-ordered complete items together with their required dependencies and reports omitted IDs, costs, used tokens, and counter identity.
+- `source_staging.py`: `layered_context_text` fits canonical and source-local context together under one shared allowance, marking earlier-window knowledge as `(this document)`.
+- `pipeline.py`: `budget_for`, `_fixed_blocks`, `_window_context`, and `_extract_window` integrate per-window source cost and fixed blocks into extraction. The core-schema setup in `run_text_to_graph` uses the whole schema when it fits its separate allowance and falls back to word-matched schema selection when it does not.
+- `graph_scope.py`: `Scope.render_for_model` provides the separate chat rendering path: compact prefixes/names, charge the header, and omit whole triples when its supplied budget runs out. `graph_chat.py` consumes this rendering. This path currently takes a supplied graph budget; it does not itself compute the full remaining model window.
+- Verification sources: `tests/test_prompt_budget.py`, `tests/test_context_render.py`, `tests/test_source_staging.py`, `tests/test_schema_context.py`, and the scope/rendering tests in `tests/test_graph_chat.py`.
+
+Preserve the extraction allowance calculation:
+
+```text
+remaining = max(0, total_limit - fixed_prompt_tokens - source_tokens
+                   - output_reserve - safety_margin)
+context_allowance = min(context_tokens, remaining)
+```
+
+Here `fixed_prompt_tokens` includes the extra cost charged for document headers, core schema, anchors, and same-folder hints. Charge rendering overhead before fitting items. When only an explicit context ceiling is configured, the reference renderer also accepts that mode; never silently invent missing budget values. Preserve whole-item/dependency fitting, deterministic selection, zero allowance producing empty optional context, and diagnostics showing what was omitted. Context shrinking does not mutate the stored graph or truncate the source document.
+
+The current default counter is `estimate_tokens`: `ceil(character_count / 3)`. It is an estimate, not a model tokenizer. Lower-level fitting/rendering functions accept an injected `count_tokens` callable, while the current extraction integration explicitly uses the estimator. The reference defaults are `total_limit=30000`, `context_tokens=1400`, `schema_tokens=3000`, base `fixed_prompt_tokens=400`, `output_reserve=4000`, and `safety_margin=500`. The total limit is configured, not discovered from a model name.
+
+In the rebuild, retain the estimator fallback and expose the counter through composition/configuration so a model tokenizer can be injected consistently into source sizing, fixed-block sizing, rendering, and fitting. Report which counter and limits were used. Preserve the existing full-schema/word-matched fallback behavior; exceeding the separate schema allowance is not by itself a reason to reject ingestion. Validation still uses the full configured vocabulary and shapes.
+
+As an explicit integration improvement, check the final assembled request against the configured input allowance using the selected counter, including customized prompts and fixed blocks. Shrink optional graph context first. If mandatory content still exceeds that allowance, return a structured budget error before the model call. This final-request check is a rebuild requirement, not a claim about a guarantee already provided by the reference implementation.
+
 ### Document identity and re-ingestion policy
 
 - A source occurrence has a stable identity within a dataset, separate from its content hash. For files, use a configured source collection ID plus normalized relative path; for supplied text, accept an explicit source key. Do not use a machine-specific absolute path as the portable identity.
@@ -268,7 +298,7 @@ E03 proves storage interchangeability on TriG and Jena/Fuseki before feature arc
 | --- | --- | --- | --- |
 | E05.1 | Introduce `SourceDocument` and source adapters for file/directory and supplied text. Separate content ID from source occurrence/path; preserve relative paths and title/heading hints. | `ingest_sources.py`, `windowing.make_source_document`, `Workspace._write_source`, `document_context.py` | Identical content at two paths retains both source occurrences without duplicating knowledge blindly. |
 | E05.2 | Adapt reproducible windowing and normalization as pure functions. Version the strategy. | `windowing.py`, `tests/test_windowing.py`, document fixtures | Unicode, CRLF, overlap, boundaries, oversized sentences, and document/window IDs remain tested. |
-| E05.3 | Rebuild context selection with separate authoritative schema budget and bounded canonical/source-local context. Preserve document anchors and optional same-folder hints. | `schema_context.py`, `task_context.py`, `source_concepts.py`, `context_render.py`, `document_context.py`, `prompt_budget.py` | Later windows retain document subject; schema constraints cannot be silently crowded out by instance examples. |
+| E05.3 | Adapt the existing selection/rendering/fitting flow described in "Preserve the existing graph-context token budgeting" above. Preserve the separate schema allowance and word-matched fallback, one shared canonical/source-local context allowance, anchors, and same-folder hints. Wire an injectable counter consistently and check the final assembled request. | `schema_context.py`, `task_context.py`, `source_concepts.py`, `context_render.py`, `document_context.py`, `prompt_budget.py`, `source_staging.layered_context_text`, `pipeline.budget_for/_window_context/_extract_window`; budgeting/rendering/staging/schema tests | Port tests proving long source shrinks context below its ceiling, exhausted allowance yields empty optional context, dependencies fit together, injected counters are honored, and dropped items are reported. Add coverage for fixed blocks, oversized-schema fallback, customized prompts, and mandatory-content overflow before a model call. Later windows retain document subject; full-vocabulary validation remains independent of prompt selection. |
 | E05.4 | Implement configured model adapters and prompt repository; adapt bounded repair separately from transport retries. Record model/config/prompt/schema digests. | `llm.py`, `prompts.py`, `source_parse.py`, `repair.py`, related tests | Fake extractor works through the same port; malformed output has bounded repair; timeouts and provider errors are structured. |
 | E05.5 | Adapt candidate normalization, endpoint validation, and candidate RDF/evidence construction. | `candidate_validation.py`, `candidate_graph.py`, candidate and endpoint tests | Candidate IRIs remain provisional; confidence is not treated as proof; invalid records have inspectable issues. |
 | E05.6 | Implement document-local working graph and window admission. Reuse selection/merge policies where useful without instantiating a persistent adapter in domain code. | `source_staging.py`, `_extract_window`, `_admit_window`, `_process_document` in `pipeline.py` | Each window sees staged earlier knowledge; accepted dataset is unchanged throughout preparation. |
